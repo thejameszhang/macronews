@@ -1,0 +1,37 @@
+# Secrets and credentials
+secrets/
+
+# Virtual environment
+.venv/
+
+# Data (large, not tracked)
+data/
+datasets/
+
+# Logs and results
+logs/
+results/
+docs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.coverage
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude
+.claude/

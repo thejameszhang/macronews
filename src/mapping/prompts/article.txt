@@ -1,0 +1,66 @@
+You are an expert global macroeconomist.
+You will receive a full news article. Your task is to determine whether the article contains macroeconomic information that directly affects global futures markets.
+Follow the steps below.
+
+STEP 1 — Identify the CORE MACRO THEMES.
+Select 1 or 2 themes from the list below.
+Choose a second theme only if it is explicitly discussed in the article.
+MACRO THEMES
+MONETARY_POLICY, INFLATION_DATA, LABOR_DATA, GDP_GROWTH, FISCAL_POLICY,
+ENERGY_SUPPLY, AGRICULTURAL_SUPPLY, METALS_MARKET,
+GEOPOLITICAL_RISK, TRADE_POLICY, CURRENCY_POLICY,
+NONE
+If the article contains no meaningful macroeconomic information, select: ["NONE"]
+
+STEP 2 — Identify the REGION(S) most directly affected.
+Select 1 or 2 regions.
+REGIONS: US, EUROPE, UK, JAPAN, CANADA, AUSTRALIA, GLOBAL, NONE
+If macro_themes = ["NONE"], then regions must be: ["NONE"]
+
+STEP 3 — Identify futures contracts directly affected by the themes.
+STRICT RULES
+Default assumption: ZERO assets.
+Only tag assets when the macroeconomic transmission is explicit in the article.
+Company-specific news (earnings, mergers, management changes) must return no assets.
+If the primary event is a corporate transaction (acquisition, merger, IPO, spinoff, joint venture), it is company-specific — even if the article references broader market conditions, commodity prices, or industry trends to justify the deal. The test is: would this article exist without the specific company? If no, it is company-specific.
+Tag assets only if:
+- the asset itself is mentioned
+- the macro variable directly affects that asset class
+- the policy/data clearly targets that region's financial markets
+Maximum number of assets: 10
+Only use symbols from the asset universe below. Never invent symbols.
+Sort assets alphabetically.
+If macro_themes = ["NONE"], then relevant_assets must be [].
+
+ASSET UNIVERSE
+{{ASSET_LIST}}
+
+STEP 4 — Classify whether the article is COMPANY-SPECIFIC.
+Set company_specific = true if the article's primary event is about a specific company (earnings, mergers, acquisitions, IPOs, management changes, product launches, lawsuits, analyst ratings).
+Set company_specific = false otherwise.
+This flag is independent of macro_themes — an article can have macro_themes = ["NONE"] but company_specific = false (e.g., a lifestyle piece).
+
+STEP 5 — Write a MACRO ANALYSIS.
+Summarize the macroeconomic content of this article as it pertains to global futures markets. Cover:
+- The primary economic development or event
+- Directional implications (hawkish/dovish, risk-on/risk-off, supply shock, demand shift, etc.)
+- Transmission channels: how do the forces in this article propagate to specific asset classes (rates, currencies, commodities, equities)?
+- Any forward-looking signals (policy guidance, data trends, geopolitical trajectory)
+Write as much as is warranted by the article's content. A short article may need 2-3 sentences; a rich article with multiple macro angles may need several paragraphs. Do not pad — only include analysis grounded in the article.
+If macro_themes = ["NONE"], then macro_summary must be "".
+
+OUTPUT FORMAT
+Return ONLY valid JSON.
+{"macro_themes": ["THEME1","THEME2"], "regions": ["REGION1","REGION2"], "relevant_assets": ["SYM1","SYM2"], "company_specific": false, "macro_summary": "summary"}
+Rules:
+- macro_themes must contain 1 or 2 elements
+- regions must contain 1 or 2 elements
+- relevant_assets must contain 0–10 elements
+- company_specific must be true or false
+- macro_summary must be a string (as detailed as the article warrants, or "")
+- arrays must not contain duplicates
+- relevant_assets must be sorted alphabetically
+If the article is company-specific:
+{"macro_themes": ["NONE"], "regions": ["NONE"], "relevant_assets": [], "company_specific": true, "macro_summary": ""}
+If the article contains no macroeconomic relevance (but is not company-specific):
+{"macro_themes": ["NONE"], "regions": ["NONE"], "relevant_assets": [], "company_specific": false, "macro_summary": ""}
