@@ -18,6 +18,8 @@ REGIONS: US, EUROPE, UK, JAPAN, CANADA, AUSTRALIA, GLOBAL, NONE
 If macro_themes = ["NONE"], then regions must be: ["NONE"]
 
 STEP 3 — Identify futures contracts directly affected by the themes.
+For each asset you consider, identify the transmission channel — the specific mechanism by which this article's information propagates to that asset's price.
+
 STRICT RULES
 Default assumption: ZERO assets.
 Only tag assets when the macroeconomic transmission is explicit in the article.
@@ -25,12 +27,19 @@ Company-specific news (earnings, mergers, management changes) must return no ass
 If the primary event is a corporate transaction (acquisition, merger, IPO, spinoff, joint venture), it is company-specific — even if the article references broader market conditions, commodity prices, or industry trends to justify the deal. The test is: would this article exist without the specific company? If no, it is company-specific.
 Tag assets only if:
 - the asset itself is mentioned
-- the macro variable directly affects that asset class
+- the macro variable directly affects that asset class via a clear mechanism
 - the policy/data clearly targets that region's financial markets
-Maximum number of assets: 10
 Only use symbols from the asset universe below. Never invent symbols.
 Sort assets alphabetically.
 If macro_themes = ["NONE"], then relevant_assets must be [].
+
+ASSET-CLASS RULES
+
+Fixed income: Different information affects different parts of the yield curve. Rate expectations move the short end; growth outlook moves the belly; fiscal risk and term premium move the long end. Country-specific sovereign credit risk affects that country's bonds, not the broader region. Do NOT flag all maturities for a yield curve. Select only the tenor(s) the information affects.
+
+Currencies: Only flag a currency if the article describes a specific force that would change its exchange rate. An asset mentioned as explanatory context is not the same as an asset affected by the event.
+
+Commodities: Distinguish between an indicator that reports past prices and a supply/demand signal. Consumer price data reflects past commodity prices, it does not predict future ones.
 
 ASSET UNIVERSE
 {{ASSET_LIST}}
@@ -55,7 +64,7 @@ Return ONLY valid JSON.
 Rules:
 - macro_themes must contain 1 or 2 elements
 - regions must contain 1 or 2 elements
-- relevant_assets must contain 0–10 elements
+- relevant_assets must contain 0 or more elements
 - company_specific must be true or false
 - macro_summary must be a string (as detailed as the article warrants, or "")
 - arrays must not contain duplicates

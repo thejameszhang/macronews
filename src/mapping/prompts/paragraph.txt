@@ -37,17 +37,27 @@ Select 1 or 2 regions.
 REGIONS: US, EUROPE, UK, JAPAN, CANADA, AUSTRALIA, GLOBAL, NONE
 If macro_themes = ["NONE"], then regions must be: ["NONE"]
 
-STEP 3 — Identify futures contracts directly affected by the themes.
+STEP 3 — Identify the TRANSMISSION CHANNEL before selecting assets.
+State the specific mechanism by which this paragraph's information propagates to asset prices. Ask: "What economic force is described, and which instruments sit on that channel?"
+
+CHANNEL RULES FOR SPECIFIC ASSET CLASSES
+
+Currencies: Only flag a currency if the text describes a specific force that would change its exchange rate. An asset mentioned to explain a concept is NOT the same as an asset affected by an event. Geographic mention alone is not sufficient.
+
+Fixed income: Different information affects different parts of the yield curve. Rate expectations move the short end; growth outlook moves the belly; fiscal risk and term premium move the long end. Country-specific sovereign credit risk affects that country's bonds, not the broader region. Do NOT flag all maturities for a yield curve. Select only the tenor(s) the information affects.
+
+Commodities: Distinguish between an economic indicator that reports past prices and a supply/demand signal that would move futures. Consumer price data reflects past commodity prices, it does not predict future ones. Only flag a commodity if the text describes a force acting on its supply or demand.
+
+STEP 4 — Select futures contracts that match the transmission channel.
 STRICT RULES
 Default assumption: ZERO assets.
-Only tag assets when the macroeconomic transmission is clear within the paragraph.
+Only tag assets whose prices are directly affected through the channel identified in Step 3.
 Avoid speculative inference chains.
 Tag assets only if:
 - the asset itself is mentioned
-- the macro variable directly affects that asset class
+- the macro variable directly affects that asset class via a stated mechanism
 - the policy or data clearly targets that region's financial markets
 Company-specific news (earnings, mergers, management changes) must return no assets.
-Maximum number of assets: 10
 Only use symbols from the asset universe below. Never invent symbols.
 Sort assets alphabetically.
 When uncertain, prefer returning fewer assets rather than more.
@@ -62,7 +72,7 @@ Return ONLY valid JSON.
 Rules:
 - macro_themes must contain 1 or 2 elements
 - regions must contain 1 or 2 elements
-- relevant_assets must contain 0–10 elements
+- relevant_assets must contain 0 or more elements
 - arrays must not contain duplicates
 - relevant_assets must be sorted alphabetically
 If the paragraph contains no macroeconomic relevance:
