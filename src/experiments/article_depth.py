@@ -27,7 +27,6 @@ logger = logging.getLogger(__name__)
 ARTICLE_PROMPT = (PROMPTS_DIR / "article.txt").read_text()
 PARAGRAPH_PROMPT = (PROMPTS_DIR / "paragraph.txt").read_text()
 VALIDATE_PROMPT = (PROMPTS_DIR / "validate.txt").read_text()
-VALIDATE_SUMMARY_PROMPT = (PROMPTS_DIR / "validate_summary.txt").read_text()
 
 # Asset symbol → human-readable name (for Stage 3 prompt)
 _ASSET_UNIVERSE = load_asset_universe()
@@ -254,22 +253,16 @@ def run_validation(
     article_results: list[MappingResult],
     para_details: list[list[tuple[int, MappingResult]]],
     final_union_results: list[MappingResult],
-    generate_summary: bool = False,
 ) -> list[dict]:
     """
     Stage 3: validate each (article, asset) pair and select text.
-
-    If generate_summary=True, the LLM generates a selected_text summary for
-    each valid pair (for downstream embedding). If False, selected_text is
-    constructed programmatically from evidence paragraphs + rationale.
 
     Returns list of dicts with keys:
         article_idx, asset, valid, source, evidence_paragraphs,
         rationale, selected_text
     """
-    logger.info("=== Stage 3: validation + text selection (generate_summary=%s) ===",
-                generate_summary)
-    mapper.system_prompt = VALIDATE_SUMMARY_PROMPT if generate_summary else VALIDATE_PROMPT
+    logger.info("=== Stage 3: validation + text selection ===")
+    mapper.system_prompt = VALIDATE_PROMPT
 
     # Build paragraph-to-asset index from Stage 2
     para_assets_by_article: list[dict[str, list[int]]] = []
@@ -320,10 +313,7 @@ def run_validation(
     logger.info("  %d (article, asset) pairs to validate", len(input_texts))
 
     # Batch validation call
-    max_tok = 512 if generate_summary else 256
-    validation_results = mapper.map_validate(
-        input_texts, max_tokens=max_tok, generate_summary=generate_summary,
-    )
+    validation_results = mapper.map_validate(input_texts, max_tokens=256)
 
     # Combine results
     output = []
@@ -336,10 +326,7 @@ def run_validation(
 
         selected_text = ""
         if vr.valid and evidence:
-            if generate_summary and hasattr(vr, "selected_text") and vr.selected_text:
-                selected_text = vr.selected_text
-            else:
-                selected_text = build_selected_text(paragraphs, evidence)
+            selected_text = build_selected_text(paragraphs, evidence)
 
         output.append({
             "article_idx": art_idx,
@@ -347,7 +334,7 @@ def run_validation(
             "valid": vr.valid,
             "source": task["source"],
             "evidence_paragraphs": evidence,
-            "rationale": vr.rationale if vr.valid else "",
+            "rationale": vr.rationale,
             "selected_text": selected_text,
         })
 
@@ -361,7 +348,6 @@ def run_validation(
 def run_three_stage(
     mapper: LLMMapper,
     articles: list[dict],
-    generate_summary: bool = False,
 ) -> tuple[list[MappingResult], list[MappingResult], list[list[tuple[int, MappingResult]]], list[dict]]:
     """
     Three-stage pipeline:
@@ -369,17 +355,12 @@ def run_three_stage(
       Stage 2: paragraph-level with [CONTEXT] macro_summary → assets
       Stage 3: validate each (article, asset) pair + select text
 
-    If generate_summary=True, Stage 3 asks the LLM to write a summary for
-    each valid pair (for downstream embedding). Otherwise, text is constructed
-    programmatically from evidence paragraphs + rationale.
-
     Returns (final_union_results, article_results, para_details, validation_output).
     """
     final_results, article_results, para_details = run_two_stage(mapper, articles)
 
     validation_output = run_validation(
         mapper, articles, article_results, para_details, final_results,
-        generate_summary=generate_summary,
     )
 
     return final_results, article_results, para_details, validation_output
@@ -526,44 +507,138 @@ def print_results(
         print(f"  {'AVG':<{id_w}} {'':<50} {total_final / len(articles):>6.1f}")
 
 
+def _asset_label(sym: str) -> str:
+    """Human-readable asset name for JSON output."""
+    return ASSET_NAMES.get(sym, sym)
+
+
 def save_final_results_json(
     articles: list[dict],
+    article_results: list[MappingResult],
+    para_details: list[list[tuple[int, MappingResult]]],
+    final_union_results: list[MappingResult],
     validation_output: list[dict],
     out_path: Path,
 ) -> None:
-    """Save the final validated mappings to a JSON file."""
-    # Group by article_idx
-    valid_mappings_by_article = {}
-    for v in validation_output:
-        if v["valid"]:
-            art_idx = v["article_idx"]
-            valid_mappings_by_article.setdefault(art_idx, []).append(v)
+    """Save full experiment results to a JSON file.
 
+    Includes Stage 1 metadata, Stage 2 per-asset paragraph evidence, all
+    (article, asset) pairs with accept/reject decisions, rejection rationales,
+    and per-article + aggregate false positive rates — so the output serves as
+    both the final mapping and an evaluation dataset for diagnosing mapper
+    weaknesses.
+    """
+    # Group validation results by article
+    validation_by_article: dict[int, list[dict]] = {}
+    for v in validation_output:
+        validation_by_article.setdefault(v["article_idx"], []).append(v)
+
+    # Build paragraph-level asset → paragraph indices per article
+    para_assets_by_article: list[dict[str, list[int]]] = []
+    for art_idx in range(len(articles)):
+        asset_paras: dict[str, list[int]] = {}
+        for para_idx, r in para_details[art_idx]:
+            for sym in r.relevant_assets:
+                asset_paras.setdefault(sym, []).append(para_idx)
+        para_assets_by_article.append(asset_paras)
+
+    total_accepted = 0
+    total_rejected = 0
     final_output = []
-    # Iterate through all input articles to ensure every one is represented
+
     for art_idx, art in enumerate(articles):
-        mappings = valid_mappings_by_article.get(art_idx, [])
-        
+        ar = article_results[art_idx]
+        validations = validation_by_article.get(art_idx, [])
+        s1_assets = set(ar.relevant_assets)
+        para_asset_map = para_assets_by_article[art_idx]
+
+        # Stage 3 pairs: accepted and rejected
+        accepted = []
+        rejected = []
+        referenced_paras: set[int] = set()
+        for v in validations:
+            evidence = v["evidence_paragraphs"]
+            # For rejected pairs, the validator returns [] by design.
+            # Backfill from Stage 2 paragraph mapping so diagnostics show
+            # which paragraphs the mapper originally proposed.
+            if not v["valid"] and not evidence:
+                evidence = para_asset_map.get(v["asset"], [])
+            entry = {
+                "asset": _asset_label(v["asset"]),
+                "source": v["source"],
+                "evidence_paragraphs": evidence,
+                "rationale": v.get("rationale", ""),
+            }
+            referenced_paras.update(evidence)
+            if v["valid"]:
+                accepted.append(entry)
+            else:
+                rejected.append(entry)
+
+        n_accepted = len(accepted)
+        n_rejected = len(rejected)
+        n_total = n_accepted + n_rejected
+        total_accepted += n_accepted
+        total_rejected += n_rejected
+
+        # Stage 2: per-asset paragraph evidence
+        stage2_detail = {}
+        for sym, paras in sorted(para_asset_map.items()):
+            stage2_detail[_asset_label(sym)] = paras
+            referenced_paras.update(paras)
+
+        # Paragraphs dict: only include paragraphs referenced by any stage
+        paragraphs = art["paragraphs"]
+        para_dict = {
+            str(i): paragraphs[i]
+            for i in sorted(referenced_paras)
+            if i < len(paragraphs)
+        }
+
         article_entry = {
             "article_id": art["id"],
             "headline": art["headline"],
             "url": art.get("url", ""),
-            "mappings": []
+            "false_positive_rate": round(n_rejected / n_total, 3) if n_total else 0.0,
+            "paragraphs": para_dict,
+            # Stage 1 metadata
+            "stage1": {
+                "macro_themes": ar.macro_themes,
+                "regions": ar.regions,
+                "relevant_assets": [_asset_label(s) for s in ar.relevant_assets],
+                "company_specific": ar.company_specific,
+                "macro_summary": ar.macro_summary,
+            },
+            # Stage 2: which paragraphs flagged each asset
+            "stage2": stage2_detail,
+            # Stage 3 results
+            "accepted": accepted,
+            "rejected": rejected,
         }
-        for m in mappings:
-            asset = m["asset"]
-            article_entry["mappings"].append({
-                "asset": asset,
-                "asset_name": ASSET_NAMES.get(asset, asset),
-                "rationale": m.get("rationale", ""),
-                "selected_text": m["selected_text"]
-            })
         final_output.append(article_entry)
+
+    # Aggregate stats
+    grand_total = total_accepted + total_rejected
+    aggregate = {
+        "total_articles": len(articles),
+        "total_accepted": total_accepted,
+        "total_rejected": total_rejected,
+        "total_pairs": grand_total,
+        "false_positive_rate": round(total_rejected / grand_total, 3) if grand_total else 0.0,
+        "company_specific_count": sum(
+            1 for ar in article_results if ar.company_specific
+        ),
+    }
+
+    output = {
+        "aggregate": aggregate,
+        "articles": final_output,
+    }
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(final_output, f, indent=2, ensure_ascii=False)
-    logger.info(f"Saved final results for {len(final_output)} articles to {out_path}")
+        json.dump(output, f, indent=2, ensure_ascii=False)
+    logger.info(f"Saved results for {len(final_output)} articles to {out_path}")
 
 
 # ---------------------------------------------------------------------------
@@ -576,7 +651,6 @@ def run_experiment(
     sample_dir: Path,
     output_json: Path | None = None,
     tensor_parallel_size: int = 1,
-    generate_summary: bool = False,
     dataset: str = "gold",
     max_articles: int | None = None,
 ) -> None:
@@ -589,12 +663,15 @@ def run_experiment(
     )
 
     final_results, article_results, para_details, validation_output = run_three_stage(
-        mapper, articles, generate_summary=generate_summary,
+        mapper, articles,
     )
     print_results(articles, final_results, article_results, para_details, validation_output)
     
     if output_json:
-        save_final_results_json(articles, validation_output, output_json)
+        save_final_results_json(
+            articles, article_results, para_details,
+            final_results, validation_output, output_json,
+        )
 
 
 def main():
@@ -613,11 +690,6 @@ def main():
     parser.add_argument(
         "--tensor-parallel-size", type=int, default=1,
         help="Number of GPUs for tensor parallelism (default: 1)",
-    )
-    parser.add_argument(
-        "--generate-summary", action="store_true",
-        help="Have the LLM generate selected_text summaries in Stage 3 "
-        "(default: construct programmatically from evidence + rationale)",
     )
     parser.add_argument(
         "--dataset", type=str, default="gold",
@@ -652,7 +724,6 @@ def main():
         sample_dir=Path(args.sample_dir),
         output_json=Path(args.output_json) if args.output_json else None,
         tensor_parallel_size=args.tensor_parallel_size,
-        generate_summary=args.generate_summary,
         dataset=args.dataset,
         max_articles=args.max_articles,
     )

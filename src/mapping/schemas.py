@@ -67,16 +67,6 @@ class ValidationResult(BaseModel):
     )
 
 
-class ValidationResultWithText(ValidationResult):
-    """Extended validation result that includes LLM-generated summary text."""
-
-    selected_text: str = Field(
-        default="",
-        description="2-4 sentence summary of how this article's content specifically affects "
-        "this asset's price. Written for downstream embedding. Empty if valid=false.",
-    )
-
-
 class MappingResult(BaseModel):
     macro_themes: list[str] = Field(
         default_factory=lambda: ["NONE"],

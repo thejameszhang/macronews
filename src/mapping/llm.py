@@ -12,7 +12,6 @@ from mapping.schemas import (
     REGIONS_SET,
     MappingResult,
     ValidationResult,
-    ValidationResultWithText,
 )
 
 logger = logging.getLogger(__name__)
@@ -315,18 +314,13 @@ class LLMMapper(BaseMapper):
         self,
         texts: list[str],
         max_tokens: int = 256,
-        generate_summary: bool = False,
     ) -> list[ValidationResult]:
-        """Stage 3 validation: returns ValidationResult objects via guided decoding.
-
-        If generate_summary=True, uses ValidationResultWithText schema so the LLM
-        also produces a selected_text summary for downstream embedding.
-        """
+        """Stage 3 validation: returns ValidationResult objects via guided decoding."""
         from vllm import SamplingParams
         from vllm.sampling_params import StructuredOutputsParams
         self._init_llm()
 
-        result_class = ValidationResultWithText if generate_summary else ValidationResult
+        result_class = ValidationResult
         schema = result_class.model_json_schema()
         sampling_params = SamplingParams(
             temperature=0.0,
@@ -335,8 +329,7 @@ class LLMMapper(BaseMapper):
         )
 
         conversations = [self._build_conversation(t) for t in texts]
-        logger.info(f"[vLLM] Validating {len(conversations):,} (article, asset) pairs "
-                     f"(generate_summary={generate_summary})...")
+        logger.info(f"[vLLM] Validating {len(conversations):,} (article, asset) pairs...")
         outputs = self._llm.chat(conversations, sampling_params)
 
         results = []

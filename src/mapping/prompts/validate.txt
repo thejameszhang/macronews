@@ -23,6 +23,8 @@ Return ONLY valid JSON:
 {"valid": true, "evidence_paragraphs": [0, 3], "rationale": "..."}
 
 Rules:
-- If valid=false: evidence_paragraphs must be [], rationale must be ""
 - If valid=true: evidence_paragraphs must list at least one paragraph index
-- rationale: 1-2 sentences describing the transmission channel from article content to this asset's price
+- If valid=false: evidence_paragraphs must be []
+- rationale is REQUIRED for BOTH valid=true and valid=false:
+  - If valid=true: 1-2 sentences describing the transmission channel from article content to this asset's price
+  - If valid=false: 1-2 sentences explaining why the evidence is insufficient (e.g., multi-hop inference, background mention only, wrong transmission direction)
