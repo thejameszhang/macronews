@@ -4,7 +4,7 @@ Your task is to determine whether the paragraph contains macroeconomic informati
 Classify the macroeconomic information contained in this paragraph only.
 
 ARTICLE CONTEXT
-The paragraph may be preceded by a [CONTEXT] block summarizing the full article's macro narrative. Use this context to distinguish background mentions from primary signals (e.g., energy prices cited as inflation inputs ≠ energy supply signal). Still classify based on what THIS paragraph contains — the context helps interpret, not replace. If no macro content, return NONE regardless of context.
+The paragraph may be preceded by a [CONTEXT] block describing the broader macro backdrop of the article. This tells you what is happening in the world so you can better interpret the paragraph. However, your asset tagging decisions must be based on what THIS paragraph says — the context is background, not a directive. Tag assets based on the paragraph's own content, even if they differ from the article's main topic.
 
 STEP 0 — Determine if the paragraph contains actionable macroeconomic information.
 If the paragraph only contains:
@@ -14,33 +14,13 @@ If the paragraph only contains:
 - speculative opinions
 - company-specific news
 then return:
-{"macro_themes": ["NONE"], "regions": ["NONE"], "relevant_assets": []}
-Only continue if the paragraph contains actual macroeconomic information such as:
-- economic data releases
-- central bank policy actions or guidance
-- fiscal policy changes
-- geopolitical developments affecting markets
-- commodity supply or demand shocks
+{"relevant_assets": []}
 
-STEP 1 — Identify the CORE MACRO THEMES.
-Select 1 or 2 themes from the list below.
-Choose a second theme only if it is clearly supported by the paragraph.
-MACRO THEMES
-MONETARY_POLICY, INFLATION_DATA, LABOR_DATA, GDP_GROWTH, FISCAL_POLICY,
-ENERGY_SUPPLY, AGRICULTURAL_SUPPLY, METALS_MARKET,
-GEOPOLITICAL_RISK, TRADE_POLICY, CURRENCY_POLICY,
-NONE
-If the paragraph does not contain enough information to determine a macro theme, return: ["NONE"]
+STEP 1 — Identify ALL TRANSMISSION CHANNELS.
+A single paragraph may contain multiple economic forces acting on different asset classes. Do not stop at the most obvious channel — consider all assets whose prices would be affected by the information described. If a policy targets a specific country, consider that country's currency and rates. If a supply shock affects a commodity, consider downstream commodities and importers.
+Your proposals will be reviewed by a downstream validator who will check whether the evidence supports each mapping. Generic macro truisms will be rejected — you must ground your reasoning in the paragraph's text.
 
-STEP 2 — Identify the REGION(S) most directly affected.
-Select 1 or 2 regions.
-REGIONS: US, EUROPE, UK, JAPAN, CANADA, AUSTRALIA, GLOBAL, NONE
-If macro_themes = ["NONE"], then regions must be: ["NONE"]
-
-STEP 3 — Identify the TRANSMISSION CHANNEL before selecting assets.
-State the specific mechanism by which this paragraph's information propagates to asset prices. Ask: "What economic force is described, and which instruments sit on that channel?"
-
-CHANNEL RULES FOR SPECIFIC ASSET CLASSES
+ASSET-CLASS RULES
 
 Currencies: Only flag a currency if the text describes a specific force that would change its exchange rate. An asset mentioned to explain a concept is NOT the same as an asset affected by an event. Geographic mention alone is not sufficient.
 
@@ -48,32 +28,28 @@ Fixed income: Different information affects different parts of the yield curve. 
 
 Commodities: Distinguish between an economic indicator that reports past prices and a supply/demand signal that would move futures. Consumer price data reflects past commodity prices, it does not predict future ones. Only flag a commodity if the text describes a force acting on its supply or demand.
 
-STEP 4 — Select futures contracts that match the transmission channel.
-STRICT RULES
+STEP 2 — Select futures contracts and build your case.
+For each asset you tag, build a case grounded in the paragraph's text:
+- Quote or cite the specific phrase(s) or data point(s) from the paragraph that trigger the mapping.
+- State the transmission channel: what economic force is described, and how does it propagate to this asset's price?
+- If the chain has multiple steps, spell them out clearly.
+
+RULES
 Default assumption: ZERO assets.
-Only tag assets whose prices are directly affected through the channel identified in Step 3.
-Avoid speculative inference chains.
-Tag assets only if:
-- the asset itself is mentioned
-- the macro variable directly affects that asset class via a stated mechanism
-- the policy or data clearly targets that region's financial markets
+Tag an asset only if you can articulate a transmission channel from the paragraph's content to that asset's price. The asset does not need to be mentioned by name — what matters is that the economic force described has a clear pathway to the asset.
 Company-specific news (earnings, mergers, management changes) must return no assets.
 Only use symbols from the asset universe below. Never invent symbols.
-Sort assets alphabetically.
-When uncertain, prefer returning fewer assets rather than more.
-If macro_themes = ["NONE"], then relevant_assets must be [].
+Sort assets alphabetically by symbol.
 
 ASSET UNIVERSE
 {{ASSET_LIST}}
 
 OUTPUT FORMAT
 Return ONLY valid JSON.
-{"macro_themes": ["THEME1","THEME2"], "regions": ["REGION1","REGION2"], "relevant_assets": ["SYM1","SYM2"]}
+{"relevant_assets": [{"asset": "SYM1", "reasoning": "evidence-grounded transmission channel"}, {"asset": "SYM2", "reasoning": "evidence-grounded transmission channel"}]}
 Rules:
-- macro_themes must contain 1 or 2 elements
-- regions must contain 1 or 2 elements
-- relevant_assets must contain 0 or more elements
+- relevant_assets: each entry must have "asset" (symbol) and "reasoning" (evidence-grounded transmission channel citing specific text from the paragraph)
 - arrays must not contain duplicates
-- relevant_assets must be sorted alphabetically
+- relevant_assets must be sorted alphabetically by asset symbol
 If the paragraph contains no macroeconomic relevance:
-{"macro_themes": ["NONE"], "regions": ["NONE"], "relevant_assets": []}
+{"relevant_assets": []}

@@ -33,7 +33,7 @@ def save_mappings(
             "article_id": row["article_id"],
             "effective_date": row["effective_date"],
             "headline": row["headline"],
-            "relevant_assets": r.relevant_assets,
+            "relevant_assets": r.asset_symbols,
             "n_relevant": len(r.relevant_assets),
         })
 

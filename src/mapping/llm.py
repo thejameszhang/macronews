@@ -7,9 +7,8 @@ from config.paths import PROMPTS_DIR
 from mapping.base import BaseMapper
 from mapping.schemas import (
     ASSET_SYMBOLS_SET,
-    MACRO_THEMES_SET,
+    AssetMapping,
     NAME_TO_SYMBOL,
-    REGIONS_SET,
     MappingResult,
     ValidationResult,
 )
@@ -257,40 +256,38 @@ class LLMMapper(BaseMapper):
         if not isinstance(data, dict):
             return MappingResult(), 0
 
-        # Parse macro_themes
-        raw_themes = data.get("macro_themes", ["NONE"])
-        if not isinstance(raw_themes, list):
-            raw_themes = ["NONE"]
-        themes = [t for t in raw_themes if isinstance(t, str) and t.strip() in MACRO_THEMES_SET]
-        if not themes:
-            themes = ["NONE"]
-
-        # Parse regions
-        raw_regions = data.get("regions", ["NONE"])
-        if not isinstance(raw_regions, list):
-            raw_regions = ["NONE"]
-        regions = [r for r in raw_regions if isinstance(r, str) and r.strip() in REGIONS_SET]
-        if not regions:
-            regions = ["NONE"]
-
-        # Parse relevant_assets
+        # Parse relevant_assets (supports both list[str] and list[dict])
         raw_assets = data.get("relevant_assets", [])
         if not isinstance(raw_assets, list):
-            return MappingResult(macro_themes=themes, regions=regions), 0
+            return MappingResult(), 0
 
-        valid = []
+        valid: list[AssetMapping] = []
+        seen: set[str] = set()
         n_dropped = 0
         for item in raw_assets:
-            if not isinstance(item, str):
-                n_dropped += 1
-                continue
-            item_stripped = item.strip()
-            if item_stripped in ASSET_SYMBOLS_SET:
-                valid.append(item_stripped)
-            elif item_stripped.lower() in NAME_TO_SYMBOL:
-                valid.append(NAME_TO_SYMBOL[item_stripped.lower()])
+            # Extract symbol and reasoning from either format
+            if isinstance(item, dict):
+                sym_raw = item.get("asset", "")
+                reasoning = item.get("reasoning", "") or item.get("rationale", "")
+            elif isinstance(item, str):
+                sym_raw = item
+                reasoning = ""
             else:
                 n_dropped += 1
+                continue
+
+            sym_stripped = sym_raw.strip() if isinstance(sym_raw, str) else ""
+            if sym_stripped in ASSET_SYMBOLS_SET:
+                sym = sym_stripped
+            elif sym_stripped.lower() in NAME_TO_SYMBOL:
+                sym = NAME_TO_SYMBOL[sym_stripped.lower()]
+            else:
+                n_dropped += 1
+                continue
+
+            if sym not in seen:
+                valid.append(AssetMapping(asset=sym, reasoning=reasoning))
+                seen.add(sym)
 
         # Parse company_specific (optional, only from article-level)
         company_specific = data.get("company_specific", False)
@@ -302,7 +299,7 @@ class LLMMapper(BaseMapper):
         if not isinstance(macro_summary, str):
             macro_summary = ""
 
-        return MappingResult(macro_themes=themes, regions=regions, relevant_assets=valid,
+        return MappingResult(relevant_assets=valid,
                              company_specific=company_specific, macro_summary=macro_summary), n_dropped
 
     def map(self, headlines: list[str], schema_class=None, max_tokens: int = 256,

@@ -40,47 +40,42 @@ NAME_TO_SYMBOL.update({
     "kospi": "A01"
 })
 
-MACRO_THEMES = [
-    "MONETARY_POLICY", "INFLATION_DATA", "LABOR_DATA", "GDP_GROWTH",
-    "FISCAL_POLICY", "ENERGY_SUPPLY", "AGRICULTURAL_SUPPLY", "METALS_MARKET",
-    "GEOPOLITICAL_RISK", "TRADE_POLICY", "CURRENCY_POLICY", "NONE",
-]
-MACRO_THEMES_SET = set(MACRO_THEMES)
 
-REGIONS = ["US", "EUROPE", "UK", "JAPAN", "CANADA", "AUSTRALIA", "GLOBAL", "NONE"]
-REGIONS_SET = set(REGIONS)
+
+class AssetMapping(BaseModel):
+    """A single asset tagged by a mapper, with its transmission channel reasoning."""
+    asset: str = Field(
+        description="Futures symbol from the asset universe.",
+    )
+    reasoning: str = Field(
+        default="",
+        description="Evidence-grounded reasoning: quote or cite the specific "
+        "text that triggers this mapping, then explain the transmission "
+        "channel to this asset's price. Spell out multi-step chains.",
+    )
 
 
 class ValidationResult(BaseModel):
     valid: bool = Field(
-        description="True if the asset's relevance is grounded in specific textual evidence.",
+        description="True if you agree the asset is directly affected via "
+        "a first-order transmission channel.",
     )
     evidence_paragraphs: list[int] = Field(
         default_factory=list,
-        description="0-indexed paragraph indices containing the grounding evidence. "
-        "Empty if valid=false.",
+        description="Paragraph indices containing the strongest evidence. "
+        "Required regardless of valid=true/false.",
     )
-    rationale: str = Field(
+    reasoning: str = Field(
         default="",
-        description="1-2 sentence explanation of the transmission channel "
-        "from the article's content to this specific asset. Empty if valid=false.",
+        description="If valid=true: the transmission channel you agree with. "
+        "If valid=false: why the mappers' reasoning is flawed.",
     )
 
 
 class MappingResult(BaseModel):
-    macro_themes: list[str] = Field(
-        default_factory=lambda: ["NONE"],
-        description="1 or 2 macro themes from the allowed set. "
-        "Use ['NONE'] if no macroeconomic relevance.",
-    )
-    regions: list[str] = Field(
-        default_factory=lambda: ["NONE"],
-        description="1 or 2 regions from the allowed set. "
-        "Use ['NONE'] if macro_themes is ['NONE'].",
-    )
-    relevant_assets: list[str] = Field(
+    relevant_assets: list[AssetMapping] = Field(
         default_factory=list,
-        description="List of asset symbols this article is relevant to. "
+        description="Assets with per-asset transmission channel reasoning. "
         "Empty list if no assets are relevant.",
     )
     company_specific: bool = Field(
@@ -95,5 +90,10 @@ class MappingResult(BaseModel):
         "Empty string if macro_themes is ['NONE']. "
         "Only populated by article-level v2 prompt.",
     )
+
+    @property
+    def asset_symbols(self) -> list[str]:
+        """Extract just the symbol strings for downstream code."""
+        return [a.asset for a in self.relevant_assets]
 
 
