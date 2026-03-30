@@ -15,7 +15,7 @@ from pathlib import Path
 from config.paths import PROMPTS_DIR, DEFAULT_MODEL
 from experiments.loaders import load_gold_articles, load_sports_articles, load_wikigaming_articles
 from mapping.llm import LLMMapper
-from mapping.schemas import MappingResult, ValidationResult
+from mapping.schemas import AssetMapping, MappingResult, ValidationResult
 from utils.config import load_asset_universe
 
 logger = logging.getLogger(__name__)
@@ -63,10 +63,6 @@ def load_articles(
         raise ValueError(f"Unknown dataset: {dataset!r}")
 
 
-def _fmt_assets(assets: set[str] | list[str]) -> str:
-    s = sorted(assets) if isinstance(assets, set) else list(assets)
-    return ",".join(s) if s else "[]"
-
 
 # ---------------------------------------------------------------------------
 # Run functions
@@ -79,7 +75,7 @@ def run_article_level(
     logger.info("=== Stage 1: article-level (%d calls) ===", len(articles))
     mapper.system_prompt = ARTICLE_PROMPT
     texts = ["\n\n".join(a["paragraphs"]) for a in articles]
-    return mapper.map(texts, max_tokens=1024, guided=False)
+    return mapper.map(texts, max_tokens=1536, guided=False)
 
 
 def run_paragraph_level(
@@ -112,27 +108,26 @@ def run_paragraph_level(
             all_paras.append((art_idx, para_idx, text))
 
     logger.info("  %d total paragraphs across %d articles", len(all_paras), len(articles))
-    para_raw = mapper.map([text for _, _, text in all_paras])
+    para_raw = mapper.map([text for _, _, text in all_paras], max_tokens=1024)
 
     # Re-group by article
     para_by_article: dict[int, list[tuple[int, MappingResult]]] = {}
     for (art_idx, para_idx, _), result in zip(all_paras, para_raw):
         para_by_article.setdefault(art_idx, []).append((para_idx, result))
 
-    # Aggregate: union of assets across paragraphs
+    # Aggregate: unique asset symbols across paragraphs
+    # Reasoning is not carried here — the validator builds its own
+    # per-paragraph reasoning lookup from `details`.
     union_results: list[MappingResult] = []
     details: list[list[tuple[int, MappingResult]]] = []
     for art_idx in range(len(articles)):
         art_details = para_by_article.get(art_idx, [])
         details.append(art_details)
         seen: set[str] = set()
-        union: list[str] = []
         for _, r in art_details:
-            for sym in r.relevant_assets:
-                if sym not in seen:
-                    union.append(sym)
-                    seen.add(sym)
-        union_results.append(MappingResult(relevant_assets=sorted(union)))
+            seen.update(am.asset for am in r.relevant_assets)
+        union = [AssetMapping(asset=s) for s in sorted(seen)]
+        union_results.append(MappingResult(relevant_assets=union))
 
     return union_results, details
 
@@ -175,19 +170,17 @@ def run_two_stage(
     for art_idx in range(len(articles)):
         if art_idx in company_specific_indices:
             final_results.append(MappingResult(
-                macro_themes=article_results[art_idx].macro_themes,
-                regions=article_results[art_idx].regions,
                 relevant_assets=[],
                 company_specific=True,
                 macro_summary="",
             ))
             continue
-        art_assets = set(article_results[art_idx].relevant_assets)
-        para_assets = set(para_results[art_idx].relevant_assets)
-        union = sorted(art_assets | para_assets)
+        # Merge AssetMappings by symbol, preferring ArticleMapper reasoning
+        art_mappings = {am.asset: am for am in article_results[art_idx].relevant_assets}
+        para_mappings = {am.asset: am for am in para_results[art_idx].relevant_assets}
+        all_syms = sorted(set(art_mappings) | set(para_mappings))
+        union = [art_mappings[s] if s in art_mappings else para_mappings[s] for s in all_syms]
         final_results.append(MappingResult(
-            macro_themes=article_results[art_idx].macro_themes,
-            regions=article_results[art_idx].regions,
             relevant_assets=union,
             company_specific=False,
             macro_summary=article_results[art_idx].macro_summary,
@@ -203,31 +196,54 @@ def run_two_stage(
 def _build_validation_input(
     article: dict,
     asset: str,
-    macro_summary: str,
-    para_indices: list[int] | None,
+    article_reasoning: str | None,
+    paragraph_reasonings: list[tuple[int, str]],
 ) -> str:
-    """Build the user message for a Stage 3 validation call."""
+    """Build the user message for a validation call.
+
+    The validator always receives the full article so it can reason across
+    paragraphs — finding corroborating or contradicting evidence beyond
+    what the mappers flagged.
+    """
     parts = []
 
-    # Context block
-    if macro_summary:
-        parts.append(f"[CONTEXT]\n{macro_summary}\n[/CONTEXT]")
-
-    # Paragraphs block
-    parts.append("[PARAGRAPHS]")
-    if para_indices is not None:
-        for idx in para_indices:
-            if idx < len(article["paragraphs"]):
-                parts.append(f"[{idx}] {article['paragraphs'][idx]}")
-    else:
-        # Case 2: full article (no specific paragraphs identified)
-        for idx, para in enumerate(article["paragraphs"]):
-            parts.append(f"[{idx}] {para}")
-    parts.append("[/PARAGRAPHS]")
+    parts.append("[ARTICLE]")
+    for idx, para in enumerate(article["paragraphs"]):
+        parts.append(f"[{idx}] {para}")
+    parts.append("[/ARTICLE]")
 
     # Asset
     asset_name = ASSET_NAMES.get(asset, asset)
     parts.append(f"\n[ASSET] {asset} ({asset_name})")
+
+    # Mapper reasoning
+    parts.append("\n[MAPPER REASONING]")
+    if article_reasoning:
+        parts.append(
+            f"ArticleMapper (read the entire article): {article_reasoning}"
+        )
+    else:
+        parts.append(
+            "ArticleMapper (read the entire article): did not flag this asset."
+        )
+
+    if paragraph_reasonings:
+        for para_idx, reasoning in paragraph_reasonings:
+            if reasoning:
+                parts.append(
+                    f"ParagraphMapper (paragraph [{para_idx}]): {reasoning}"
+                )
+            else:
+                parts.append(
+                    f"ParagraphMapper (paragraph [{para_idx}]): flagged this "
+                    "asset but provided no reasoning."
+                )
+    else:
+        parts.append(
+            "ParagraphMapper (reviewed individual paragraphs): "
+            "did not flag this asset."
+        )
+    parts.append("[/MAPPER REASONING]")
 
     return "\n".join(parts)
 
@@ -238,7 +254,7 @@ def build_selected_text(
 ) -> str:
     """Construct the text to embed for a validated (article, asset) pair.
 
-    Only includes the raw evidence paragraphs — no LLM-generated rationale.
+    Only includes the raw evidence paragraphs — no LLM-generated reasoning.
     Direction should come from the downstream ridge regression, not from
     the LLM's interpretation baked into the embedding input.
     """
@@ -259,45 +275,53 @@ def run_validation(
 
     Returns list of dicts with keys:
         article_idx, asset, valid, source, evidence_paragraphs,
-        rationale, selected_text
+        reasoning, selected_text
     """
     logger.info("=== Stage 3: validation + text selection ===")
     mapper.system_prompt = VALIDATE_PROMPT
 
-    # Build paragraph-to-asset index from Stage 2
-    para_assets_by_article: list[dict[str, list[int]]] = []
+    # Build ArticleMapper reasoning lookup: art_idx -> {symbol: reasoning}
+    s1_reasonings: list[dict[str, str]] = []
+    for ar in article_results:
+        s1_reasonings.append({am.asset: am.reasoning for am in ar.relevant_assets})
+
+    # Build ParagraphMapper reasoning + paragraph index lookup:
+    # art_idx -> {symbol: [(para_idx, reasoning), ...]}
+    s2_reasonings: list[dict[str, list[tuple[int, str]]]] = []
     for art_idx in range(len(articles)):
-        asset_paras: dict[str, list[int]] = {}
+        asset_para_reasonings: dict[str, list[tuple[int, str]]] = {}
         for para_idx, r in para_details[art_idx]:
-            for sym in r.relevant_assets:
-                asset_paras.setdefault(sym, []).append(para_idx)
-        para_assets_by_article.append(asset_paras)
+            for am in r.relevant_assets:
+                asset_para_reasonings.setdefault(am.asset, []).append(
+                    (para_idx, am.reasoning)
+                )
+        s2_reasonings.append(asset_para_reasonings)
 
     # Enumerate all (article, asset) pairs and classify cases
     tasks: list[dict] = []
     input_texts: list[str] = []
 
     for art_idx, final_r in enumerate(final_union_results):
-        art_assets = set(article_results[art_idx].relevant_assets)
-        para_asset_map = para_assets_by_article[art_idx]
-        macro_summary = article_results[art_idx].macro_summary
+        art_syms = set(s1_reasonings[art_idx])
+        para_syms = set(s2_reasonings[art_idx])
 
-        for asset in final_r.relevant_assets:
-            in_article = asset in art_assets
-            in_paragraph = asset in para_asset_map
+        for am in final_r.relevant_assets:
+            asset = am.asset
+            in_article = asset in art_syms
+            in_paragraph = asset in para_syms
 
             if in_article and in_paragraph:
                 source = "both"
-                para_indices = para_asset_map[asset]
-            elif in_article and not in_paragraph:
+            elif in_article:
                 source = "article_only"
-                para_indices = None  # full article
             else:
                 source = "paragraph_only"
-                para_indices = para_asset_map.get(asset, [])
 
             text = _build_validation_input(
-                articles[art_idx], asset, macro_summary, para_indices,
+                articles[art_idx],
+                asset,
+                article_reasoning=s1_reasonings[art_idx].get(asset),
+                paragraph_reasonings=s2_reasonings[art_idx].get(asset, []),
             )
             tasks.append({
                 "article_idx": art_idx,
@@ -334,7 +358,7 @@ def run_validation(
             "valid": vr.valid,
             "source": task["source"],
             "evidence_paragraphs": evidence,
-            "rationale": vr.rationale,
+            "reasoning": vr.reasoning,
             "selected_text": selected_text,
         })
 
@@ -366,146 +390,6 @@ def run_three_stage(
     return final_results, article_results, para_details, validation_output
 
 
-# ---------------------------------------------------------------------------
-# Output tables
-# ---------------------------------------------------------------------------
-
-def print_results(
-    articles: list[dict],
-    final_results: list[MappingResult],
-    article_results: list[MappingResult],
-    para_details: list[list[tuple[int, MappingResult]]],
-    validation_output: list[dict] | None = None,
-) -> None:
-    """Print results tables."""
-
-    # Dynamic ID width — truncate long IDs for readability
-    id_w = max(10, min(40, max(len(a["id"]) for a in articles) + 2))
-
-    def _aid(a: dict) -> str:
-        """Article ID, truncated if needed."""
-        aid = a["id"]
-        return aid[:id_w - 2] + ".." if len(aid) > id_w else aid
-
-    # --- Table 1: Article-level output ---
-    print(f"\n{'=' * (id_w + 145)}")
-    print("TABLE 1: Article-Level Output (Stage 1)")
-    print("=" * (id_w + 145))
-    print(f"  {'ID':<{id_w}} {'Themes':<35} {'Regions':<20} {'Assets':<25} {'Co.Spec':<8} {'Summary':<50}")
-    print("  " + "-" * (id_w + 138))
-    for i, a in enumerate(articles):
-        r = article_results[i]
-        themes = ",".join(r.macro_themes)
-        regions = ",".join(r.regions)
-        assets = ",".join(r.relevant_assets) if r.relevant_assets else "[]"
-        co_spec = "YES" if r.company_specific else ""
-        summary = r.macro_summary[:50] if r.macro_summary else ""
-        print(f"  {_aid(a):<{id_w}} {themes:<35} {regions:<20} {assets:<25} {co_spec:<8} {summary:<50}")
-
-    # --- Table 2: Final results (union) ---
-    print(f"\n{'=' * (id_w + 60)}")
-    print("TABLE 2: Final Results (Stage 1 + Stage 2 Union)")
-    print("=" * (id_w + 60))
-    print(f"  {'ID':<{id_w}} {'Assets':<50} {'Count':>6}")
-    print("  " + "-" * (id_w + 56))
-    total = 0
-    for i, a in enumerate(articles):
-        assets = _fmt_assets(final_results[i].relevant_assets)
-        n = len(final_results[i].relevant_assets)
-        total += n
-        print(f"  {_aid(a):<{id_w}} {assets:<50} {n:>6}")
-    print(f"  {'TOTAL':<{id_w}} {'':<50} {total:>6}")
-    print(f"  {'AVG':<{id_w}} {'':<50} {total / len(articles):>6.1f}")
-
-    # --- Table 3: Stage 1 vs Stage 2 differences ---
-    print(f"\n{'=' * (id_w + 65)}")
-    print("TABLE 3: Stage 1 (article) vs Stage 2 (paragraph) Differences")
-    print("=" * (id_w + 65))
-    print(f"  {'ID':<{id_w}} {'Only in Stage 1':<30} {'Only in Stage 2':<30}")
-    print("  " + "-" * (id_w + 60))
-    for i, a in enumerate(articles):
-        s1 = set(article_results[i].relevant_assets)
-        s2_union: set[str] = set()
-        for _, r in para_details[i]:
-            s2_union.update(r.relevant_assets)
-        only_s1 = s1 - s2_union
-        only_s2 = s2_union - s1
-        if only_s1 or only_s2:
-            print(f"  {_aid(a):<{id_w}} {_fmt_assets(only_s1):<30} {_fmt_assets(only_s2):<30}")
-
-    # --- Table 4: Paragraph drill-down ---
-    print(f"\n{'=' * 120}")
-    print("TABLE 4: Paragraph Drill-Down (Stage 2)")
-    print("=" * 120)
-    for i, a in enumerate(articles):
-        has_any = any(r.relevant_assets for _, r in para_details[i])
-        if not has_any:
-            continue
-        print(f"\n  --- {_aid(a)}: {a['headline'][:70]} ---")
-        print(f"  {'Para':<6} {'Themes':<30} {'Regions':<15} {'Assets':<20} {'Text':<50}")
-        print("  " + "-" * 121)
-        for para_idx, result in para_details[i]:
-            if not result.relevant_assets:
-                continue
-            para_text = a["paragraphs"][para_idx][:50]
-            themes = ",".join(result.macro_themes)
-            regions = ",".join(result.regions)
-            assets = ",".join(result.relevant_assets)
-            print(f"  {para_idx:<6} {themes:<30} {regions:<15} {assets:<20} {para_text:<50}")
-
-    # --- Table 5: Macro summaries ---
-    if any(r.macro_summary for r in article_results):
-        print(f"\n{'=' * 130}")
-        print("TABLE 5: Macro Summaries (Stage 1)")
-        print("=" * 130)
-        for i, a in enumerate(articles):
-            r = article_results[i]
-            if r.macro_summary:
-                print(f"\n  {_aid(a)}: {r.macro_summary}")
-            else:
-                print(f"\n  {_aid(a)}: (no macro content)")
-
-    # --- Table 6: Validation results (Stage 3) ---
-    if validation_output:
-        print(f"\n{'=' * (id_w + 130)}")
-        print("TABLE 6: Validation Results (Stage 3)")
-        print("=" * (id_w + 130))
-        print(f"  {'ID':<{id_w}} {'Asset':<8} {'Valid':<7} {'Source':<16} {'Evidence':<12} {'Rationale':<80}")
-        print("  " + "-" * (id_w + 123))
-        for v in validation_output:
-            aid = _aid(articles[v["article_idx"]])
-            valid_str = "YES" if v["valid"] else "NO"
-            evidence = ",".join(str(i) for i in v["evidence_paragraphs"]) if v["evidence_paragraphs"] else "[]"
-            rationale = v["rationale"][:80] if v["rationale"] else ""
-            print(f"  {aid:<{id_w}} {v['asset']:<8} {valid_str:<7} {v['source']:<16} {evidence:<12} {rationale}")
-
-        # Summary
-        n_valid = sum(1 for v in validation_output if v["valid"])
-        n_total = len(validation_output)
-        print(f"\n  Stage 3 summary: {n_valid}/{n_total} pairs validated "
-              f"({n_total - n_valid} rejected)")
-
-        # Validated asset list per article
-        print(f"\n{'=' * (id_w + 65)}")
-        print("TABLE 7: Final Validated Assets (after Stage 3)")
-        print("=" * (id_w + 65))
-        print(f"  {'ID':<{id_w}} {'Assets':<50} {'Count':>6}  {'Pruned':>6}")
-        print("  " + "-" * (id_w + 63))
-        total_final = 0
-        total_pruned = 0
-        for i, a in enumerate(articles):
-            pre_assets = set(final_results[i].relevant_assets)
-            post_assets = {v["asset"] for v in validation_output
-                          if v["article_idx"] == i and v["valid"]}
-            pruned = pre_assets - post_assets
-            assets_str = _fmt_assets(post_assets)
-            total_final += len(post_assets)
-            total_pruned += len(pruned)
-            pruned_str = _fmt_assets(pruned) if pruned else ""
-            print(f"  {_aid(a):<{id_w}} {assets_str:<50} {len(post_assets):>6}  {pruned_str}")
-        print(f"  {'TOTAL':<{id_w}} {'':<50} {total_final:>6}  ({total_pruned} pruned)")
-        print(f"  {'AVG':<{id_w}} {'':<50} {total_final / len(articles):>6.1f}")
-
 
 def _asset_label(sym: str) -> str:
     """Human-readable asset name for JSON output."""
@@ -523,7 +407,7 @@ def save_final_results_json(
     """Save full experiment results to a JSON file.
 
     Includes Stage 1 metadata, Stage 2 per-asset paragraph evidence, all
-    (article, asset) pairs with accept/reject decisions, rejection rationales,
+    (article, asset) pairs with accept/reject decisions, rejection reasoning,
     and per-article + aggregate false positive rates — so the output serves as
     both the final mapping and an evaluation dataset for diagnosing mapper
     weaknesses.
@@ -533,13 +417,24 @@ def save_final_results_json(
     for v in validation_output:
         validation_by_article.setdefault(v["article_idx"], []).append(v)
 
-    # Build paragraph-level asset → paragraph indices per article
+    # Build ArticleMapper reasoning lookup per article
+    s1_reasoning_by_article: list[dict[str, str]] = []
+    for ar in article_results:
+        s1_reasoning_by_article.append({am.asset: am.reasoning for am in ar.relevant_assets})
+
+    # Build ParagraphMapper reasoning + paragraph lookup per article
+    s2_by_article: list[dict[str, list[tuple[int, str]]]] = []
     para_assets_by_article: list[dict[str, list[int]]] = []
     for art_idx in range(len(articles)):
+        asset_para_reasonings: dict[str, list[tuple[int, str]]] = {}
         asset_paras: dict[str, list[int]] = {}
         for para_idx, r in para_details[art_idx]:
-            for sym in r.relevant_assets:
-                asset_paras.setdefault(sym, []).append(para_idx)
+            for am in r.relevant_assets:
+                asset_para_reasonings.setdefault(am.asset, []).append(
+                    (para_idx, am.reasoning)
+                )
+                asset_paras.setdefault(am.asset, []).append(para_idx)
+        s2_by_article.append(asset_para_reasonings)
         para_assets_by_article.append(asset_paras)
 
     total_accepted = 0
@@ -549,7 +444,8 @@ def save_final_results_json(
     for art_idx, art in enumerate(articles):
         ar = article_results[art_idx]
         validations = validation_by_article.get(art_idx, [])
-        s1_assets = set(ar.relevant_assets)
+        s1_reas = s1_reasoning_by_article[art_idx]
+        s2_reas = s2_by_article[art_idx]
         para_asset_map = para_assets_by_article[art_idx]
 
         # Stage 3 pairs: accepted and rejected
@@ -558,16 +454,25 @@ def save_final_results_json(
         referenced_paras: set[int] = set()
         for v in validations:
             evidence = v["evidence_paragraphs"]
-            # For rejected pairs, the validator returns [] by design.
-            # Backfill from Stage 2 paragraph mapping so diagnostics show
-            # which paragraphs the mapper originally proposed.
-            if not v["valid"] and not evidence:
+            # Backfill from Stage 2 if validator returned empty evidence
+            if not evidence:
                 evidence = para_asset_map.get(v["asset"], [])
+            # Collect mapper reasoning for diagnostics
+            s1_r = s1_reas.get(v["asset"], "")
+            s2_entries = s2_reas.get(v["asset"], [])
+            s2_r_list = [
+                {"paragraph": idx, "reasoning": r}
+                for idx, r in s2_entries if r
+            ]
             entry = {
                 "asset": _asset_label(v["asset"]),
                 "source": v["source"],
                 "evidence_paragraphs": evidence,
-                "rationale": v.get("rationale", ""),
+                "mapper_reasoning": {
+                    "article_mapper": s1_r,
+                    "paragraph_mapper": s2_r_list,
+                },
+                "validator_reasoning": v.get("reasoning", ""),
             }
             referenced_paras.update(evidence)
             if v["valid"]:
@@ -581,10 +486,8 @@ def save_final_results_json(
         total_accepted += n_accepted
         total_rejected += n_rejected
 
-        # Stage 2: per-asset paragraph evidence
-        stage2_detail = {}
-        for sym, paras in sorted(para_asset_map.items()):
-            stage2_detail[_asset_label(sym)] = paras
+        # Collect all referenced paragraphs from accepted/rejected entries
+        for sym, paras in para_asset_map.items():
             referenced_paras.update(paras)
 
         # Paragraphs dict: only include paragraphs referenced by any stage
@@ -599,19 +502,10 @@ def save_final_results_json(
             "article_id": art["id"],
             "headline": art["headline"],
             "url": art.get("url", ""),
+            "company_specific": ar.company_specific,
+            "macro_summary": ar.macro_summary,
             "false_positive_rate": round(n_rejected / n_total, 3) if n_total else 0.0,
             "paragraphs": para_dict,
-            # Stage 1 metadata
-            "stage1": {
-                "macro_themes": ar.macro_themes,
-                "regions": ar.regions,
-                "relevant_assets": [_asset_label(s) for s in ar.relevant_assets],
-                "company_specific": ar.company_specific,
-                "macro_summary": ar.macro_summary,
-            },
-            # Stage 2: which paragraphs flagged each asset
-            "stage2": stage2_detail,
-            # Stage 3 results
             "accepted": accepted,
             "rejected": rejected,
         }
@@ -619,6 +513,52 @@ def save_final_results_json(
 
     # Aggregate stats
     grand_total = total_accepted + total_rejected
+
+    # Per-asset-class and per-source breakdowns
+    ac_accepted: dict[str, int] = {}
+    ac_rejected: dict[str, int] = {}
+    src_accepted: dict[str, int] = {}
+    src_rejected: dict[str, int] = {}
+
+    for v in validation_output:
+        sym = v["asset"]
+        ac = _ASSET_UNIVERSE.get(sym, {}).get("asset_class", "unknown")
+        source = v["source"]
+        if v["valid"]:
+            ac_accepted[ac] = ac_accepted.get(ac, 0) + 1
+            src_accepted[source] = src_accepted.get(source, 0) + 1
+        else:
+            ac_rejected[ac] = ac_rejected.get(ac, 0) + 1
+            src_rejected[source] = src_rejected.get(source, 0) + 1
+
+    # Asset class breakdown with per-class FPR
+    all_classes = sorted(set(ac_accepted) | set(ac_rejected))
+    by_asset_class = {}
+    for ac in all_classes:
+        a = ac_accepted.get(ac, 0)
+        r = ac_rejected.get(ac, 0)
+        t = a + r
+        by_asset_class[ac] = {
+            "accepted": a,
+            "rejected": r,
+            "total": t,
+            "false_positive_rate": round(r / t, 3) if t else 0.0,
+        }
+
+    # Source breakdown with acceptance rate
+    all_sources = sorted(set(src_accepted) | set(src_rejected))
+    by_source = {}
+    for src in all_sources:
+        a = src_accepted.get(src, 0)
+        r = src_rejected.get(src, 0)
+        t = a + r
+        by_source[src] = {
+            "accepted": a,
+            "rejected": r,
+            "total": t,
+            "acceptance_rate": round(a / t, 3) if t else 0.0,
+        }
+
     aggregate = {
         "total_articles": len(articles),
         "total_accepted": total_accepted,
@@ -628,6 +568,8 @@ def save_final_results_json(
         "company_specific_count": sum(
             1 for ar in article_results if ar.company_specific
         ),
+        "by_asset_class": by_asset_class,
+        "by_source": by_source,
     }
 
     output = {
@@ -665,8 +607,6 @@ def run_experiment(
     final_results, article_results, para_details, validation_output = run_three_stage(
         mapper, articles,
     )
-    print_results(articles, final_results, article_results, para_details, validation_output)
-    
     if output_json:
         save_final_results_json(
             articles, article_results, para_details,
