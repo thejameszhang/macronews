@@ -47,6 +47,12 @@ class AssetMapping(BaseModel):
     asset: str = Field(
         description="Futures symbol from the asset universe.",
     )
+    signal: str = Field(
+        default="strong",
+        description='Signal strength: "strong" (direct transmission channel, '
+        'few reasoning steps) or "weak" (indirect but plausible, requires '
+        'a longer chain of reasoning). Both are valuable for asset pricing.',
+    )
     reasoning: str = Field(
         default="",
         description="Evidence-grounded reasoning: quote or cite the specific "
@@ -57,8 +63,14 @@ class AssetMapping(BaseModel):
 
 class ValidationResult(BaseModel):
     valid: bool = Field(
-        description="True if you agree the asset is directly affected via "
-        "a first-order transmission channel.",
+        description="True if you agree the asset is affected via "
+        "the described transmission channel.",
+    )
+    signal: str = Field(
+        default="strong",
+        description='Your final determination of signal strength: "strong" '
+        '(direct channel) or "weak" (indirect but plausible). You may '
+        'upgrade or downgrade the mappers\' proposed signal.',
     )
     evidence_paragraphs: list[int] = Field(
         default_factory=list,

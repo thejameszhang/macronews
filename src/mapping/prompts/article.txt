@@ -18,8 +18,13 @@ Before identifying specific assets, analyze all macroeconomic content in this ar
 Write as much as is warranted by the article's content. A short article may need 2-3 sentences; a rich article with multiple macro angles may need several paragraphs. Do not pad — only include analysis grounded in the article.
 If no macro content, macro_summary must be "".
 
-STEP 3 — Identify ALL futures contracts affected by the article.
-Drawing on your analysis above, identify every asset with a transmission channel from the article's content. Do not stop at the most obvious assets — consider all channels you identified in your macro analysis. If a policy targets a specific country, consider that country's currency and rates. If a supply shock affects a commodity, consider downstream commodities and importers.
+STEP 3 — Identify ALL futures contracts affected by the article and classify signal strength.
+Drawing on your analysis above, cast a wide net: identify every asset with a transmission channel from the article's content. Use signal strength to express your confidence rather than omitting assets you are less sure about.
+- strong: a direct transmission channel requiring few reasoning steps.
+- weak: the asset is affected, but the transmission channel is subtler and requires more reasoning steps. The signal is real — it captures niche or secondary effects that still move markets and are valuable for asset pricing.
+
+Do not stop at the most obvious assets — consider all channels you identified in your macro analysis. If a policy targets a specific country, consider that country's currency and rates. If a supply shock affects a commodity, consider downstream commodities and importers. Tag these as weak if the chain is longer.
+
 For each asset you tag, build a case grounded in the article's text. Your proposal will be reviewed by a downstream validator who will check whether the evidence supports the mapping. A generic macro truism is not sufficient — the validator will reject it.
 
 For each reasoning:
@@ -47,9 +52,9 @@ ASSET UNIVERSE
 
 OUTPUT FORMAT
 Return ONLY valid JSON.
-{"relevant_assets": [{"asset": "SYM1", "reasoning": "evidence-grounded transmission channel"}, {"asset": "SYM2", "reasoning": "evidence-grounded transmission channel"}], "company_specific": false, "macro_summary": "summary"}
+{"relevant_assets": [{"asset": "SYM1", "signal": "strong", "reasoning": "evidence-grounded transmission channel"}, {"asset": "SYM2", "signal": "weak", "reasoning": "evidence-grounded transmission channel"}], "company_specific": false, "macro_summary": "summary"}
 Rules:
-- relevant_assets: each entry must have "asset" (symbol) and "reasoning" (evidence-grounded transmission channel citing specific text from the article)
+- relevant_assets: each entry must have "asset" (symbol), "signal" ("strong" or "weak"), and "reasoning" (evidence-grounded transmission channel citing specific text from the article)
 - company_specific must be true or false
 - macro_summary must be a string (as detailed as the article warrants, or "")
 - arrays must not contain duplicates

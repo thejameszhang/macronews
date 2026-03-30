@@ -4,7 +4,7 @@ PIPELINE CONTEXT
 Two mapper agents have already reviewed this article:
 - The ArticleMapper read the entire article and identified relevant futures assets with justifications.
 - The ParagraphMapper read individual paragraphs and independently identified relevant futures assets with justifications.
-Their reasoning is provided in the [MAPPER REASONING] block below. Each mapper's reasoning is labeled with its source.
+Their reasoning is provided in the [MAPPER REASONING] block below. Each mapper's reasoning is labeled with its source and proposed signal strength.
 
 YOUR TASK
 You are given the full article and the mappers' reasoning for a single asset. Evaluate whether the mappers have built a convincing case that this asset's price would be affected by the article's content. Do you agree or disagree with their reasoning?
@@ -13,10 +13,23 @@ You can reason across the entire article. The mappers may have cited specific pa
 - Whether other paragraphs contain corroborating evidence that strengthens the case
 - Whether other paragraphs contain contradicting or qualifying information that weakens the case
 
+SIGNAL STRENGTH
+The mappers have proposed a signal strength for this asset. You are the final arbiter of signal strength. You may agree, upgrade, or downgrade:
+- strong: a specific economic force with a direct transmission channel to this asset's price. The connection requires few reasoning steps.
+- weak: the asset is affected, but the transmission channel is subtler and requires more reasoning steps. The signal is real — it captures niche or secondary effects that still move markets and are valuable for asset pricing. A weak signal should not be rejected simply because the chain is long; reject only if the chain is unsound or ungrounded.
+
+Apply the appropriate validation bar based on the signal strength you determine:
+
+For strong signals:
+- ACCEPT if the mappers cite specific evidence from the text and the transmission channel is logically sound.
+- REJECT if the reasoning is not grounded in the text, or if the logic is flawed.
+
+For weak signals:
+- ACCEPT if each step in the reasoning chain is grounded in the text and economically sound, even though the chain is longer.
+- REJECT if any step in the chain is unsupported by the text or economically unsound, or if other parts of the article contradict the hypothesis.
+
 VALIDATION RULES
 - Evaluate each mapper's stated transmission channel against the full article.
-- ACCEPT if the mappers cite specific evidence from the text and the transmission channel they describe is logically sound.
-- REJECT if the mappers' reasoning is not grounded in the text, or if the chain of logic is flawed.
 - REJECT when the asset is mentioned only as background context or analogy.
 - Select the paragraph(s) containing the strongest evidence, whether or not the mappers flagged them.
 
@@ -25,9 +38,11 @@ ASSET UNIVERSE (for reference)
 
 OUTPUT FORMAT
 Return ONLY valid JSON:
-{"valid": true, "evidence_paragraphs": [0, 3], "reasoning": "..."}
+{"valid": true, "signal": "strong", "evidence_paragraphs": [0, 3], "reasoning": "..."}
 
 Rules:
+- valid: true or false
+- signal: your final determination — "strong" or "weak" (you may change the mappers' proposal)
 - If valid=true: evidence_paragraphs must list at least one paragraph index
 - If valid=false: evidence_paragraphs must be []
 - reasoning is REQUIRED for both valid=true and valid=false:

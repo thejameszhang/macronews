@@ -265,12 +265,16 @@ class LLMMapper(BaseMapper):
         seen: set[str] = set()
         n_dropped = 0
         for item in raw_assets:
-            # Extract symbol and reasoning from either format
+            # Extract symbol, signal, and reasoning from either format
             if isinstance(item, dict):
                 sym_raw = item.get("asset", "")
+                signal = item.get("signal", "strong")
+                if signal not in ("strong", "weak"):
+                    signal = "strong"
                 reasoning = item.get("reasoning", "") or item.get("rationale", "")
             elif isinstance(item, str):
                 sym_raw = item
+                signal = "strong"
                 reasoning = ""
             else:
                 n_dropped += 1
@@ -286,7 +290,7 @@ class LLMMapper(BaseMapper):
                 continue
 
             if sym not in seen:
-                valid.append(AssetMapping(asset=sym, reasoning=reasoning))
+                valid.append(AssetMapping(asset=sym, signal=signal, reasoning=reasoning))
                 seen.add(sym)
 
         # Parse company_specific (optional, only from article-level)

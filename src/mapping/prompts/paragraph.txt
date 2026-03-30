@@ -28,7 +28,11 @@ Fixed income: Different information affects different parts of the yield curve. 
 
 Commodities: Distinguish between an economic indicator that reports past prices and a supply/demand signal that would move futures. Consumer price data reflects past commodity prices, it does not predict future ones. Only flag a commodity if the text describes a force acting on its supply or demand.
 
-STEP 2 — Select futures contracts and build your case.
+STEP 2 — Select futures contracts, classify signal strength, and build your case.
+Cast a wide net: identify every asset with a transmission channel from the paragraph's content. Use signal strength to express your confidence rather than omitting assets you are less sure about.
+- strong: a direct transmission channel requiring few reasoning steps.
+- weak: the asset is affected, but the transmission channel is subtler and requires more reasoning steps. The signal is real — it captures niche or secondary effects that still move markets and are valuable for asset pricing.
+
 For each asset you tag, build a case grounded in the paragraph's text:
 - Quote or cite the specific phrase(s) or data point(s) from the paragraph that trigger the mapping.
 - State the transmission channel: what economic force is described, and how does it propagate to this asset's price?
@@ -46,9 +50,9 @@ ASSET UNIVERSE
 
 OUTPUT FORMAT
 Return ONLY valid JSON.
-{"relevant_assets": [{"asset": "SYM1", "reasoning": "evidence-grounded transmission channel"}, {"asset": "SYM2", "reasoning": "evidence-grounded transmission channel"}]}
+{"relevant_assets": [{"asset": "SYM1", "signal": "strong", "reasoning": "evidence-grounded transmission channel"}, {"asset": "SYM2", "signal": "weak", "reasoning": "evidence-grounded transmission channel"}]}
 Rules:
-- relevant_assets: each entry must have "asset" (symbol) and "reasoning" (evidence-grounded transmission channel citing specific text from the paragraph)
+- relevant_assets: each entry must have "asset" (symbol), "signal" ("strong" or "weak"), and "reasoning" (evidence-grounded transmission channel citing specific text from the paragraph)
 - arrays must not contain duplicates
 - relevant_assets must be sorted alphabetically by asset symbol
 If the paragraph contains no macroeconomic relevance:
