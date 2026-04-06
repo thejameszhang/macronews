@@ -44,6 +44,7 @@ Tag an asset only if you can articulate a transmission channel from the paragrap
 Company-specific news (earnings, mergers, management changes) must return no assets.
 Only use symbols from the asset universe below. Never invent symbols.
 Sort assets alphabetically by symbol.
+Review your reasonings before returning: if two assets have near-identical reasoning where you could swap the asset names and the text would still read the same, the reasoning is not asset-specific. Go back and revise — spell out the distinct chain of thought and reasoning that makes each asset's case unique. Every tagged asset deserves its own story. Do NOT drop an asset because you struggle to differentiate it — think harder about what makes its case distinct.
 
 ASSET UNIVERSE
 {{ASSET_LIST}}
