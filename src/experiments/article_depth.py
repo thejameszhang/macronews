@@ -196,8 +196,8 @@ def run_two_stage(
 def _build_validation_input(
     article: dict,
     asset: str,
-    article_reasoning: str | None,
-    paragraph_reasonings: list[tuple[int, str]],
+    article_mapping: AssetMapping | None,
+    paragraph_mappings: list[tuple[int, AssetMapping]],
 ) -> str:
     """Build the user message for a validation call.
 
@@ -216,27 +216,29 @@ def _build_validation_input(
     asset_name = ASSET_NAMES.get(asset, asset)
     parts.append(f"\n[ASSET] {asset} ({asset_name})")
 
-    # Mapper reasoning
+    # Mapper reasoning (includes signal strength)
     parts.append("\n[MAPPER REASONING]")
-    if article_reasoning:
+    if article_mapping:
         parts.append(
-            f"ArticleMapper (read the entire article): {article_reasoning}"
+            f"ArticleMapper (read the entire article, signal={article_mapping.signal}): "
+            f"{article_mapping.reasoning}"
         )
     else:
         parts.append(
             "ArticleMapper (read the entire article): did not flag this asset."
         )
 
-    if paragraph_reasonings:
-        for para_idx, reasoning in paragraph_reasonings:
-            if reasoning:
+    if paragraph_mappings:
+        for para_idx, pm in paragraph_mappings:
+            if pm.reasoning:
                 parts.append(
-                    f"ParagraphMapper (paragraph [{para_idx}]): {reasoning}"
+                    f"ParagraphMapper (paragraph [{para_idx}], signal={pm.signal}): "
+                    f"{pm.reasoning}"
                 )
             else:
                 parts.append(
-                    f"ParagraphMapper (paragraph [{para_idx}]): flagged this "
-                    "asset but provided no reasoning."
+                    f"ParagraphMapper (paragraph [{para_idx}], signal={pm.signal}): "
+                    "flagged this asset but provided no reasoning."
                 )
     else:
         parts.append(
@@ -280,30 +282,30 @@ def run_validation(
     logger.info("=== Stage 3: validation + text selection ===")
     mapper.system_prompt = VALIDATE_PROMPT
 
-    # Build ArticleMapper reasoning lookup: art_idx -> {symbol: reasoning}
-    s1_reasonings: list[dict[str, str]] = []
+    # Build ArticleMapper mapping lookup: art_idx -> {symbol: AssetMapping}
+    s1_mappings: list[dict[str, AssetMapping]] = []
     for ar in article_results:
-        s1_reasonings.append({am.asset: am.reasoning for am in ar.relevant_assets})
+        s1_mappings.append({am.asset: am for am in ar.relevant_assets})
 
-    # Build ParagraphMapper reasoning + paragraph index lookup:
-    # art_idx -> {symbol: [(para_idx, reasoning), ...]}
-    s2_reasonings: list[dict[str, list[tuple[int, str]]]] = []
+    # Build ParagraphMapper mapping + paragraph index lookup:
+    # art_idx -> {symbol: [(para_idx, AssetMapping), ...]}
+    s2_mappings: list[dict[str, list[tuple[int, AssetMapping]]]] = []
     for art_idx in range(len(articles)):
-        asset_para_reasonings: dict[str, list[tuple[int, str]]] = {}
+        asset_para_mappings: dict[str, list[tuple[int, AssetMapping]]] = {}
         for para_idx, r in para_details[art_idx]:
             for am in r.relevant_assets:
-                asset_para_reasonings.setdefault(am.asset, []).append(
-                    (para_idx, am.reasoning)
+                asset_para_mappings.setdefault(am.asset, []).append(
+                    (para_idx, am)
                 )
-        s2_reasonings.append(asset_para_reasonings)
+        s2_mappings.append(asset_para_mappings)
 
     # Enumerate all (article, asset) pairs and classify cases
     tasks: list[dict] = []
     input_texts: list[str] = []
 
     for art_idx, final_r in enumerate(final_union_results):
-        art_syms = set(s1_reasonings[art_idx])
-        para_syms = set(s2_reasonings[art_idx])
+        art_syms = set(s1_mappings[art_idx])
+        para_syms = set(s2_mappings[art_idx])
 
         for am in final_r.relevant_assets:
             asset = am.asset
@@ -320,8 +322,8 @@ def run_validation(
             text = _build_validation_input(
                 articles[art_idx],
                 asset,
-                article_reasoning=s1_reasonings[art_idx].get(asset),
-                paragraph_reasonings=s2_reasonings[art_idx].get(asset, []),
+                article_mapping=s1_mappings[art_idx].get(asset),
+                paragraph_mappings=s2_mappings[art_idx].get(asset, []),
             )
             tasks.append({
                 "article_idx": art_idx,
@@ -337,7 +339,7 @@ def run_validation(
     logger.info("  %d (article, asset) pairs to validate", len(input_texts))
 
     # Batch validation call
-    validation_results = mapper.map_validate(input_texts, max_tokens=256)
+    validation_results = mapper.map_validate(input_texts, max_tokens=512)
 
     # Combine results
     output = []
@@ -356,6 +358,7 @@ def run_validation(
             "article_idx": art_idx,
             "asset": task["asset"],
             "valid": vr.valid,
+            "signal": vr.signal,
             "source": task["source"],
             "evidence_paragraphs": evidence,
             "reasoning": vr.reasoning,
@@ -417,24 +420,24 @@ def save_final_results_json(
     for v in validation_output:
         validation_by_article.setdefault(v["article_idx"], []).append(v)
 
-    # Build ArticleMapper reasoning lookup per article
-    s1_reasoning_by_article: list[dict[str, str]] = []
+    # Build ArticleMapper mapping lookup per article
+    s1_by_article: list[dict[str, AssetMapping]] = []
     for ar in article_results:
-        s1_reasoning_by_article.append({am.asset: am.reasoning for am in ar.relevant_assets})
+        s1_by_article.append({am.asset: am for am in ar.relevant_assets})
 
-    # Build ParagraphMapper reasoning + paragraph lookup per article
-    s2_by_article: list[dict[str, list[tuple[int, str]]]] = []
+    # Build ParagraphMapper mapping + paragraph lookup per article
+    s2_by_article: list[dict[str, list[tuple[int, AssetMapping]]]] = []
     para_assets_by_article: list[dict[str, list[int]]] = []
     for art_idx in range(len(articles)):
-        asset_para_reasonings: dict[str, list[tuple[int, str]]] = {}
+        asset_para_mappings: dict[str, list[tuple[int, AssetMapping]]] = {}
         asset_paras: dict[str, list[int]] = {}
         for para_idx, r in para_details[art_idx]:
             for am in r.relevant_assets:
-                asset_para_reasonings.setdefault(am.asset, []).append(
-                    (para_idx, am.reasoning)
+                asset_para_mappings.setdefault(am.asset, []).append(
+                    (para_idx, am)
                 )
                 asset_paras.setdefault(am.asset, []).append(para_idx)
-        s2_by_article.append(asset_para_reasonings)
+        s2_by_article.append(asset_para_mappings)
         para_assets_by_article.append(asset_paras)
 
     total_accepted = 0
@@ -444,8 +447,8 @@ def save_final_results_json(
     for art_idx, art in enumerate(articles):
         ar = article_results[art_idx]
         validations = validation_by_article.get(art_idx, [])
-        s1_reas = s1_reasoning_by_article[art_idx]
-        s2_reas = s2_by_article[art_idx]
+        s1_map = s1_by_article[art_idx]
+        s2_map = s2_by_article[art_idx]
         para_asset_map = para_assets_by_article[art_idx]
 
         # Stage 3 pairs: accepted and rejected
@@ -458,18 +461,21 @@ def save_final_results_json(
             if not evidence:
                 evidence = para_asset_map.get(v["asset"], [])
             # Collect mapper reasoning for diagnostics
-            s1_r = s1_reas.get(v["asset"], "")
-            s2_entries = s2_reas.get(v["asset"], [])
+            s1_am = s1_map.get(v["asset"])
+            s1_r = s1_am.reasoning if s1_am else ""
+            s1_signal = s1_am.signal if s1_am else ""
+            s2_entries = s2_map.get(v["asset"], [])
             s2_r_list = [
-                {"paragraph": idx, "reasoning": r}
-                for idx, r in s2_entries if r
+                {"paragraph": idx, "signal": am.signal, "reasoning": am.reasoning}
+                for idx, am in s2_entries if am.reasoning
             ]
             entry = {
                 "asset": _asset_label(v["asset"]),
+                "signal": v.get("signal", "strong"),
                 "source": v["source"],
                 "evidence_paragraphs": evidence,
                 "mapper_reasoning": {
-                    "article_mapper": s1_r,
+                    "article_mapper": {"signal": s1_signal, "reasoning": s1_r} if s1_am else "",
                     "paragraph_mapper": s2_r_list,
                 },
                 "validator_reasoning": v.get("reasoning", ""),
@@ -505,6 +511,8 @@ def save_final_results_json(
             "company_specific": ar.company_specific,
             "macro_summary": ar.macro_summary,
             "false_positive_rate": round(n_rejected / n_total, 3) if n_total else 0.0,
+            "accepted_assets": [e["asset"] for e in accepted],
+            "rejected_assets": [e["asset"] for e in rejected],
             "paragraphs": para_dict,
             "accepted": accepted,
             "rejected": rejected,
@@ -514,22 +522,56 @@ def save_final_results_json(
     # Aggregate stats
     grand_total = total_accepted + total_rejected
 
-    # Per-asset-class and per-source breakdowns
+    # Per-asset-class, per-source, and per-mapper-signal breakdowns
     ac_accepted: dict[str, int] = {}
     ac_rejected: dict[str, int] = {}
     src_accepted: dict[str, int] = {}
     src_rejected: dict[str, int] = {}
 
+    # Mapper signal tracking: marginal and joint
+    # Keys: "am_strong", "am_weak", "pm_strong", "pm_weak",
+    #        "am_strong_pm_strong", "am_strong_pm_weak",
+    #        "am_weak_pm_strong", "am_weak_pm_weak"
+    sig_accepted: dict[str, int] = {}
+    sig_rejected: dict[str, int] = {}
+
     for v in validation_output:
         sym = v["asset"]
+        art_idx = v["article_idx"]
         ac = _ASSET_UNIVERSE.get(sym, {}).get("asset_class", "unknown")
         source = v["source"]
+
+        # Look up mapper signals
+        am_mapping = s1_by_article[art_idx].get(sym)
+        pm_entries = s2_by_article[art_idx].get(sym, [])
+
+        am_sig = am_mapping.signal if am_mapping else None
+        # PM signal = max (strong if any paragraph says strong)
+        pm_sig = None
+        if pm_entries:
+            pm_sig = "strong" if any(am.signal == "strong" for _, am in pm_entries) else "weak"
+
+        bucket = sig_accepted if v["valid"] else sig_rejected
+
         if v["valid"]:
             ac_accepted[ac] = ac_accepted.get(ac, 0) + 1
             src_accepted[source] = src_accepted.get(source, 0) + 1
         else:
             ac_rejected[ac] = ac_rejected.get(ac, 0) + 1
             src_rejected[source] = src_rejected.get(source, 0) + 1
+
+        # Marginal stats
+        if am_sig:
+            key = f"am_{am_sig}"
+            bucket[key] = bucket.get(key, 0) + 1
+        if pm_sig:
+            key = f"pm_{pm_sig}"
+            bucket[key] = bucket.get(key, 0) + 1
+
+        # Joint stats (only when both mappers tagged)
+        if am_sig and pm_sig:
+            key = f"am_{am_sig}_pm_{pm_sig}"
+            bucket[key] = bucket.get(key, 0) + 1
 
     # Asset class breakdown with per-class FPR
     all_classes = sorted(set(ac_accepted) | set(ac_rejected))
@@ -570,6 +612,17 @@ def save_final_results_json(
         ),
         "by_asset_class": by_asset_class,
         "by_source": by_source,
+        "by_mapper_signal": {
+            key: {
+                "accepted": sig_accepted.get(key, 0),
+                "rejected": sig_rejected.get(key, 0),
+                "total": sig_accepted.get(key, 0) + sig_rejected.get(key, 0),
+                "acceptance_rate": round(
+                    sig_accepted.get(key, 0) / (sig_accepted.get(key, 0) + sig_rejected.get(key, 0)), 3
+                ) if (sig_accepted.get(key, 0) + sig_rejected.get(key, 0)) else 0.0,
+            }
+            for key in sorted(set(sig_accepted) | set(sig_rejected))
+        },
     }
 
     output = {
