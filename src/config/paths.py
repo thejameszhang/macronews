@@ -38,4 +38,4 @@ ASSET_UNIVERSE_REPR_YAML = CONFIG_DIR / "asset_universe_repr.yaml"
 PROMPTS_DIR = ROOT / "src" / "mapping" / "prompts"
 
 # Default model
-DEFAULT_MODEL = Path.home() / "models" / "Qwen2.5-72B-Instruct-AWQ"
+DEFAULT_MODEL = Path.home() / "models" / "gemma-4-31b-it"

@@ -14,12 +14,12 @@ set -euo pipefail
 cd /gpfs/home/jyz32/macronews
 mkdir -p logs
 
-MODEL_PATH="$HOME/models/Qwen2.5-72B-Instruct-AWQ"
+MODEL_PATH="$HOME/models/gemma-4-31b-it"
 EXTRA_ARGS="${*}"
 
 if [ ! -d "$MODEL_PATH" ]; then
     echo "ERROR: Model not found at $MODEL_PATH"
-    echo "Download with: huggingface-cli download Qwen/Qwen2.5-72B-Instruct-AWQ --local-dir $MODEL_PATH"
+    echo "Download with: huggingface-cli download google/gemma-4-31b-it --local-dir $MODEL_PATH"
     exit 1
 fi
 
@@ -35,7 +35,7 @@ jobid=$(sbatch --parsable \
     --gres=gpu:1 \
     --nodelist=c014,c015,c016,c017,c022 \
     --wrap="cd /gpfs/home/jyz32/macronews && source .venv/bin/activate && \
-PYTHONPATH=src uv run python src/experiments/article_depth.py --model ${MODEL_PATH} --max-model-len 8192 ${EXTRA_ARGS}")
+PYTHONPATH=src python src/experiments/article_depth.py --model ${MODEL_PATH} --max-model-len 8192 ${EXTRA_ARGS}")
 
 echo "Submitted article_depth experiment → job ${jobid}"
 echo "Monitor with: squeue -u $USER"
