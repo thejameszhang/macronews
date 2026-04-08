@@ -1,0 +1,7 @@
+commit	score	passed	status	description
+84c126c	0.8995	true	keep	baseline — trading desk framing + validator uses domain knowledge
+0cb1430	0.8914	true	discard	PM: add over-extrapolated chain filter — paragraph_only dropped
+30538d1	0.9092	true	keep	PM: tighten weak signal — must be specific to this asset, not generic global chain
+346b760	0.9093	true	keep	PM: asset-class guidelines for FI cross-country + equity indices
+9323761	-	-	skip	schema fix only (Literal enum for signal), cancelled run
+c0cd3e8	0.9491	true	keep	summarize: factual context only, no market mood or who-is-affected

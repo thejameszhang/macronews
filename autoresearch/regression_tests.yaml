@@ -1,0 +1,111 @@
+# Regression tests for autoresearch prompt optimization.
+# Format: (dataset, article_id, asset, expected_outcome)
+# expected: "accepted", "rejected", or "not_proposed"
+# Wildcards: article_id: "*" = all articles, asset: "*" = all assets
+#
+# These are manually curated ground truth. Never modified by the agent.
+
+tests:
+  # === Gold positive tests (must be accepted) ===
+
+  # gold_01: Precious metals article with tariff/trade context
+  - dataset: gold
+    article_id: gold_01
+    asset: Gold
+    expected: accepted
+    note: "Core subject of the article"
+  - dataset: gold
+    article_id: gold_01
+    asset: Silver
+    expected: accepted
+    note: "Explicitly discussed with price data"
+  - dataset: gold
+    article_id: gold_01
+    asset: Canadian Dollar
+    expected: accepted
+    note: "Canada tariff threat in paragraphs 7-9"
+
+  # gold_02: Safe haven / rates article
+  - dataset: gold
+    article_id: gold_02
+    asset: Gold
+    expected: accepted
+    note: "Core safe haven discussion"
+  - dataset: gold
+    article_id: gold_02
+    asset: Japanese Yen
+    expected: accepted
+    note: "Safe haven currency"
+
+  # gold_03: Oil / energy article
+  - dataset: gold
+    article_id: gold_03
+    asset: WTI Crude Oil
+    expected: accepted
+    note: "Core subject"
+  - dataset: gold
+    article_id: gold_03
+    asset: Mini S&P 500 Index
+    expected: accepted
+    note: "Growth/risk implications"
+
+  # gold_06: ECB / European rates article
+  - dataset: gold
+    article_id: gold_06
+    asset: Euro
+    expected: accepted
+    note: "ECB policy directly affects EUR"
+  - dataset: gold
+    article_id: gold_06
+    asset: Euro Bund
+    expected: accepted
+    note: "European sovereign bonds directly affected by ECB"
+  - dataset: gold
+    article_id: gold_06
+    asset: 3-Month EURIBOR
+    expected: accepted
+    note: "ECB rate decision directly moves EURIBOR"
+
+  # gold_07: Trade war / tariffs article
+  - dataset: gold
+    article_id: gold_07
+    asset: WTI Crude Oil
+    expected: accepted
+    note: "Trade war demand shock"
+  - dataset: gold
+    article_id: gold_07
+    asset: Corn
+    expected: accepted
+    note: "Agricultural tariffs"
+
+  # gold_09: Global macro multi-asset article
+  - dataset: gold
+    article_id: gold_09
+    asset: Brent Crude Oil
+    expected: accepted
+    note: "Energy supply discussed"
+
+  # gold_10: Japan / global rates article
+  - dataset: gold
+    article_id: gold_10
+    asset: 10 Year Japanese Government Bond
+    expected: accepted
+    note: "Core subject - Japan rates"
+  - dataset: gold
+    article_id: gold_10
+    asset: Japanese Yen
+    expected: accepted
+    note: "BOJ policy directly affects JPY"
+
+  # === Gold negative tests (company-specific → no assets) ===
+  - dataset: gold
+    article_id: gold_04
+    asset: "*"
+    expected: not_proposed
+    note: "Company-specific article should have no mappings"
+  - dataset: gold
+    article_id: gold_08
+    asset: "*"
+    expected: not_proposed
+    note: "Company-specific article should have no mappings"
+
