@@ -10,6 +10,8 @@ from mapping.schemas import (
     AssetMapping,
     NAME_TO_SYMBOL,
     MappingResult,
+    SingleAssetResult,
+    SummarizeResult,
     ValidationResult,
 )
 
@@ -203,6 +205,92 @@ class LLMMapper(BaseMapper):
 
         if total_dropped > 0:
             logger.warning(f"Dropped {total_dropped} invalid asset symbols across {articles_with_drops} articles.")
+
+        return results
+
+    def map_single_asset(
+        self,
+        texts: list[str],
+        max_tokens: int = 512,
+    ) -> list[SingleAssetResult]:
+        """Per-asset mapping: one call per (article/paragraph, asset) pair.
+
+        Uses guided decoding with SingleAssetResult schema.
+        """
+        from vllm import SamplingParams
+        from vllm.sampling_params import StructuredOutputsParams
+        self._init_llm()
+
+        schema = SingleAssetResult.model_json_schema()
+        sampling_params = SamplingParams(
+            temperature=0.0,
+            max_tokens=max_tokens,
+            structured_outputs=StructuredOutputsParams(json=schema),
+        )
+
+        conversations = [self._build_conversation(t) for t in texts]
+        logger.info(f"[vLLM] Single-asset mapping {len(conversations):,} pairs...")
+        outputs = self._llm.chat(conversations, sampling_params)
+
+        results = []
+        for i, output in enumerate(outputs):
+            raw = output.outputs[0].text
+            logger.info("[vLLM] SingleAsset %d (len=%d): %s", i, len(raw), raw[:500])
+            try:
+                result = SingleAssetResult.model_validate_json(raw)
+            except Exception:
+                json_str = self._extract_json(raw)
+                if json_str:
+                    try:
+                        result = SingleAssetResult.model_validate_json(json_str)
+                    except Exception:
+                        logger.warning("Failed to parse single-asset output %d: %s", i, raw[:200])
+                        result = SingleAssetResult(relevant=False)
+                else:
+                    logger.warning("No JSON in single-asset output %d: %s", i, raw[:200])
+                    result = SingleAssetResult(relevant=False)
+            results.append(result)
+
+        return results
+
+    def map_summarize(
+        self,
+        texts: list[str],
+        max_tokens: int = 1536,
+    ) -> list[SummarizeResult]:
+        """Summarize stage: one call per article, unguided (free-form macro summary)."""
+        from vllm import SamplingParams
+        self._init_llm()
+
+        sampling_params = SamplingParams(
+            temperature=0.0,
+            max_tokens=max_tokens,
+            repetition_penalty=1.1,
+        )
+
+        conversations = [self._build_conversation(t) for t in texts]
+        logger.info(f"[vLLM] Summarizing {len(conversations):,} articles...")
+        outputs = self._llm.chat(conversations, sampling_params)
+
+        results = []
+        for i, output in enumerate(outputs):
+            raw = output.outputs[0].text
+            logger.info("[vLLM] Summarize %d (len=%d): %s", i, len(raw), raw[:500])
+            json_str = self._extract_json(raw)
+            if json_str:
+                try:
+                    data = json.loads(json_str)
+                    result = SummarizeResult(
+                        company_specific=bool(data.get("company_specific", False)),
+                        macro_summary=data.get("macro_summary", ""),
+                    )
+                except Exception:
+                    logger.warning("Failed to parse summarize output %d: %s", i, raw[:200])
+                    result = SummarizeResult()
+            else:
+                logger.warning("No JSON in summarize output %d: %s", i, raw[:200])
+                result = SummarizeResult()
+            results.append(result)
 
         return results
 

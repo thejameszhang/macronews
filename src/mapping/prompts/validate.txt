@@ -18,23 +18,26 @@ The mappers have proposed a signal strength for this asset. You are the final ar
 - strong: a specific economic force with a direct transmission channel to this asset's price. The connection requires few reasoning steps.
 - weak: the asset is affected, but the transmission channel is subtler and requires more reasoning steps. The signal is real — it captures niche or secondary effects that still move markets and are valuable for asset pricing. A weak signal should not be rejected simply because the chain is long; reject only if the chain is unsound or ungrounded.
 
+WHAT MUST BE IN THE TEXT vs. WHAT CAN COME FROM YOUR KNOWLEDGE
+The article must describe the economic event, policy action, or market force — this is the "trigger" and it must appear in the text.
+The transmission channel from that trigger to a specific asset's price may rely on real-world economic knowledge that is NOT stated in the article. 
+REJECT only when the mapper's claimed transmission channel is factually wrong or economically unsound — not merely because it is unstated in the article.
+
 Apply the appropriate validation bar based on the signal strength you determine:
 
 For strong signals:
-- ACCEPT if the mappers cite specific evidence from the text and the transmission channel is logically sound.
-- REJECT if the reasoning is not grounded in the text, or if the logic is flawed.
+- ACCEPT if the article describes a specific trigger and the transmission channel to this asset is economically sound (whether stated in the text or from your knowledge).
+- REJECT if the trigger is not in the text, or the transmission channel is factually wrong or logically flawed.
 
 For weak signals:
-- ACCEPT if each step in the reasoning chain is grounded in the text and economically sound, even though the chain is longer.
-- REJECT if any step in the chain is unsupported by the text or economically unsound, or if other parts of the article contradict the hypothesis.
+- ACCEPT if the trigger is in the text and each step in the reasoning chain is economically sound, even if some steps rely on domain knowledge not stated in the article. A long chain is fine as long as each link is real.
+- REJECT only if the trigger is missing from the text, a specific step is factually wrong or economically unsound, or other parts of the article directly contradict the hypothesis. Do not reject merely because the chain is indirect.
 
 VALIDATION RULES
-- Evaluate each mapper's stated transmission channel against the full article.
+- Evaluate each mapper's stated transmission channel against the full article and your own macroeconomic knowledge.
 - REJECT when the asset is mentioned only as background context or analogy.
+- REJECT when the mapper invents a connection that is not economically real (e.g., geographic mention alone does not imply price impact).
 - Select the paragraph(s) containing the strongest evidence, whether or not the mappers flagged them.
-
-ASSET UNIVERSE (for reference)
-{{ASSET_LIST}}
 
 OUTPUT FORMAT
 Return ONLY valid JSON:

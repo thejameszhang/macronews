@@ -2,7 +2,9 @@
 Pydantic schemas for mapping headlines to macro assets.
 """
 
-from pydantic import BaseModel, Field
+from typing import Literal
+
+from pydantic import BaseModel, Field, field_validator
 from utils.config import load_asset_universe
 from config.paths import ASSET_UNIVERSE_YAML
 
@@ -47,12 +49,21 @@ class AssetMapping(BaseModel):
     asset: str = Field(
         description="Futures symbol from the asset universe.",
     )
-    signal: str = Field(
+    signal: Literal["strong", "weak"] = Field(
         default="strong",
         description='Signal strength: "strong" (direct transmission channel, '
         'few reasoning steps) or "weak" (indirect but plausible, requires '
         'a longer chain of reasoning). Both are valuable for asset pricing.',
     )
+
+    @field_validator("signal", mode="before")
+    @classmethod
+    def normalize_signal(cls, v: str) -> str:
+        if isinstance(v, str):
+            v = v.strip().rstrip(",").lower()
+            if v.startswith("strong"):
+                return "strong"
+        return "weak"
     reasoning: str = Field(
         default="",
         description="Evidence-grounded reasoning: quote or cite the specific "
@@ -66,12 +77,21 @@ class ValidationResult(BaseModel):
         description="True if you agree the asset is affected via "
         "the described transmission channel.",
     )
-    signal: str = Field(
+    signal: Literal["strong", "weak"] = Field(
         default="strong",
         description='Your final determination of signal strength: "strong" '
         '(direct channel) or "weak" (indirect but plausible). You may '
         'upgrade or downgrade the mappers\' proposed signal.',
     )
+
+    @field_validator("signal", mode="before")
+    @classmethod
+    def normalize_signal(cls, v: str) -> str:
+        if isinstance(v, str):
+            v = v.strip().rstrip(",").lower()
+            if v.startswith("strong"):
+                return "strong"
+        return "weak"
     evidence_paragraphs: list[int] = Field(
         default_factory=list,
         description="Paragraph indices containing the strongest evidence. "
@@ -81,6 +101,43 @@ class ValidationResult(BaseModel):
         default="",
         description="If valid=true: the transmission channel you agree with. "
         "If valid=false: why the mappers' reasoning is flawed.",
+    )
+
+
+class SingleAssetResult(BaseModel):
+    """Result of a single-asset mapping call (one article/paragraph × one asset)."""
+    relevant: bool = Field(
+        default=False,
+        description="True if this asset is affected by the article/paragraph content.",
+    )
+    signal: Literal["strong", "weak"] = Field(
+        default="weak",
+        description='Signal strength: "strong" or "weak".',
+    )
+    reasoning: str = Field(
+        default="",
+        description="Transmission channel reasoning.",
+    )
+
+    @field_validator("signal", mode="before")
+    @classmethod
+    def normalize_signal(cls, v: str) -> str:
+        if isinstance(v, str):
+            v = v.strip().rstrip(",").lower()
+            if v.startswith("strong"):
+                return "strong"
+        return "weak"
+
+
+class SummarizeResult(BaseModel):
+    """Result of the summarize call (one per article)."""
+    company_specific: bool = Field(
+        default=False,
+        description="True if the article is primarily about a specific company.",
+    )
+    macro_summary: str = Field(
+        default="",
+        description="Macro analysis summary of the article.",
     )
 
 
