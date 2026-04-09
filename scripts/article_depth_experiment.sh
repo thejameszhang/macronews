@@ -14,7 +14,7 @@ set -euo pipefail
 cd /gpfs/home/jyz32/macronews
 mkdir -p logs
 
-MODEL_PATH="$HOME/models/gemma-4-31b-it"
+MODEL_PATH="${MODEL_PATH:-$HOME/models/gemma-4-31b-it}"
 EXTRA_ARGS="${*}"
 
 if [ ! -d "$MODEL_PATH" ]; then
