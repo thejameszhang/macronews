@@ -105,7 +105,8 @@ def run_article_level(
         article_text = "\n\n".join(a["paragraphs"])
         for sym in ALL_ASSETS:
             name = ASSET_NAMES.get(sym, sym)
-            text = f"{article_text}\n\n[ASSET] {sym} ({name})"
+            ac = _ASSET_UNIVERSE.get(sym, {}).get("asset_class", "unknown")
+            text = f"{article_text}\n\n[ASSET] {sym} ({name}) [asset_class: {ac}]"
             tasks.append((art_idx, sym))
             texts.append(text)
 
@@ -157,7 +158,8 @@ def run_paragraph_level(
                 para_text = para
             for sym in ALL_ASSETS:
                 name = ASSET_NAMES.get(sym, sym)
-                text = f"{para_text}\n\n[ASSET] {sym} ({name})"
+                ac = _ASSET_UNIVERSE.get(sym, {}).get("asset_class", "unknown")
+                text = f"{para_text}\n\n[ASSET] {sym} ({name}) [asset_class: {ac}]"
                 tasks.append((art_idx, para_idx, sym))
                 texts.append(text)
 
@@ -247,7 +249,8 @@ def _build_validation_input(
 
     # Asset
     asset_name = ASSET_NAMES.get(asset, asset)
-    parts.append(f"\n[ASSET] {asset} ({asset_name})")
+    ac = _ASSET_UNIVERSE.get(asset, {}).get("asset_class", "unknown")
+    parts.append(f"\n[ASSET] {asset} ({asset_name}) [asset_class: {ac}]")
 
     # Mapper reasoning (includes signal strength)
     parts.append("\n[MAPPER REASONING]")
