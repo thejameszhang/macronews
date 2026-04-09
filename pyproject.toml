@@ -5,7 +5,7 @@ description = "NLP pipeline for global macro futures return prediction"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-    "huggingface-hub>=1.0.0",
+    "huggingface-hub",
     "numpy",
     "polars[u64-idx]>=1.38.1",
     "pypdf>=6.7.5",
