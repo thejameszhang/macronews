@@ -1,38 +1,48 @@
 ### EQUITY SECTORS (GICS) ###
 "10":
   name: Energy Sector
-  asset_class: equity_sector
+  asset_class: US equity sector
+  exchange_name: Chicago Mercantile Exchange (CME)
 "15":
   name: Materials Sector
-  asset_class: equity_sector
+  asset_class: US equity sector
+  exchange_name: Chicago Mercantile Exchange (CME)
 "20":
   name: Industrials Sector
-  asset_class: equity_sector
+  asset_class: US equity sector
+  exchange_name: Chicago Mercantile Exchange (CME)
 "25":
   name: Consumer Discretionary Sector
-  asset_class: equity_sector
+  asset_class: US equity sector
+  exchange_name: Chicago Mercantile Exchange (CME)
 "30":
   name: Consumer Staples Sector
-  asset_class: equity_sector
+  asset_class: US equity sector
+  exchange_name: Chicago Mercantile Exchange (CME)
 "35":
   name: Health Care Sector
-  asset_class: equity_sector
+  asset_class: US equity sector
+  exchange_name: Chicago Mercantile Exchange (CME)
 "40":
   name: Financials Sector
-  asset_class: equity_sector
+  asset_class: US equity sector
+  exchange_name: Chicago Mercantile Exchange (CME)
 "45":
   name: Information Technology Sector
-  asset_class: equity_sector
+  asset_class: US equity sector
+  exchange_name: Chicago Mercantile Exchange (CME)
 "50":
   name: Communication Services Sector
-  asset_class: equity_sector
+  asset_class: US equity sector
+  exchange_name: Chicago Mercantile Exchange (CME)
 "55":
   name: Utilities Sector
-  asset_class: equity_sector
+  asset_class: US equity sector
+  exchange_name: Chicago Mercantile Exchange (CME)
 "60":
   name: Real Estate Sector
-  asset_class: equity_sector
-
+  asset_class: US equity sector
+  exchange_name: Chicago Mercantile Exchange (CME)
 ### COMMODITY FUTURES ###
 ZW:
   exchange_name: Chicago Board of Trade (CBOT)
@@ -235,7 +245,7 @@ RB:
 G:
   exchange_name: ICE Futures Europe
   calcseriesname: ICE-GAS OIL CONTINUOUS
-  name: Gas Oil
+  name: ICE Gas Oil
   asset_class: commodity
   curcdd: USD
   ric: LGO
@@ -277,7 +287,7 @@ NG:
 AHD:
   exchange_name: London Metal Exchange
   calcseriesname: LME-ALUMINIUM CONTINUOUS
-  name: Aluminium
+  name: LME Aluminium
   asset_class: commodity
   curcdd: USD
   ric: CMAL
@@ -291,7 +301,7 @@ AHD:
 CAD:
   exchange_name: London Metal Exchange
   calcseriesname: LME-COPPER CONTINUOUS
-  name: Copper
+  name: LME Copper
   asset_class: commodity
   curcdd: USD
   ric: CMCU
@@ -305,7 +315,7 @@ CAD:
 NID:
   exchange_name: London Metal Exchange
   calcseriesname: LME-NICKEL CONTINUOUS
-  name: Nickel
+  name: LME Nickel
   asset_class: commodity
   curcdd: USD
   ric: CMNI
@@ -319,7 +329,7 @@ NID:
 PBD:
   exchange_name: London Metal Exchange
   calcseriesname: LME-LEAD CONTINUOUS
-  name: Lead
+  name: LME Lead
   asset_class: commodity
   curcdd: USD
   ric: CMPB
@@ -334,7 +344,7 @@ PBD:
 ZSD:
   exchange_name: London Metal Exchange
   calcseriesname: LME-ZINC CONTINUOUS
-  name: Zinc
+  name: LME Zinc
   asset_class: commodity
   curcdd: USD
   ric: CMZN
@@ -393,7 +403,7 @@ ZB:
   exchange_name: Chicago Board of Trade (CBOT)
   calcseriesname: CBT-30 YR US T-BOND COMP CONTINUOUS
   name: 30 Year US Government Bond
-  asset_class: bond
+  asset_class: government bond
   curcdd: USD
   ric: US
   primers:
@@ -408,7 +418,7 @@ ZT:
   exchange_name: Chicago Board of Trade (CBOT)
   calcseriesname: CBT-2 YEAR US T-NOTE COMP. CONTINUOUS
   name: 2 Year US Government Note
-  asset_class: bond
+  asset_class: government bond
   curcdd: USD
   ric: TU
   primers:
@@ -423,7 +433,7 @@ ZF:
   exchange_name: Chicago Board of Trade (CBOT)
   calcseriesname: CBT-5 YEAR US T-NOTE COMP. CONT.
   name: 5 Year US Government Note
-  asset_class: bond
+  asset_class: government bond
   curcdd: USD
   ric: FV
   primers:
@@ -438,7 +448,7 @@ ZN:
   exchange_name: Chicago Board of Trade (CBOT)
   calcseriesname: CBT-10 YRS US T-NOTE COMP. CONTINUOUS
   name: 10 Year US Government Note
-  asset_class: bond
+  asset_class: government bond
   curcdd: USD
   ric: TY
   primers:
@@ -453,7 +463,7 @@ TN:
   exchange_name: eCBOT
   calcseriesname: CBT-ULTRA 10-YEAR US T-NOTE CONT
   name: Ultra 10 Year US Government Note
-  asset_class: bond
+  asset_class: government bond
   curcdd: USD
   ric: TN
   primers:
@@ -468,7 +478,7 @@ UB:
   exchange_name: Chicago Board of Trade (CBOT)
   calcseriesname: CBOT-ULTRA T-BOND COMP. CONT.
   name: Ultra T-Bond
-  asset_class: bond
+  asset_class: government bond
   curcdd: USD
   ric: AUL
   primers:
@@ -483,7 +493,7 @@ FGBS:
   exchange_name: EUREX
   calcseriesname: EUREX-EURO SCHATZ CONTINUOUS
   name: Euro Schatz
-  asset_class: bond
+  asset_class: government bond
   curcdd: EUR
   ric: FGBS
   primers:
@@ -497,7 +507,7 @@ FGBM:
   exchange_name: EUREX
   calcseriesname: EUREX-EURO BOBL CONTINUOUS
   name: Euro Bobl
-  asset_class: bond
+  asset_class: government bond
   curcdd: EUR
   ric: FGBM
   primers:
@@ -511,7 +521,7 @@ FGBL:
   exchange_name: EUREX
   calcseriesname: EUREX-EURO BUND CONTINUOUS
   name: Euro Bund
-  asset_class: bond
+  asset_class: government bond
   curcdd: EUR
   ric: FGBL
   primers:
@@ -525,7 +535,7 @@ FGBX:
   exchange_name: EUREX
   calcseriesname: EUREX-EURO BUXL CONTINUOUS
   name: Euro Buxl
-  asset_class: bond
+  asset_class: government bond
   curcdd: EUR
   ric: FGBX
   primers:
@@ -538,8 +548,8 @@ FGBX:
 FOAT:
   exchange_name: EUREX
   calcseriesname: EUREX-LONG EURO OAT CONTINUOUS
-  name: Euro Oat
-  asset_class: bond
+  name: French OAT Government Bond
+  asset_class: government bond
   curcdd: EUR
   ric: FOAT
   primers:
@@ -553,8 +563,8 @@ FOAT:
 FBTP:
   exchange_name: EUREX
   calcseriesname: EUREX-EURO BTP CONTINUOUS
-  name: Euro BTP
-  asset_class: bond
+  name: Italian BTP Government Bond
+  asset_class: government bond
   curcdd: EUR
   ric: FBTP
   primers:
@@ -568,8 +578,8 @@ FBTP:
 CONF:
   exchange_name: EUREX
   calcseriesname: EUREX-SWISS CONF CONTINUOUS
-  name: Swiss Conf
-  asset_class: bond
+  name: Swiss Confederation Bond
+  asset_class: government bond
   curcdd: CHF
   ric: CONF
   primers:
@@ -583,8 +593,8 @@ CONF:
 R:
   exchange_name: Euronext.LIFFE London
   calcseriesname: LIFFE-LONG GILT CONTINUOUS
-  name: Long Gilt
-  asset_class: bond
+  name: UK Long Gilt
+  asset_class: government bond
   curcdd: GBP
   ric: FLG
   primers:
@@ -600,7 +610,7 @@ CGB:
   exchange_name: Montreal Exchange
   calcseriesname: ME-10Y CANADIAN GOVT BOND CONTINUOUS
   name: 10 Year Canadian Government Bond
-  asset_class: bond
+  asset_class: government bond
   curcdd: CAD
   ric: CGB
   primers:
@@ -615,7 +625,7 @@ CGB:
   exchange_name: Osaka Exchange
   calcseriesname: TSE-10 YEAR T-BOND CONTINUOUS
   name: 10 Year Japanese Government Bond
-  asset_class: bond
+  asset_class: government bond
   curcdd: JPY
   ric: JGB
   primers:
@@ -630,7 +640,7 @@ YT:
   exchange_name: Sydney Futures Exchange
   calcseriesname: SFE-AUST 3 YEAR T-BOND CONT.
   name: 3 Year Australian Government Bond
-  asset_class: bond
+  asset_class: government bond
   curcdd: AUD
   ric: YTT
   primers:
@@ -645,7 +655,7 @@ XT:
   exchange_name: Sydney Futures Exchange
   calcseriesname: SFE-AUST 10 YEAR T-BOND CONT.
   name: 10 Year Australian Government Bond
-  asset_class: bond
+  asset_class: government bond
   curcdd: AUD
   ric: YTC
   primers:
@@ -794,7 +804,7 @@ ES:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-MINI S&P 500 INDEX CONT.
   name: Mini S&P 500 Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: USD
   ric: ES
   primers:
@@ -809,7 +819,7 @@ NQ:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-E MINI NASDAQ 100 CONTINUOUS
   name: Mini Nasdaq 100 Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: USD
   ric: NQ
   primers:
@@ -823,7 +833,7 @@ RTY:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-E-MINI RUSSELL 2000 C CONT
   name: Mini Russell 2000 Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: USD
   ric: RTY
   primers:
@@ -837,7 +847,7 @@ EMD:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-EMINI S&P 400 MIDCAP CONTINUOU
   name: Mini S&P 400 Midcap Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: USD
   ric: DM
   primers:
@@ -852,7 +862,7 @@ YM:
   exchange_name: Chicago Board of Trade (CBOT)
   calcseriesname: CBT-MINI DOW JONES CONTINUOUS
   name: Mini DJ Industrial Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: USD
   ric: YM
   primers:
@@ -867,7 +877,7 @@ AP:
   exchange_name: Sydney Futures Exchange
   calcseriesname: SFE-SPI 200 INDEX CONT. TRAD
   name: SPI 200 Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: AUD
   ric: YAP
   primers:
@@ -882,7 +892,7 @@ Z:
   exchange_name: Euronext.LIFFE London
   calcseriesname: LIFFE-FTSE 100 INDEX CONTINUOUS
   name: FTSE 100 Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: GBP
   ric: FFI
   primers:
@@ -897,7 +907,7 @@ SXF:
   exchange_name: Montreal Stock Exchange
   calcseriesname: ME-S&P CANADA 60 INDEX CONT.
   name: S&P TSX Canada 60 Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: CAD
   ric: SXF
   primers:
@@ -912,7 +922,7 @@ FESX:
   exchange_name: EUREX
   calcseriesname: EUREX-EURO STOXX 50 CONTINUOUS
   name: Euro Stoxx 50 Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: EUR
   ric: STXE
   primers:
@@ -926,7 +936,7 @@ FCE:
   exchange_name: Euronext Paris
   calcseriesname: MONEP-CAC 40 INDEX CONTINUOUS
   name: CAC 40 Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: EUR
   ric: FCE
   primers:
@@ -940,7 +950,7 @@ FDAX:
   exchange_name: EUREX
   calcseriesname: EUREX-DAX INDEX CONTINUOUS
   name: DAX Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: EUR
   ric: FDX
   primers:
@@ -954,7 +964,7 @@ FIE:
   exchange_name: MEFF Renta Variable
   calcseriesname: MEFF-IBEX 35 PLUS INDEX CONT.
   name: IBEX 35 Plus Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: EUR
   ric: MFXI
   primers:
@@ -969,7 +979,7 @@ FIB:
   exchange_name: Italian Derivatives Market
   calcseriesname: IDEM-FTSE MIB CONTINUOUS
   name: FTSE MIB Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: EUR
   ric: IFS
   primers:
@@ -983,7 +993,7 @@ HSI:
   exchange_name: Hong Kong Futures Exchange
   calcseriesname: HKFE-HANG SENG INDEX CONTINUOUS
   name: Hang Seng Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: HKD
   ric: HSI
   primers:
@@ -998,7 +1008,7 @@ HSI:
   exchange_name: Osaka Exchange
   calcseriesname: TSE-MINI-TOPIX CONTINUOUS
   name: Mini TOPIX Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: JPY
   ric: JNI
   primers:
@@ -1012,7 +1022,7 @@ HSI:
   exchange_name: Osaka Exchange
   calcseriesname: OSX-NIKKEI 225 INDEX CONTINUOUS
   name: Mini Nikkei 225 Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: JPY
   ric: JNI
   primers:
@@ -1026,7 +1036,7 @@ MFS:
   exchange_name: ICE Futures U.S.
   calcseriesname: NYL-MSCI EAFE MINI CONTINUOUS
   name: MSCI EAFE Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: USD
   ric: MFS
   primers:
@@ -1041,7 +1051,7 @@ FTI:
   exchange_name: Euronext Amsterdam
   calcseriesname: AEX-AEX INDEX CONTINUOUS
   name: AEX Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: EUR
   ric: AEX
   primers:
@@ -1056,7 +1066,7 @@ FXS30:
   exchange_name: OM Nordic Exchange
   calcseriesname: OMX-OMXS30 INDEX CONTINUOUS
   name: OMXS30 (Sweden) Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: SEK
   ric: OMXS30
   primers:
@@ -1070,7 +1080,7 @@ FSMI:
   exchange_name: EUREX
   calcseriesname: EUREX-SMI CONT.TRADITIONAL
   name: Swiss Market Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: CHF
   ric: FSMI
   primers:
@@ -1083,8 +1093,8 @@ FSMI:
 FATX:
   exchange_name: EUREX
   calcseriesname: EUREX-ATX INDEX CONT
-  name: ATX Index
-  asset_class: equity
+  name: Austrian ATX Index
+  asset_class: equity index
   curcdd: EUR
   ric: FATXA
   primers:
@@ -1099,7 +1109,7 @@ SGP:
   exchange_name: Singapore Exchange - Derivatives Trading Division
   calcseriesname: SGX DT-MSCI SING. INDEX CONT. TRAD
   name: MSCI Singapore Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: SGD
   ric: SSG
   primers:
@@ -1113,7 +1123,7 @@ A01:
   exchange_name: Korea Stock Exchange
   calcseriesname: KSE-KOSPI 200 INDEX CONTINUOUS
   name: Kospi 200 Index
-  asset_class: equity
+  asset_class: equity index
   curcdd: KRW
   ric: KS
   primers:
@@ -1158,7 +1168,7 @@ SR3:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-3 MONTH SOFR CONT
   name: 3-Month SOFR
-  asset_class: stir
+  asset_class: short-term interest rate
   curcdd: USD
   ric: SRA
   primers:
@@ -1175,7 +1185,7 @@ I:
   exchange_name: Euronext.LIFFE London
   calcseriesname: LIFFE-3 MTH EURIBOR CONT.TRADITIONAL
   name: 3-Month EURIBOR
-  asset_class: stir
+  asset_class: short-term interest rate
   curcdd: EUR
   ric: FEI
   primers:
@@ -1192,7 +1202,7 @@ I:
   exchange_name: Osaka Exchange
   calcseriesname: OSX-3-MONTH TONA CONT
   name: 3-Month TONA
-  asset_class: stir
+  asset_class: short-term interest rate
   curcdd: JPY
   ric: JTOA
   primers:
@@ -1209,7 +1219,7 @@ SO3:
   exchange_name: Euronext.LIFFE London
   calcseriesname: LIFFE-3MTH STERLING CONT.TRADITIONAL
   name: 3-Month SONIA
-  asset_class: stir
+  asset_class: short-term interest rate
   curcdd: GBP
   ric: SON3
   primers:
@@ -1228,7 +1238,7 @@ IR:
   exchange_name: Sydney Futures Exchange
   calcseriesname: SFE-AUST 90 DAY BANK BILLS CONT.
   name: 90-Day Australian Bank Bill
-  asset_class: stir
+  asset_class: short-term interest rate
   curcdd: AUD
   ric: YBA
   primers:
@@ -1247,7 +1257,7 @@ BB:
   exchange_name: Sydney Futures Exchange
   calcseriesname: NZFE-90 DAY BANK BILLS CONT.
   name: 90-Day New Zealand Bank Bill
-  asset_class: stir
+  asset_class: short-term interest rate
   curcdd: NZD
   ric: NBB
   primers:
@@ -1268,7 +1278,7 @@ SA3:
   exchange_name: Intercontinental Exchange - ICE Futures Limited
   calcseriesname: ICE-3MTH SARBON CONT
   name: 3-Month SARON
-  asset_class: stir
+  asset_class: short-term interest rate
   curcdd: CHF
   ric: SARO3
   primers:

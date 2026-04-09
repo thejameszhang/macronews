@@ -35,6 +35,15 @@ ASSET_NAMES = {sym: info.get("name", sym) for sym, info in _ASSET_UNIVERSE.items
 ALL_ASSETS = sorted(_ASSET_UNIVERSE.keys())
 
 
+def _asset_label(sym: str) -> str:
+    """Build a human-readable asset label for the LLM (no ticker symbol)."""
+    info = _ASSET_UNIVERSE[sym]  # KeyError = bug, fix the universe
+    name = info["name"]
+    ac = info["asset_class"]
+    exchange = info["exchange_name"]
+    return f"{name} | {ac} | {exchange}"
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -104,9 +113,7 @@ def run_article_level(
             continue
         article_text = "\n\n".join(a["paragraphs"])
         for sym in ALL_ASSETS:
-            name = ASSET_NAMES.get(sym, sym)
-            ac = _ASSET_UNIVERSE.get(sym, {}).get("asset_class", "unknown")
-            text = f"{article_text}\n\n[ASSET] {sym} ({name}) [asset_class: {ac}]"
+            text = f"{article_text}\n\n[ASSET] {_asset_label(sym)}"
             tasks.append((art_idx, sym))
             texts.append(text)
 
@@ -157,9 +164,7 @@ def run_paragraph_level(
             else:
                 para_text = para
             for sym in ALL_ASSETS:
-                name = ASSET_NAMES.get(sym, sym)
-                ac = _ASSET_UNIVERSE.get(sym, {}).get("asset_class", "unknown")
-                text = f"{para_text}\n\n[ASSET] {sym} ({name}) [asset_class: {ac}]"
+                text = f"{para_text}\n\n[ASSET] {_asset_label(sym)}"
                 tasks.append((art_idx, para_idx, sym))
                 texts.append(text)
 
@@ -248,9 +253,7 @@ def _build_validation_input(
     parts.append("[/ARTICLE]")
 
     # Asset
-    asset_name = ASSET_NAMES.get(asset, asset)
-    ac = _ASSET_UNIVERSE.get(asset, {}).get("asset_class", "unknown")
-    parts.append(f"\n[ASSET] {asset} ({asset_name}) [asset_class: {ac}]")
+    parts.append(f"\n[ASSET] {_asset_label(asset)}")
 
     # Mapper reasoning (includes signal strength)
     parts.append("\n[MAPPER REASONING]")
@@ -418,7 +421,7 @@ def run_three_stage(
 
 
 
-def _asset_label(sym: str) -> str:
+def _asset_display_name(sym: str) -> str:
     """Human-readable asset name for JSON output."""
     return ASSET_NAMES.get(sym, sym)
 
@@ -467,7 +470,7 @@ def save_final_results_json(
                 for idx, sar in s2_entries if sar.reasoning
             ]
             entry = {
-                "asset": _asset_label(v["asset"]),
+                "asset": _asset_display_name(v["asset"]),
                 "signal": v.get("signal", "strong"),
                 "source": v["source"],
                 "evidence_paragraphs": evidence,

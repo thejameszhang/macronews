@@ -60,9 +60,9 @@ class LLMMapper(BaseMapper):
         lines = []
         
         # 1. GICS Sectors
-        if "equity_sector" in by_class:
+        if "US equity sector" in by_class:
             lines.append("**EQUITY SECTORS (GICS)**")
-            sectors = [f"{sym} ({name})" for sym, name in sorted(by_class["equity_sector"])]
+            sectors = [f"{sym} ({name})" for sym, name in sorted(by_class["US equity sector"])]
             lines.append(", ".join(sectors))
             lines.append("")
 
@@ -87,13 +87,13 @@ class LLMMapper(BaseMapper):
             lines.append("")
 
         # 3. Bonds
-        if "bond" in by_class:
-            lines.append("**BONDS**")
+        if "government bond" in by_class:
+            lines.append("**GOVERNMENT BONDS**")
             # Sub-group bonds by region
             us = []
             eu = []
             other = []
-            for sym, name in by_class["bond"]:
+            for sym, name in by_class["government bond"]:
                 if sym in ["ZT", "ZF", "ZN", "TN", "ZB", "UB"]:
                     us.append(f"{sym} ({name})")
                 elif sym in ["FGBS", "FGBM", "FGBL", "FGBX", "FOAT", "FBTP"]:
@@ -114,12 +114,12 @@ class LLMMapper(BaseMapper):
             lines.append("")
 
         # 5. Equities (Indices)
-        if "equity" in by_class:
+        if "equity index" in by_class:
             lines.append("**EQUITY INDEX FUTURES**")
             us = []
             eu = []
             other = []
-            for sym, name in by_class["equity"]:
+            for sym, name in by_class["equity index"]:
                 if sym in ["ES", "NQ", "RTY", "YM", "EMD"]:
                     us.append(f"{sym} ({name})")
                 elif sym in ["FESX", "FDAX", "FCE", "FIB", "FIE", "FTI", "FSMI", "FATX"]:
@@ -133,9 +133,9 @@ class LLMMapper(BaseMapper):
             lines.append("")
 
         # 6. Short-Term Interest Rates (STIR)
-        if "stir" in by_class:
+        if "short-term interest rate" in by_class:
             lines.append("**SHORT-TERM INTEREST RATE FUTURES (STIR)**")
-            stirs = [f"{sym} ({name})" for sym, name in sorted(by_class["stir"])]
+            stirs = [f"{sym} ({name})" for sym, name in sorted(by_class["short-term interest rate"])]
             lines.append(", ".join(stirs))
             lines.append("")
 

@@ -8,11 +8,11 @@ class AssetClass(Enum):
     """Enumeration of asset classes for futures contracts."""
     COMMODITY = "commodity"
     CURRENCY = "currency"
-    BOND = "bond"
-    EQUITY = "equity"
+    BOND = "government bond"
+    EQUITY = "equity index"
     VOLATILITY = "volatility"
-    STIR = "stir"
-    SECTOR = "sector"
+    STIR = "short-term interest rate"
+    SECTOR = "US equity sector"
 
 
 @dataclass
