@@ -1,0 +1,34 @@
+{
+  "passed": true,
+  "hard_constraints": {
+    "passed": true,
+    "violations": []
+  },
+  "regression_tests": {
+    "passed": true,
+    "failures": []
+  },
+  "composite_score": 0.9652,
+  "components": {
+    "acceptance_rate": 0.9709,
+    "inv_fpr": 0.971,
+    "article_only_acceptance": 0.971,
+    "paragraph_only_acceptance": 0.936,
+    "coverage_breadth": 0.9684
+  },
+  "weights": {
+    "acceptance_rate": 0.25,
+    "inv_fpr": 0.25,
+    "article_only_acceptance": 0.15,
+    "paragraph_only_acceptance": 0.15,
+    "coverage_breadth": 0.2
+  },
+  "raw": {
+    "gold_accepted": 400,
+    "gold_rejected": 12,
+    "gold_pairs": 412,
+    "gold_fpr": 0.029,
+    "gold_unique_accepted": 92,
+    "strong_acceptance_rate": 0.97
+  }
+}

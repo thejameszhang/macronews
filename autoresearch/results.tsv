@@ -5,3 +5,5 @@ commit	score	passed	status	description
 346b760	0.9093	true	keep	PM: asset-class guidelines for FI cross-country + equity indices
 9323761	-	-	skip	schema fix only (Literal enum for signal), cancelled run
 c0cd3e8	0.9491	true	keep	summarize: factual context only, no market mood or who-is-affected
+1af5dd0	0.9652	true	keep	Gemma 4 26B A4B (MoE) — faster: 7min, FPR 2.9%, para_only 93.6%
+cc874a1	0.9485	true	keep	disambiguate asset names/classes, drop ticker from LLM input — +70 net accepted, fixes CONF/FOAT/CAD confusion
