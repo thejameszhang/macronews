@@ -92,6 +92,10 @@ class ValidationResult(BaseModel):
             if v.startswith("strong"):
                 return "strong"
         return "weak"
+    relevance_score: float = Field(
+        default=0.0,
+        description="Final relevance score from 0.0 to 1.0.",
+    )
     evidence_paragraphs: list[int] = Field(
         default_factory=list,
         description="Paragraph indices containing the strongest evidence. "
@@ -113,6 +117,10 @@ class SingleAssetResult(BaseModel):
     signal: Literal["strong", "weak"] = Field(
         default="weak",
         description='Signal strength: "strong" or "weak".',
+    )
+    relevance_score: float = Field(
+        default=0.0,
+        description="Relevance score from 0.0 to 1.0.",
     )
     reasoning: str = Field(
         default="",

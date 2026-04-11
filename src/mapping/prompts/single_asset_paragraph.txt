@@ -4,7 +4,7 @@ You will receive a single paragraph from a news article followed by a SINGLE fut
 The paragraph may be preceded by a [CONTEXT] block describing the broader macro backdrop of the article. This tells you what is happening in the world so you can better interpret the paragraph. However, your asset tagging decision must be based on what THIS paragraph says — the context is background, not a directive.
 
 YOUR TASK
-Determine whether this paragraph contains a specific piece of information — a fact, data point, policy action, or event — that would move this futures contract's price. Think of it as: would you walk over to the portfolio manager and say "you need to see this paragraph for your position in [asset]"? If the answer is yes, explain exactly why.
+Determine whether this paragraph contains information relevant to this futures contract's price. Think of it as: would you flag this paragraph for the portfolio manager running this asset? If the answer is yes, explain exactly why.
 
 WHAT MAKES A REAL SIGNAL
 A real signal has two parts:
@@ -15,8 +15,7 @@ WHAT IS NOT A SIGNAL
 - Generic macro atmosphere: "uncertainty is rising" or "risk-off sentiment" without a specific trigger is not a signal for distant assets.
 - Textbook correlations without a trigger: "the dollar is weak so commodities go up" is not a signal unless the paragraph describes WHY the dollar is weakening.
 - Geographic mention alone: an article mentioning Japan does not automatically signal JGB or JPY.
-- Past price reporting: "gold rose 2% yesterday" is not a forward-looking signal.
-- Analyst opinions or commentary without new information.
+- Past price reporting alone: "gold rose 2% yesterday" without context about why.
 - Company-specific news (earnings, management changes, product launches).
 
 SIGNAL STRENGTH
@@ -24,8 +23,16 @@ If relevant, classify the signal:
 - strong: the trigger directly and specifically moves this asset. Few reasoning steps. You would flag this immediately.
 - weak: the trigger affects this asset through a real but less direct channel. More reasoning steps, but each step is economically sound and specific to this asset. A weak signal should still be something a specialist would act on — not a generic "this affects global markets" chain applied to many assets at once.
 
+RELEVANCE SCORE
+If relevant, assign a relevance_score between 0.0 and 1.0 reflecting how relevant this paragraph is to this specific futures contract. This is a continuous measure of confidence in the mapping:
+- 0.9–1.0: the paragraph is directly and specifically about forces that affect this asset
+- 0.6–0.8: clear relevance through a well-established transmission channel
+- 0.3–0.5: relevant but the connection is more indirect or the paragraph only touches on it briefly
+- 0.0–0.2: marginally relevant at best
+If not relevant, set relevance_score to 0.0.
+
 REASONING
-If relevant, build a case that would convince a skeptical portfolio manager:
+If relevant, build a case that would convince a skeptical portfolio manager that this text is relevant to this futures contract:
 - Quote the specific trigger from the paragraph.
 - State the transmission channel step by step, including any domain knowledge you are applying.
 - Be specific: name the economic mechanism, the direction of impact, and why it matters for this particular asset.
@@ -33,12 +40,12 @@ If relevant, build a case that would convince a skeptical portfolio manager:
 ASSET-CLASS GUIDELINES
 - Currencies: Only relevant if the text describes a specific force that would change this currency's exchange rate. Geographic mention alone is not sufficient.
 - Fixed income: Different information affects different parts of the yield curve. Rate expectations move the short end; growth outlook moves the belly; fiscal risk and term premium move the long end. A trigger in one country's rates does not automatically signal another country's bonds.
-- Commodities: Distinguish between past price reporting and forward-looking supply/demand signals. Consumer price data reflects past commodity prices, it does not predict future ones.
+- Commodities: Distinguish between past price reporting and supply/demand fundamentals. Consumer price data reflects past commodity prices, it does not predict future ones.
 - Equity indices: A trigger must specifically affect THIS market's companies or economy. Do not flag distant equity indices via generic "global growth" or "risk-off" reasoning.
 
 OUTPUT FORMAT
 Return ONLY valid JSON.
 If relevant:
-{"relevant": true, "signal": "strong", "reasoning": "evidence-grounded transmission channel"}
+{"relevant": true, "signal": "strong", "relevance_score": 0.85, "reasoning": "evidence-grounded transmission channel"}
 If not relevant:
-{"relevant": false, "signal": "weak", "reasoning": ""}
+{"relevant": false, "signal": "weak", "relevance_score": 0.0, "reasoning": ""}

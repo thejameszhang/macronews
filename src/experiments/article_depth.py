@@ -259,7 +259,7 @@ def _build_validation_input(
     parts.append("\n[MAPPER REASONING]")
     if article_result:
         parts.append(
-            f"ArticleMapper (read the entire article, signal={article_result.signal}): "
+            f"ArticleMapper (read the entire article, signal={article_result.signal}, relevance_score={article_result.relevance_score:.2f}): "
             f"{article_result.reasoning}"
         )
     else:
@@ -271,12 +271,12 @@ def _build_validation_input(
         for para_idx, sar in paragraph_results:
             if sar.reasoning:
                 parts.append(
-                    f"ParagraphMapper (paragraph [{para_idx}], signal={sar.signal}): "
+                    f"ParagraphMapper (paragraph [{para_idx}], signal={sar.signal}, relevance_score={sar.relevance_score:.2f}): "
                     f"{sar.reasoning}"
                 )
             else:
                 parts.append(
-                    f"ParagraphMapper (paragraph [{para_idx}], signal={sar.signal}): "
+                    f"ParagraphMapper (paragraph [{para_idx}], signal={sar.signal}, relevance_score={sar.relevance_score:.2f}): "
                     "flagged this asset but provided no reasoning."
                 )
     else:
@@ -380,6 +380,7 @@ def run_validation(
             "asset": task["asset"],
             "valid": vr.valid,
             "signal": vr.signal,
+            "relevance_score": vr.relevance_score,
             "source": task["source"],
             "evidence_paragraphs": evidence,
             "reasoning": vr.reasoning,
@@ -466,16 +467,22 @@ def save_final_results_json(
             s1_signal = s1_sar.signal if s1_sar else ""
             s2_entries = s2_map.get(v["asset"], [])
             s2_r_list = [
-                {"paragraph": idx, "signal": sar.signal, "reasoning": sar.reasoning}
+                {"paragraph": idx, "signal": sar.signal, "relevance_score": sar.relevance_score, "reasoning": sar.reasoning}
                 for idx, sar in s2_entries if sar.reasoning
             ]
+            # Relevance scores: AM score, max PM score, and validator's final score
+            s1_score = s1_sar.relevance_score if s1_sar else 0.0
+            s2_score = max((sar.relevance_score for _, sar in s2_entries), default=0.0)
+            validator_score = v.get("relevance_score", 0.0)
             entry = {
                 "asset": _asset_display_name(v["asset"]),
                 "signal": v.get("signal", "strong"),
+                "relevance_score": validator_score,
+                "mapper_relevance_scores": {"article_mapper": s1_score, "paragraph_mapper_max": s2_score},
                 "source": v["source"],
                 "evidence_paragraphs": evidence,
                 "mapper_reasoning": {
-                    "article_mapper": {"signal": s1_signal, "reasoning": s1_r} if s1_sar else "",
+                    "article_mapper": {"signal": s1_signal, "relevance_score": s1_score, "reasoning": s1_r} if s1_sar else "",
                     "paragraph_mapper": s2_r_list,
                 },
                 "validator_reasoning": v.get("reasoning", ""),

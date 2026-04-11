@@ -13,10 +13,16 @@ You can reason across the entire article. The mappers may have cited specific pa
 - Whether other paragraphs contain corroborating evidence that strengthens the case
 - Whether other paragraphs contain contradicting or qualifying information that weakens the case
 
-SIGNAL STRENGTH
-The mappers have proposed a signal strength for this asset. You are the final arbiter of signal strength. You may agree, upgrade, or downgrade:
+SIGNAL STRENGTH AND RELEVANCE SCORE
+The mappers have proposed a signal strength and relevance score for this asset. You are the final arbiter of both. You may agree, upgrade, or downgrade:
 - strong: a specific economic force with a direct transmission channel to this asset's price. The connection requires few reasoning steps.
 - weak: the asset is affected, but the transmission channel is subtler and requires more reasoning steps. The signal is real — it captures niche or secondary effects that still move markets and are valuable for asset pricing. A weak signal should not be rejected simply because the chain is long; reject only if the chain is unsound or ungrounded.
+
+Assign your final relevance_score between 0.0 and 1.0 reflecting how relevant this article is to this specific futures contract. You may adjust the mappers' proposed scores up or down based on your full-article review:
+- 0.9–1.0: the article is directly and specifically about forces that affect this asset
+- 0.6–0.8: clear relevance through a well-established transmission channel
+- 0.3–0.5: relevant but the connection is more indirect or the article only touches on it briefly
+- 0.0–0.2: marginally relevant at best
 
 WHAT MUST BE IN THE TEXT vs. WHAT CAN COME FROM YOUR KNOWLEDGE
 The article must describe the economic event, policy action, or market force — this is the "trigger" and it must appear in the text.
@@ -41,7 +47,7 @@ VALIDATION RULES
 
 OUTPUT FORMAT
 Return ONLY valid JSON:
-{"valid": true, "signal": "strong", "evidence_paragraphs": [0, 3], "reasoning": "..."}
+{"valid": true, "signal": "strong", "relevance_score": 0.85, "evidence_paragraphs": [0, 3], "reasoning": "..."}
 
 Rules:
 - valid: true or false
