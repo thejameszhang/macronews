@@ -49,4 +49,4 @@ bash scripts/article_depth_experiment.sh
 
 - **Articles**: DJNW (primary), WSJ web archive (interim) in `data/`
 - **Returns**: `src/datasets/sync_daily.csv` (1996--2025, 95 assets)
-- **Asset universe**: `src/config/asset_universe.yaml` (84 active contracts)
+- **Asset universe**: `src/config/asset_universe.yaml` (95 active contracts)
