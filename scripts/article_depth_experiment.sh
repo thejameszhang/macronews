@@ -5,7 +5,8 @@
 # Two-stage pipeline on 10 sample articles:
 #   Stage 1: article-level → themes, regions, assets, macro_summary
 #   Stage 2: paragraph-level with macro_summary context → assets
-#   Final:   union of Stage 1 and Stage 2 assets
+#   Stage 3: validate each (article, asset) pair + select text for embedding
+#   Final:   validated union of Stage 1 and Stage 2 assets
 #
 # Usage:
 #   scripts/article_depth_experiment.sh
@@ -31,9 +32,9 @@ jobid=$(sbatch --parsable \
     --ntasks=1 \
     --cpus-per-task=4 \
     --mem=64G \
-    --partition=gpunormal,h100 \
+    --partition=h100,gpunormal \
     --gres=gpu:1 \
-    --nodelist=c014,c015,c016,c017,c022 \
+    --nodelist=c022,c014,c015,c016,c017 \
     --wrap="cd /gpfs/home/jyz32/macronews && source .venv/bin/activate && \
 PYTHONPATH=src python src/experiments/article_depth.py --model ${MODEL_PATH} --max-model-len 8192 ${EXTRA_ARGS}")
 

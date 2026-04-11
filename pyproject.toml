@@ -3,16 +3,16 @@ name = "macronews"
 version = "0.1.0"
 description = "NLP pipeline for global macro futures return prediction"
 readme = "README.md"
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.11"
 dependencies = [
-    "huggingface-hub",
+    "huggingface-hub>=1.6.0",
     "numpy",
     "polars[u64-idx]>=1.38.1",
     "pypdf>=6.7.5",
     "pyyaml>=6.0.3",
     "requests>=2.32.5",
     "trafilatura>=2.0.0",
-    "vllm>=0.19.0",
+    "vllm>=0.8.0",
 ]
 
 [dependency-groups]
