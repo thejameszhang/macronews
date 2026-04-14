@@ -42,7 +42,7 @@ uv sync
 export MODEL_PATH=$HOME/models/gemma-4-26b-a4b-it
 
 # Submit to SLURM
-bash scripts/article_depth_experiment.sh
+bash scripts/run_pipeline.sh
 ```
 
 ## Data

@@ -1,5 +1,6 @@
 # Secrets and credentials
 secrets/
+.env
 
 # Virtual environment
 .venv/
@@ -35,3 +36,4 @@ Thumbs.db
 
 # Claude
 .claude/
+claude.sh

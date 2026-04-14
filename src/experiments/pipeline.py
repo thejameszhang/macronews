@@ -1,10 +1,10 @@
 """
-Experiment: three-stage LLM classification for article-to-asset mapping.
+Macronews four-stage LLM pipeline for article-to-asset tagging.
 
-Pipeline:
-  Stage 1: article-level → themes, regions, assets, macro_summary
-  Stage 2: paragraph-level with macro_summary context → assets
-  Stage 3: validate each (article, asset) pair + select text for embedding
+Stage 0: summarize article + company-specific gate
+Stage 1: article-level mapping → (asset, signal, relevance_score, reasoning)
+Stage 2: paragraph-level mapping with macro_summary as context
+Stage 3: validate each (article, asset) pair + select evidence text
 """
 
 import argparse
@@ -13,7 +13,7 @@ import logging
 from pathlib import Path
 
 from config.paths import PROMPTS_DIR, DEFAULT_MODEL
-from experiments.loaders import load_gold_articles, load_sports_articles, load_wikigaming_articles
+from experiments.loaders import load_gold_articles, load_sports_articles, load_wikigaming_articles, load_djnw_articles
 from mapping.llm import LLMMapper
 from mapping.schemas import AssetMapping, MappingResult, SingleAssetResult, SummarizeResult, ValidationResult
 from utils.config import load_asset_universe
@@ -52,6 +52,11 @@ def load_articles(
     dataset: str,
     sample_dir: Path,
     max_articles: int | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    random_seed: int | None = None,
+    max_tokens: int | None = None,
+    tokenizer_path: str | None = None,
 ) -> list[dict]:
     """Load articles in the standard schema {id, headline, paragraphs}.
 
@@ -63,6 +68,14 @@ def load_articles(
         Directory to load from.
     max_articles : int, optional
         Limit number of articles (useful for sports with 5000+ articles).
+    start_date, end_date : str, optional
+        YYYY-MM bounds for djnw monthly files.
+    random_seed : int, optional
+        Seed for random sampling within djnw. Default is the first ``max_articles``.
+    max_tokens : int, optional
+        Skip articles whose text exceeds this token count (djnw only).
+    tokenizer_path : str, optional
+        Model path used to load the tokenizer for the ``max_tokens`` filter.
     """
     if dataset == "gold":
         return load_gold_articles(sample_dir)
@@ -70,6 +83,16 @@ def load_articles(
         return load_sports_articles(sample_dir, max_articles=max_articles)
     elif dataset == "wikigaming":
         return load_wikigaming_articles(sample_dir, max_articles=max_articles)
+    elif dataset == "djnw":
+        return load_djnw_articles(
+            sample_dir,
+            max_articles=max_articles,
+            start_date=start_date,
+            end_date=end_date,
+            random_seed=random_seed,
+            max_tokens=max_tokens,
+            tokenizer_path=tokenizer_path,
+        )
     else:
         raise ValueError(f"Unknown dataset: {dataset!r}")
 
@@ -85,7 +108,10 @@ def run_summarize(
     """Stage 0: macro summary + company-specific check, one call per article."""
     logger.info("=== Stage 0: summarize (%d articles) ===", len(articles))
     mapper.system_prompt = SUMMARIZE_PROMPT
-    texts = ["\n\n".join(a["paragraphs"]) for a in articles]
+    texts = [
+        f"[HEADLINE] {a['headline']}\n\n" + "\n\n".join(a["paragraphs"])
+        for a in articles
+    ]
     return mapper.map_summarize(texts, max_tokens=1536)
 
 
@@ -111,7 +137,7 @@ def run_article_level(
     for art_idx, a in enumerate(articles):
         if art_idx in skip:
             continue
-        article_text = "\n\n".join(a["paragraphs"])
+        article_text = f"[HEADLINE] {a['headline']}\n\n" + "\n\n".join(a["paragraphs"])
         for sym in ALL_ASSETS:
             text = f"{article_text}\n\n[ASSET] {_asset_label(sym)}"
             tasks.append((art_idx, sym))
@@ -158,11 +184,12 @@ def run_paragraph_level(
         if art_idx in skip:
             continue
         context = context_per_article[art_idx]
+        headline_block = f"[HEADLINE] {a['headline']}\n\n"
         for para_idx, para in enumerate(a["paragraphs"]):
             if context:
-                para_text = f"[CONTEXT]\n{context}\n[/CONTEXT]\n\n{para}"
+                para_text = f"{headline_block}[CONTEXT]\n{context}\n[/CONTEXT]\n\n{para}"
             else:
-                para_text = para
+                para_text = f"{headline_block}{para}"
             for sym in ALL_ASSETS:
                 text = f"{para_text}\n\n[ASSET] {_asset_label(sym)}"
                 tasks.append((art_idx, para_idx, sym))
@@ -247,6 +274,7 @@ def _build_validation_input(
     """
     parts = []
 
+    parts.append(f"[HEADLINE] {article['headline']}")
     parts.append("[ARTICLE]")
     for idx, para in enumerate(article["paragraphs"]):
         parts.append(f"[{idx}] {para}")
@@ -650,8 +678,24 @@ def run_experiment(
     tensor_parallel_size: int = 1,
     dataset: str = "gold",
     max_articles: int | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    random_seed: int | None = None,
 ) -> None:
-    articles = load_articles(dataset, sample_dir, max_articles=max_articles)
+    # Leave ~2K tokens headroom for the system prompt, macro summary context,
+    # and generation budget. djnw loader uses this to skip articles whose text
+    # alone would push the prompt past ``max_model_len``.
+    max_article_tokens = max(1024, max_model_len - 2000)
+    articles = load_articles(
+        dataset,
+        sample_dir,
+        max_articles=max_articles,
+        start_date=start_date,
+        end_date=end_date,
+        random_seed=random_seed,
+        max_tokens=max_article_tokens,
+        tokenizer_path=model_path,
+    )
 
     mapper = LLMMapper(
         model_path=model_path,
@@ -688,12 +732,24 @@ def main():
     )
     parser.add_argument(
         "--dataset", type=str, default="gold",
-        choices=["gold", "sports", "wikigaming"],
-        help="Dataset to run: 'gold', 'sports', or 'wikigaming' (default: gold)",
+        choices=["gold", "sports", "wikigaming", "djnw"],
+        help="Dataset to run: 'gold', 'sports', 'wikigaming', or 'djnw' (default: gold)",
     )
     parser.add_argument(
         "--max-articles", type=int, default=None,
         help="Limit number of articles to process (useful for large datasets)",
+    )
+    parser.add_argument(
+        "--start-date", type=str, default=None,
+        help="Earliest monthly file to include (YYYY-MM, djnw only)",
+    )
+    parser.add_argument(
+        "--end-date", type=str, default=None,
+        help="Latest monthly file to include, inclusive (YYYY-MM, djnw only)",
+    )
+    parser.add_argument(
+        "--random-seed", type=int, default=None,
+        help="Seed for random sampling of djnw articles within the date range",
     )
     args = parser.parse_args()
 
@@ -705,6 +761,8 @@ def main():
             args.sample_dir = "data/sports_news_1994_2000"
         elif args.dataset == "wikigaming":
             args.sample_dir = "data/WikiGaming.jsonl"
+        elif args.dataset == "djnw":
+            args.sample_dir = "/nfs/roberts/project/pi_btk22/rc2573/output/cleaned/v2/articles"
     if args.output_json is None:
         args.output_json = f"results/{args.dataset}_summary.json"
 
@@ -721,6 +779,9 @@ def main():
         tensor_parallel_size=args.tensor_parallel_size,
         dataset=args.dataset,
         max_articles=args.max_articles,
+        start_date=args.start_date,
+        end_date=args.end_date,
+        random_seed=args.random_seed,
     )
 
 
