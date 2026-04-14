@@ -7,7 +7,7 @@ Two mapper agents have already reviewed this article:
 Their reasoning is provided in the [MAPPER REASONING] block below. Each mapper's reasoning is labeled with its source and proposed signal strength.
 
 YOUR TASK
-You are given the full article and the mappers' reasoning for a single asset. Evaluate whether the mappers have built a convincing case that this asset's price would be affected by the article's content. Do you agree or disagree with their reasoning?
+You are given the full article (prefixed with a [HEADLINE] block containing the article's title) and the mappers' reasoning for a single asset. Evaluate whether the mappers have built a convincing case that this asset's price would be affected by the article's content. Do you agree or disagree with their reasoning?
 
 You can reason across the entire article. The mappers may have cited specific paragraphs, but you should also consider:
 - Whether other paragraphs contain corroborating evidence that strengthens the case

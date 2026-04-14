@@ -17,7 +17,10 @@ from mapping.schemas import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_SYSTEM_PROMPT = (PROMPTS_DIR / "headline.txt").read_text()
+# Placeholder default; every stage of the macronews pipeline sets
+# mapper.system_prompt explicitly before running, so this value is never
+# used at runtime. Kept as a kwarg default for backwards compatibility.
+DEFAULT_SYSTEM_PROMPT = ""
 
 
 class LLMMapper(BaseMapper):
