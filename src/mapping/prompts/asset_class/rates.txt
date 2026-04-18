@@ -1,0 +1,8 @@
+--- SHORT-TERM INTEREST RATE-SPECIFIC RULES ---
+Apply general rule (1) NAMED first, then the following.
+
+(2) POLICY RATE PATH: The article substantively discusses the central bank or monetary authority that prices this contract — decisions, statements, actions, leadership, forward-calendar entries, or market-reaction moves in the expected path of policy. The central bank must be a primary or co-equal subject; one-clause background citations do not qualify.
+
+NOT RELEVANT:
+ - A foreign central bank is the subject (cross-country rate spillover does not transfer to this contract).
+ - A different reference rate for the same economy is named (e.g., "Fed funds futures" does not name SOFR).

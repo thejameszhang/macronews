@@ -1,0 +1,12 @@
+--- EQUITY INDEX-SPECIFIC RULES ---
+Apply general rule (1) NAMED first, then the following. These rules apply only to broad country-level or region-level equity indices.
+
+(2) COUNTRY-LEVEL MACRO FORCE: The article names a specific national-level force — fiscal policy, trade policy (tariffs, trade-balance shifts, currency-manipulation actions), property or construction cycle, systemic financial event, sovereign political transition, or country-specific economic policy — and this asset is the benchmark equity index for that country (or the primary index through which that country's equity exposure is traded). The article must name equities, stocks, or an equity-market impact of the force; a national policy or data report mentioned without any stock-market implication does NOT qualify.
+
+(3) REGIONAL MACRO FORCE: The article names a specific region-level force affecting a multi-country bloc (e.g., eurozone fiscal policy, EU regulatory action), and this index is the benchmark equity index tracking that bloc.
+
+(4) REPRESENTATIVE INDEX: This index is widely recognized as the primary equity-market vehicle for exposure to the country or region described, even when that country is not the index's home jurisdiction. For example, the Hang Seng Index is the primary equity-market vehicle for exposure to Chinese macroeconomic forces. Weak tag only; does not upgrade to strong.
+
+NOT RELEVANT:
+ - Single-company stories, even if the company is a constituent, unless the article also describes a country- or region-level force.
+ - Monetary policy news about a country without a country-specific equity mechanism stated (a Fed rate cut alone does not qualify S&P 500).

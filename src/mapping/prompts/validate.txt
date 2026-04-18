@@ -7,43 +7,47 @@ Two mapper agents have already reviewed this article:
 Their reasoning is provided in the [MAPPER REASONING] block below. Each mapper's reasoning is labeled with its source and proposed signal strength.
 
 YOUR TASK
-You are given the full article (prefixed with a [HEADLINE] block containing the article's title) and the mappers' reasoning for a single asset. Evaluate whether the mappers have built a convincing case that this asset's price would be affected by the article's content. Do you agree or disagree with their reasoning?
+You are given the full article (prefixed with a [HEADLINE] block containing the article's title) and the mappers' reasoning for a single asset. Your job is to STRICTLY enforce the relevance rules the mappers were supposed to follow. The mappers may over-propose; you are the final arbiter. Reject anything that does not clearly fit one of the allowed rules. The bar is FIRST-ORDER relevance — the article must directly discuss a force acting on this asset, not an inferential chain.
 
-You can reason across the entire article. The mappers may have cited specific paragraphs, but you should also consider:
-- Whether other paragraphs contain corroborating evidence that strengthens the case
-- Whether other paragraphs contain contradicting or qualifying information that weakens the case
+RELEVANCE RULES (IDENTICAL TO THE MAPPER PROMPT)
+A mapping is valid ONLY when the asset is affected through one of the rules below. Rule (1) is a general rule that applies to any asset. The remaining rules are specific to this asset's class.
 
-SIGNAL STRENGTH AND RELEVANCE SCORE
-The mappers have proposed a signal strength and relevance score for this asset. You are the final arbiter of both. You may agree, upgrade, or downgrade:
-- strong: a specific economic force with a direct transmission channel to this asset's price. The connection requires few reasoning steps.
-- weak: the asset is affected, but the transmission channel is subtler and requires more reasoning steps. The signal is real — it captures niche or secondary effects that still move markets and are valuable for asset pricing. A weak signal should not be rejected simply because the chain is long; reject only if the chain is unsound or ungrounded.
+--- GENERAL RULE ---
 
-Assign your final relevance_score between 0.0 and 1.0 reflecting how relevant this article is to this specific futures contract. You may adjust the mappers' proposed scores up or down based on your full-article review:
-- 0.9–1.0: the article is directly and specifically about forces that affect this asset
-- 0.6–0.8: clear relevance through a well-established transmission channel
-- 0.3–0.5: relevant but the connection is more indirect or the article only touches on it briefly
-- 0.0–0.2: marginally relevant at best
+ (1) NAMED: The asset is named in the text as a subject affected by a specific force described in the article — not merely as a pricing unit (e.g., "priced in Euros"), a reporting currency, a denominating proxy, or an incidental mention. The asset must be what a force in the article is acting on or being discussed about.
 
-WHAT MUST BE IN THE TEXT vs. WHAT CAN COME FROM YOUR KNOWLEDGE
-The article must describe the economic event, policy action, or market force — this is the "trigger" and it must appear in the text.
-The transmission channel from that trigger to a specific asset's price may rely on real-world economic knowledge that is NOT stated in the article. 
-REJECT only when the mapper's claimed transmission channel is factually wrong or economically unsound — not merely because it is unstated in the article.
+{{ASSET_CLASS_RULES}}
 
-Apply the appropriate validation bar based on the signal strength you determine:
+If the mapper's reasoning does not fit one of these rules, REJECT the mapping.
 
-For strong signals:
-- ACCEPT if the article describes a specific trigger and the transmission channel to this asset is economically sound (whether stated in the text or from your knowledge).
-- REJECT if the trigger is not in the text, or the transmission channel is factually wrong or logically flawed.
+WHAT MUST BE REJECTED (in addition to the class-specific NOT RELEVANT list above)
+ - Functional-currency / reporting-currency / currency-translation-risk boilerplate: if the article only names a currency as one of a company's functional or reporting currencies (e.g., "fluctuations in foreign currency exchange rates may adversely impact our financial results"), the currency is a denominating unit, not a subject being acted on. Reject even when the currency appears literally in the text.
+ - Historical correlations without an article-specific pathway (e.g., "commodities tend to move with the dollar" is not a link).
+ - Secondary derivations where the intermediate commodity, currency, or asset is NOT discussed in the article.
+ - Geographic or company mention alone, without a specific force affecting this asset.
+ - Supply-chain-adjacent inference where the named commodity is a tiny fraction of the asset's exposure.
+ - Multi-step reasoning chains. If the mapper needed more than one inference step to connect the article to the asset, the mapping should be rejected.
 
-For weak signals:
-- ACCEPT if the trigger is in the text and each step in the reasoning chain is economically sound, even if some steps rely on domain knowledge not stated in the article. A long chain is fine as long as each link is real.
-- REJECT only if the trigger is missing from the text, a specific step is factually wrong or economically unsound, or other parts of the article directly contradict the hypothesis. Do not reject merely because the chain is indirect.
+BEFORE YOU REJECT AS A CHAIN OR SECONDARY DERIVATION
+Before rejecting a mapping under "multi-step reasoning chain" or "secondary derivation," you must first articulate the specific intermediate commodity, currency, or asset you believe the mapper has omitted from the article. If you cannot name a concrete intermediate, do not reject on chain grounds — a direct class-specific claim is a single step, not a chain, even when the asset and the named entity are in different jurisdictions. Do not invent an intermediate (such as "the host country's economy") to justify a rejection; if the mapper's claim is that the asset directly tracks the exposure in the article, evaluate that claim on its own merits.
 
-VALIDATION RULES
-- Evaluate each mapper's stated transmission channel against the full article and your own macroeconomic knowledge.
-- REJECT when the asset is mentioned only as background context or analogy.
-- REJECT when the mapper invents a connection that is not economically real (e.g., geographic mention alone does not imply price impact).
-- Select the paragraph(s) containing the strongest evidence, whether or not the mappers flagged them.
+SIGNAL STRENGTH
+You are the final arbiter of signal strength. You may upgrade, downgrade, or change the mappers' proposal:
+ - strong: the asset is NAMED in the text (rule 1). No economic reasoning required to connect the article to the asset.
+ - weak: the asset qualifies via an asset-class-specific rule — an explicit mechanism connects the article to the asset, but the asset is not named.
+
+If the asset is named in the text and the mapper labeled it weak, upgrade to strong. If the asset is not named in the text and the mapper labeled it strong, downgrade to weak. If the asset does not fit any of the rules, reject.
+
+RELEVANCE SCORE
+Assign a final relevance_score between 0.0 and 1.0 reflecting how central this asset is to the article. You may adjust the mappers' proposed score based on your full-article review.
+
+VALIDATION PROCEDURE
+1. Read the full article.
+2. Read the mappers' reasoning for this asset.
+3. Identify which of the rules (if any) the mapper is invoking. If the reasoning does not fit any rule, reject.
+4. Verify the rule claim: is the asset actually covered by rule 1 (NAMED) or by the claimed asset-class-specific rule for what the article describes?
+5. Check the rejection rules above.
+6. Select the paragraph(s) containing the strongest evidence, whether or not the mappers flagged them.
 
 OUTPUT FORMAT
 Return ONLY valid JSON:
@@ -55,5 +59,5 @@ Rules:
 - If valid=true: evidence_paragraphs must list at least one paragraph index
 - If valid=false: evidence_paragraphs must be []
 - reasoning is REQUIRED for both valid=true and valid=false:
-  - If valid=true: state the transmission channel you agree with. Note any additional evidence you found beyond what the mappers cited.
-  - If valid=false: explain why the mappers' reasoning is flawed. Note if other parts of the article contradict their case.
+  - If valid=true: state which rule applies and quote the article phrase that grounds it.
+  - If valid=false: explain which rule the mapping violates — typically either "does not fit any of the rules" or naming a specific rejection rule.

@@ -803,7 +803,7 @@ SEK:
 ES:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-MINI S&P 500 INDEX CONT.
-  name: Mini S&P 500 Index
+  name: S&P 500 Index
   asset_class: equity index
   curcdd: USD
   ric: ES
@@ -818,7 +818,7 @@ ES:
 NQ:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-E MINI NASDAQ 100 CONTINUOUS
-  name: Mini Nasdaq 100 Index
+  name: Nasdaq 100 Index
   asset_class: equity index
   curcdd: USD
   ric: NQ
@@ -832,7 +832,7 @@ NQ:
 RTY:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-E-MINI RUSSELL 2000 C CONT
-  name: Mini Russell 2000 Index
+  name: Russell 2000 Index
   asset_class: equity index
   curcdd: USD
   ric: RTY
@@ -846,7 +846,7 @@ RTY:
 EMD:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-EMINI S&P 400 MIDCAP CONTINUOU
-  name: Mini S&P 400 Midcap Index
+  name: S&P 400 Midcap Index
   asset_class: equity index
   curcdd: USD
   ric: DM
@@ -861,7 +861,7 @@ EMD:
 YM:
   exchange_name: Chicago Board of Trade (CBOT)
   calcseriesname: CBT-MINI DOW JONES CONTINUOUS
-  name: Mini DJ Industrial Index
+  name: Dow Jones Industrial Index
   asset_class: equity index
   curcdd: USD
   ric: YM
@@ -1007,7 +1007,7 @@ HSI:
 "160120006":
   exchange_name: Osaka Exchange
   calcseriesname: TSE-MINI-TOPIX CONTINUOUS
-  name: Mini TOPIX Index
+  name: TOPIX Index
   asset_class: equity index
   curcdd: JPY
   ric: JNI
@@ -1021,7 +1021,7 @@ HSI:
 "164120019":
   exchange_name: Osaka Exchange
   calcseriesname: OSX-NIKKEI 225 INDEX CONTINUOUS
-  name: Mini Nikkei 225 Index
+  name: Nikkei 225 Index
   asset_class: equity index
   curcdd: JPY
   ric: JNI
@@ -1152,7 +1152,7 @@ VX:
 FVS:
   exchange_name: EUREX
   calcseriesname: EUREX-MINI VSTOXX CONTINUOUS
-  name: Mini VSTOXX Index
+  name: VSTOXX Index
   asset_class: volatility
   curcdd: EUR
   ric: FVS

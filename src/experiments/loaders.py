@@ -245,6 +245,7 @@ def load_djnw_articles(
     random_seed: int | None = None,
     max_tokens: int | None = None,
     tokenizer_path: str | None = None,
+    chars_per_token: float = 2.0,
 ) -> list[dict]:
     """Load DJNW articles from monthly JSONL files, converting to standard schema.
 
@@ -282,12 +283,13 @@ def load_djnw_articles(
     # When random sampling, disable the streaming early-break so we see every article.
     streaming_cap = max_articles if random_seed is None else None
 
-    # Lazy tokenizer for length filtering. Gemma tokenizes at roughly 3-4 chars/token
-    # for English but can go as low as ~1.5 for CJK/dense text, so use 2 chars/token
-    # as a conservative upper bound: texts shorter than 2*max_tokens chars are safe
-    # without calling the tokenizer at all.
+    # Lazy tokenizer for length filtering. ``chars_per_token`` is a lower bound on
+    # the tokenizer's char-to-token ratio --- a text shorter than
+    # ``chars_per_token * max_tokens`` chars cannot possibly exceed ``max_tokens``
+    # tokens, and skips tokenization entirely. Gemma tokenizes at ~3-4 chars/token
+    # for English (default 2.0 is a safe conservative bound).
     tokenizer = None
-    fast_path_limit_chars = max_tokens * 2 if max_tokens else None
+    fast_path_limit_chars = int(max_tokens * chars_per_token) if max_tokens else None
     skipped_long = 0
 
     articles = []

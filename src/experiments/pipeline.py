@@ -12,9 +12,11 @@ import json
 import logging
 from pathlib import Path
 
+from collections import defaultdict
+
 from config.paths import PROMPTS_DIR, DEFAULT_MODEL
 from experiments.loaders import load_gold_articles, load_sports_articles, load_wikigaming_articles, load_djnw_articles
-from mapping.llm import LLMMapper
+from mapping.llm import ASSET_CLASS_RULES_PLACEHOLDER, LLMMapper
 from mapping.schemas import AssetMapping, MappingResult, SingleAssetResult, SummarizeResult, ValidationResult
 from utils.config import load_asset_universe
 
@@ -57,6 +59,7 @@ def load_articles(
     random_seed: int | None = None,
     max_tokens: int | None = None,
     tokenizer_path: str | None = None,
+    chars_per_token: float = 2.0,
 ) -> list[dict]:
     """Load articles in the standard schema {id, headline, paragraphs}.
 
@@ -76,6 +79,9 @@ def load_articles(
         Skip articles whose text exceeds this token count (djnw only).
     tokenizer_path : str, optional
         Model path used to load the tokenizer for the ``max_tokens`` filter.
+    chars_per_token : float, optional
+        Conservative lower bound on the tokenizer's char-to-token ratio for the
+        fast-path filter. Default 2.0 is safe for Gemma English.
     """
     if dataset == "gold":
         return load_gold_articles(sample_dir)
@@ -92,6 +98,7 @@ def load_articles(
             random_seed=random_seed,
             max_tokens=max_tokens,
             tokenizer_path=tokenizer_path,
+            chars_per_token=chars_per_token,
         )
     else:
         raise ValueError(f"Unknown dataset: {dataset!r}")
@@ -116,6 +123,51 @@ def run_summarize(
 
 
 # ---------------------------------------------------------------------------
+# Per-asset-class batching helper
+# ---------------------------------------------------------------------------
+
+def _run_per_asset_class(
+    mapper: LLMMapper,
+    prompt_template: str,
+    syms: list[str],
+    texts: list[str],
+    call,
+) -> list:
+    """Group (sym, text) pairs by the asset's class, substitute class-specific
+    rules into ``prompt_template``, and invoke ``call(mapper, batch_texts)``
+    once per class. Returns results in the original input order.
+
+    ``call`` is a callable taking (mapper, batch_texts) and returning a list
+    of results parallel to batch_texts.
+    """
+    if not texts:
+        return []
+    if ASSET_CLASS_RULES_PLACEHOLDER not in prompt_template:
+        raise ValueError(
+            f"Prompt template is missing {ASSET_CLASS_RULES_PLACEHOLDER} placeholder"
+        )
+    if len(syms) != len(texts):
+        raise ValueError(f"syms/texts length mismatch: {len(syms)} vs {len(texts)}")
+
+    by_class: dict[str, list[int]] = defaultdict(list)
+    for idx, sym in enumerate(syms):
+        ac = _ASSET_UNIVERSE[sym]["asset_class"]
+        by_class[ac].append(idx)
+
+    results: list = [None] * len(texts)
+    for ac, indices in by_class.items():
+        mapper.system_prompt = prompt_template.replace(
+            ASSET_CLASS_RULES_PLACEHOLDER, mapper.asset_class_rules(ac)
+        )
+        batch_texts = [texts[i] for i in indices]
+        logger.info("  [%s] %d calls", ac, len(batch_texts))
+        batch_results = call(mapper, batch_texts)
+        for orig_idx, result in zip(indices, batch_results):
+            results[orig_idx] = result
+    return results
+
+
+# ---------------------------------------------------------------------------
 # Stage 1: ArticleMapper (one call per article × asset)
 # ---------------------------------------------------------------------------
 
@@ -129,7 +181,6 @@ def run_article_level(
     Returns list (one per article) of {asset_sym: SingleAssetResult} for relevant assets only.
     """
     skip = skip_indices or set()
-    mapper.system_prompt = ARTICLE_PROMPT
 
     # Build all (article, asset) pairs
     tasks: list[tuple[int, str]] = []
@@ -144,7 +195,13 @@ def run_article_level(
             texts.append(text)
 
     logger.info("=== Stage 1: article-level (%d calls) ===", len(texts))
-    results = mapper.map_single_asset(texts, max_tokens=512)
+    results = _run_per_asset_class(
+        mapper,
+        ARTICLE_PROMPT,
+        syms=[sym for _, sym in tasks],
+        texts=texts,
+        call=lambda m, ts: m.map_single_asset(ts, max_tokens=512),
+    )
 
     # Group by article, keep only relevant
     by_article: list[dict[str, SingleAssetResult]] = [{} for _ in articles]
@@ -175,7 +232,6 @@ def run_paragraph_level(
     Returns list (one per article) of {asset_sym: [(para_idx, SingleAssetResult), ...]}.
     """
     skip = skip_indices or set()
-    mapper.system_prompt = PARAGRAPH_PROMPT
 
     # Build all (paragraph, asset) pairs
     tasks: list[tuple[int, int, str]] = []
@@ -196,7 +252,13 @@ def run_paragraph_level(
                 texts.append(text)
 
     logger.info("=== Stage 2: paragraph-level (%d calls) ===", len(texts))
-    results = mapper.map_single_asset(texts, max_tokens=512)
+    results = _run_per_asset_class(
+        mapper,
+        PARAGRAPH_PROMPT,
+        syms=[sym for _, _, sym in tasks],
+        texts=texts,
+        call=lambda m, ts: m.map_single_asset(ts, max_tokens=512),
+    )
 
     # Group by article and asset, keep only relevant
     by_article: list[dict[str, list[tuple[int, SingleAssetResult]]]] = [{} for _ in articles]
@@ -346,7 +408,6 @@ def run_validation(
         reasoning, selected_text
     """
     logger.info("=== Stage 3: validation + text selection ===")
-    mapper.system_prompt = VALIDATE_PROMPT
 
     # Enumerate all (article, asset) pairs from the union of AM and PM
     tasks: list[dict] = []
@@ -387,8 +448,15 @@ def run_validation(
 
     logger.info("  %d (article, asset) pairs to validate", len(input_texts))
 
-    # Batch validation call
-    validation_results = mapper.map_validate(input_texts, max_tokens=512)
+    # Batch validation call, grouped by asset class so each batch uses the
+    # correct class-specific rule block.
+    validation_results = _run_per_asset_class(
+        mapper,
+        VALIDATE_PROMPT,
+        syms=[t["asset"] for t in tasks],
+        texts=input_texts,
+        call=lambda m, ts: m.map_validate(ts, max_tokens=512),
+    )
 
     # Combine results
     output = []
@@ -686,6 +754,7 @@ def run_experiment(
     # and generation budget. djnw loader uses this to skip articles whose text
     # alone would push the prompt past ``max_model_len``.
     max_article_tokens = max(1024, max_model_len - 2000)
+    chars_per_token = 2.0
     articles = load_articles(
         dataset,
         sample_dir,
@@ -695,6 +764,7 @@ def run_experiment(
         random_seed=random_seed,
         max_tokens=max_article_tokens,
         tokenizer_path=model_path,
+        chars_per_token=chars_per_token,
     )
 
     mapper = LLMMapper(

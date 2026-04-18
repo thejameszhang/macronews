@@ -37,3 +37,4 @@ Thumbs.db
 # Claude
 .claude/
 claude.sh
+article_cache/

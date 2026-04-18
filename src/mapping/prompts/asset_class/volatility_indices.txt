@@ -1,0 +1,8 @@
+--- VOLATILITY INDEX-SPECIFIC RULES ---
+Apply general rule (1) NAMED first, then the following. These rules apply only to equity-volatility indices tracking the implied volatility of a specific underlying equity benchmark.
+
+(2) UNDERLYING EQUITY VOLATILITY: The article explicitly discusses the volatility of the underlying equity benchmark using volatility-specific terminology — "volatility," "vol," "implied vol," "realized vol," "vol premium," "hedging demand," or a direct vol-index reference. Stock-price moves, selloffs, or generic "uncertainty" alone do NOT qualify.
+
+NOT RELEVANT:
+ - Commodity, currency, or bond volatility — only equity volatility qualifies.
+ - The underlying equity index discussed without volatility language.

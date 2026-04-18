@@ -22,6 +22,20 @@ logger = logging.getLogger(__name__)
 # used at runtime. Kept as a kwarg default for backwards compatibility.
 DEFAULT_SYSTEM_PROMPT = ""
 
+# Map each asset_class value in asset_universe.yaml to its prompt file under
+# PROMPTS_DIR/asset_class/. Unknown classes raise at mapper init time.
+ASSET_CLASS_PROMPT_FILES = {
+    "currency":                 "currency.txt",
+    "short-term interest rate": "rates.txt",
+    "government bond":          "bonds.txt",
+    "commodity":                "commodities.txt",
+    "US equity sector":         "equity_sectors.txt",
+    "equity index":             "equity_indices.txt",
+    "volatility":               "volatility_indices.txt",
+}
+
+ASSET_CLASS_RULES_PLACEHOLDER = "{{ASSET_CLASS_RULES}}"
+
 
 class LLMMapper(BaseMapper):
     def __init__(
@@ -37,6 +51,48 @@ class LLMMapper(BaseMapper):
         self.tensor_parallel_size = tensor_parallel_size
         self._llm = None
         self._asset_list_str = self._get_formatted_asset_list()
+        self._asset_class_rules = self._load_asset_class_rules()
+
+    def _load_asset_class_rules(self) -> dict[str, str]:
+        """Load asset-class-specific rule files and verify every class in the
+        asset universe has a registered prompt file. Raise on any mismatch."""
+        from utils.config import load_asset_universe
+        from config.paths import ASSET_UNIVERSE_YAML
+
+        asset_class_dir = PROMPTS_DIR / "asset_class"
+        rules: dict[str, str] = {}
+        for ac, fname in ASSET_CLASS_PROMPT_FILES.items():
+            fpath = asset_class_dir / fname
+            if not fpath.exists():
+                raise FileNotFoundError(
+                    f"Asset-class prompt file missing: {fpath} (for asset_class={ac!r})"
+                )
+            rules[ac] = fpath.read_text()
+
+        universe_classes = {
+            info["asset_class"] for info in load_asset_universe(ASSET_UNIVERSE_YAML).values()
+        }
+        missing_in_prompts = universe_classes - rules.keys()
+        unused_prompts = rules.keys() - universe_classes
+        if missing_in_prompts:
+            raise ValueError(
+                f"asset_universe.yaml contains asset classes with no class-specific "
+                f"prompt: {sorted(missing_in_prompts)}"
+            )
+        if unused_prompts:
+            raise ValueError(
+                f"ASSET_CLASS_PROMPT_FILES declares prompts for classes not in "
+                f"asset_universe.yaml: {sorted(unused_prompts)}"
+            )
+        return rules
+
+    def asset_class_rules(self, asset_class: str) -> str:
+        """Return the class-specific rule text for an asset class, or raise."""
+        if asset_class not in self._asset_class_rules:
+            raise KeyError(
+                f"No asset-class-specific rules registered for asset_class={asset_class!r}"
+            )
+        return self._asset_class_rules[asset_class]
 
     @property
     def system_prompt(self) -> str:

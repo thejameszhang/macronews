@@ -23,7 +23,8 @@ MAX_ARTICLES="${MAX_ARTICLES:-100}"
 START_DATE="${START_DATE:-2020-11}"
 END_DATE="${END_DATE:-2020-11}"
 RANDOM_SEED="${RANDOM_SEED:-}"
-PARTITION="${PARTITION:-gpu_b200}"
+PARTITION="${PARTITION:-priority_gpu}"
+ACCOUNT="${ACCOUNT:-prio_btk22}"
 GRES="${GRES:-gpu:b200:1}"
 EXTRA_ARGS="${*}"
 
@@ -41,7 +42,7 @@ jobid=$(sbatch --parsable \
     --cpus-per-task=8 \
     --mem=128G \
     --partition=${PARTITION} \
-    --account=pi_btk22 \
+    --account=${ACCOUNT} \
     --gres=${GRES} \
     --wrap="
         module load Python/3.12.3-GCCcore-13.3.0 2>/dev/null || true

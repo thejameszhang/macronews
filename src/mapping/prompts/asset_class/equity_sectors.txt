@@ -1,0 +1,10 @@
+--- EQUITY SECTOR-SPECIFIC RULES ---
+Apply general rule (1) NAMED first, then the following. These rules apply only to sector-level equity assets defined by industry classification.
+
+(2) SECTOR-LEVEL FORCE: The article names a commodity, regulation, or demand/supply shock acting on the sector — not on a minor sub-industry, and not a sector-related term appearing only as a sub-component within an article about a different topic. E.g., pharma demand qualifies Health Care; gold does NOT qualify Materials (precious metals are a minor slice).
+
+(3) SECTOR CONSTITUENT: The article names a company or business event, and this sector contains that company as a material constituent (not a minority position). A company belongs to ONE GICS sector — before tagging, identify the named company's actual sector; if it is not this asset, reject.
+
+NOT RELEVANT:
+ - Macro rate moves without a sector-specific mechanism stated in the text (a Fed rate cut alone does not qualify Financials or Utilities).
+ - Commodity price moves where the commodity is a small input for the sector.

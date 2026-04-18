@@ -1,0 +1,10 @@
+--- CURRENCY-SPECIFIC RULES ---
+Apply general rule (1) NAMED first, then the following.
+
+(2) POLICY DISCUSSION: The article substantively discusses the central bank, monetary authority, or FX regime issuing this currency — its decisions, statements, actions, intervention, leadership, or the market reaction to them. A calendar-style name-drop or inclusion in a peer list does NOT qualify.
+
+(3) NATIONAL MACRO VEHICLE: The article names a country-specific force — tariffs on the country, trade-balance or current-account shift, capital-flow event, FX intervention, sovereign-debt event, or country-specific fiscal action — and this currency is the primary FX instrument through which that country is traded.
+
+NOT RELEVANT:
+ - Reporting-, functional-, or pricing-unit mentions.
+ - Commodity or safe-haven flows inferred from the article's topic without the FX link stated in the text.
