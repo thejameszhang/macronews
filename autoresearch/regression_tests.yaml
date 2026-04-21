@@ -1,111 +1,94 @@
 # Regression tests for autoresearch prompt optimization.
-# Format: (dataset, article_id, asset, expected_outcome)
-# expected: "accepted", "rejected", or "not_proposed"
-# Wildcards: article_id: "*" = all articles, asset: "*" = all assets
 #
-# These are manually curated ground truth. Never modified by the agent.
+# Schema (per-article):
+#   - dataset: djnw
+#     article_id: <id>
+#     expected_accepted:          # must be accepted (mapper proposed + validator passed)
+#       <asset>: <rule citation>
+#     expected_not_accepted:      # optional; must NOT be accepted
+#       <asset>: <rule citation>  # rejected-or-not-proposed both pass
+#     exact: true                 # optional; if true, any accepted asset outside
+#                                 # expected_accepted is a failure
+#
+# Manually curated ground truth from the DJNW March 2022 seed=42 1000-article
+# sample. Each citation references the 5-case rule it anchors on. Never
+# modified by the agent. DJNW tests are spot-checks (no `exact: true`) — gold
+# tests are exhaustive.
 
 tests:
-  # === Gold positive tests (must be accepted) ===
+  # === POSITIVE: the asset is named (case 1) ===
 
-  # gold_01: Precious metals article with tariff/trade context
-  - dataset: gold
-    article_id: gold_01
-    asset: Gold
-    expected: accepted
-    note: "Core subject of the article"
-  - dataset: gold
-    article_id: gold_01
-    asset: Silver
-    expected: accepted
-    note: "Explicitly discussed with price data"
-  - dataset: gold
-    article_id: gold_01
-    asset: Canadian Dollar
-    expected: accepted
-    note: "Canada tariff threat in paragraphs 7-9"
+  # BOE Sterling rate decision
+  - dataset: djnw
+    article_id: "20220316003619"   # BOE's Rate Decision Could Benefit Sterling in Short-Term
+    expected_accepted:
+      Sterling: "Case 1: Sterling named as the subject of BOE rate decision"
+      UK Long Gilt: "Case 3: BOE is issuing authority for UK gilts"
+      3-Month SONIA: "Case 2/3: SONIA is the primary vehicle for BOE rate expectations"
 
-  # gold_02: Safe haven / rates article
-  - dataset: gold
-    article_id: gold_02
-    asset: Gold
-    expected: accepted
-    note: "Core safe haven discussion"
-  - dataset: gold
-    article_id: gold_02
-    asset: Japanese Yen
-    expected: accepted
-    note: "Safe haven currency"
+  # USDA soybean price move
+  - dataset: djnw
+    article_id: "20220325004841"   # Soybeans Slip Under $17 Per Bushel
+    expected_accepted:
+      Soybeans: "Case 1: soybeans named as the subject of the price move"
 
-  # gold_03: Oil / energy article
-  - dataset: gold
-    article_id: gold_03
-    asset: WTI Crude Oil
-    expected: accepted
-    note: "Core subject"
-  - dataset: gold
-    article_id: gold_03
-    asset: Mini S&P 500 Index
-    expected: accepted
-    note: "Growth/risk implications"
+  # Nymex crude close
+  - dataset: djnw
+    article_id: "20220323008140"   # Nymex Light Crude Oil Close
+    expected_accepted:
+      WTI Crude Oil: "Case 1: WTI is the named subject of a Nymex Light Crude close"
+      Brent Crude Oil: "Case 2/4: Brent is the primary global crude benchmark; direct substitute"
 
-  # gold_06: ECB / European rates article
-  - dataset: gold
-    article_id: gold_06
-    asset: Euro
-    expected: accepted
-    note: "ECB policy directly affects EUR"
-  - dataset: gold
-    article_id: gold_06
-    asset: Euro Bund
-    expected: accepted
-    note: "European sovereign bonds directly affected by ECB"
-  - dataset: gold
-    article_id: gold_06
-    asset: 3-Month EURIBOR
-    expected: accepted
-    note: "ECB rate decision directly moves EURIBOR"
+  # ICCO cocoa daily price
+  - dataset: djnw
+    article_id: "20220321003867"   # ICCO Cocoa Daily Price
+    expected_accepted:
+      Cocoa: "Case 1: cocoa named as the subject of the daily ICCO price"
 
-  # gold_07: Trade war / tariffs article
-  - dataset: gold
-    article_id: gold_07
-    asset: WTI Crude Oil
-    expected: accepted
-    note: "Trade war demand shock"
-  - dataset: gold
-    article_id: gold_07
-    asset: Corn
-    expected: accepted
-    note: "Agricultural tariffs"
+  # === POSITIVE: cross-jurisdictional primary vehicle (case 2) ===
 
-  # gold_09: Global macro multi-asset article
-  - dataset: gold
-    article_id: gold_09
-    asset: Brent Crude Oil
-    expected: accepted
-    note: "Energy supply discussed"
+  # China property slowdown → Hang Seng + LME Copper; AUD / LME Aluminium rejected
+  - dataset: djnw
+    article_id: "20220314011232"   # China Jan-Feb Property Investment Rose 3.7%
+    expected_accepted:
+      Hang Seng Index: "Case 2 cross-jurisdictional: HSI is the primary market for trading China equity exposure"
+      LME Copper: "Case 4: Chinese property construction is a dominant copper demand driver"
+    expected_not_accepted:
+      Australian Dollar: "Generic commodity-exporter chain: AUD is not a direct vehicle for Chinese property"
+      LME Aluminium: "Supply-chain-adjacent: property construction is not a dominant aluminium demand driver"
 
-  # gold_10: Japan / global rates article
-  - dataset: gold
-    article_id: gold_10
-    asset: 10 Year Japanese Government Bond
-    expected: accepted
-    note: "Core subject - Japan rates"
-  - dataset: gold
-    article_id: gold_10
-    asset: Japanese Yen
-    expected: accepted
-    note: "BOJ policy directly affects JPY"
+  # Ukraine / dollar / Fed tightening — EUR/JPY/10Y accepted; Bund/EURIBOR/DAX rejected
+  - dataset: djnw
+    article_id: "20220307007755"   # Dollar Firms, Ukraine War Should Send It Higher
+    expected_accepted:
+      Euro: "Case 1: EUR explicitly named as the currency the dollar is strengthening against"
+      Japanese Yen: "Case 1: JPY explicitly named as the currency the dollar is strengthening against"
+      10 Year US Government Note: "Case 3: Fed policy stance is the named subject; Fed is issuing authority for USTs"
+    expected_not_accepted:
+      Euro Bund: "Cross-country rate spillover: US rate discussion does not imply German bunds"
+      3-Month EURIBOR: "Cross-currency rate spillover: Fed tightening is not an ECB decision"
+      DAX Index: "Generic risk-off chain: article is about USD, not German equities"
 
-  # === Gold negative tests (company-specific → no assets) ===
-  - dataset: gold
-    article_id: gold_04
-    asset: "*"
-    expected: not_proposed
-    note: "Company-specific article should have no mappings"
-  - dataset: gold
-    article_id: gold_08
-    asset: "*"
-    expected: not_proposed
-    note: "Company-specific article should have no mappings"
+  # === NEGATIVE: Case-5 composition mismatch ===
 
+  # Russia suspension of Boeing aircraft parts → Nasdaq 100 (Boeing is NOT in NDX)
+  - dataset: djnw
+    article_id: "20220301015766"   # Boeing Co.: Suspended Parts... Russian Airlines
+    expected_not_accepted:
+      Nasdaq 100 Index: "Case 5 restricted to sectors: equity indices cannot be tagged via constituent reasoning"
+
+  # === NEGATIVE: functional-currency boilerplate should not be upgraded to case 1 ===
+
+  # Carnival 10-Q-style risk-factor language listing Euro/Sterling as functional currencies
+  - dataset: djnw
+    article_id: "20220322004976"   # Carnival 1Q Loss/Shr $1.66 (CCL)
+    expected_not_accepted:
+      Euro: "Functional-currency boilerplate exclusion: EUR named only as a reporting currency"
+      Sterling: "Functional-currency boilerplate exclusion: GBP named only as a reporting currency"
+
+  # NOTE: the legacy schema included a wildcard "company_specific" test using
+  # `article_id: "*company_specific*"` which never fired (the loader does
+  # literal article_id matching unless the id is exactly "*"). The intended
+  # invariant — articles flagged company_specific=true in summarize should
+  # produce no tags — is enforced upstream in the summarize stage itself and
+  # does not need a regression test here.

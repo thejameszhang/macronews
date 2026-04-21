@@ -94,49 +94,46 @@ def check_regression_tests(
             continue
 
         lookup = _build_lookup(ds)
-        article_id = test["article_id"]
-        asset = test["asset"]
-        expected = test["expected"]
+        aid = test["article_id"]
+        expected_accepted = test.get("expected_accepted") or {}
+        expected_not_accepted = test.get("expected_not_accepted") or {}
+        exact = bool(test.get("exact", False))
 
-        # Expand wildcards
-        article_ids = (
-            list(lookup.keys()) if article_id == "*" else [article_id]
-        )
+        if aid not in lookup:
+            if expected_accepted:
+                failures.append(
+                    f"[{ds_name}] {aid}: article not found but expected_accepted "
+                    f"lists {len(expected_accepted)} asset(s)"
+                )
+            continue
 
-        for aid in article_ids:
-            if aid not in lookup:
-                if expected == "accepted":
-                    failures.append(
-                        f"[{ds_name}] {aid}/{asset}: article not found, "
-                        f"expected {expected}"
-                    )
-                continue
+        article_map = lookup[aid]
 
-            assets_to_check = (
-                list(lookup[aid].keys()) if asset == "*" else [asset]
-            )
+        for asset in expected_accepted:
+            actual = article_map.get(asset)
+            if actual != "accepted":
+                failures.append(
+                    f"[{ds_name}] {aid}/{asset}: expected accepted, "
+                    f"got {actual or 'not proposed'}"
+                )
 
-            for a in assets_to_check:
-                actual = lookup[aid].get(a)
+        for asset in expected_not_accepted:
+            if article_map.get(asset) == "accepted":
+                failures.append(
+                    f"[{ds_name}] {aid}/{asset}: expected NOT accepted, "
+                    f"got accepted"
+                )
 
-                if expected == "accepted":
-                    if actual != "accepted":
-                        failures.append(
-                            f"[{ds_name}] {aid}/{a}: expected accepted, "
-                            f"got {actual or 'not proposed'}"
-                        )
-                elif expected == "rejected":
-                    if actual == "accepted":
-                        failures.append(
-                            f"[{ds_name}] {aid}/{a}: expected rejected, "
-                            f"got accepted"
-                        )
-                elif expected == "not_proposed":
-                    if actual is not None:
-                        failures.append(
-                            f"[{ds_name}] {aid}/{a}: expected not_proposed, "
-                            f"got {actual}"
-                        )
+        if exact:
+            actually_accepted = {
+                a for a, status in article_map.items() if status == "accepted"
+            }
+            extras = actually_accepted - set(expected_accepted)
+            for asset in sorted(extras):
+                failures.append(
+                    f"[{ds_name}] {aid}/{asset}: accepted but not in "
+                    f"expected_accepted (exact=true)"
+                )
 
     return len(failures) == 0, failures
 

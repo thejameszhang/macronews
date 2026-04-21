@@ -1,0 +1,477 @@
+\documentclass[10pt,aspectratio=169]{beamer}
+
+\usetheme{metropolis}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{pgfpages}
+\setbeameroption{show notes on second screen=right}
+
+% ---------------------------------------------------------------------
+% Yale colors (https://usebrand.yale.edu/colors)
+% ---------------------------------------------------------------------
+\definecolor{YaleBlue}{HTML}{00356B}
+\definecolor{YaleBlueLight}{HTML}{286DC0}
+\definecolor{YaleGray}{HTML}{4A4A4A}
+\definecolor{YaleGrayLight}{HTML}{DDDDDD}
+\definecolor{YaleAccent}{HTML}{BD5319}
+\definecolor{goodgreen}{HTML}{2E8B57}
+
+% ---------------------------------------------------------------------
+% Metropolis theme overrides --- Yale Blue
+% ---------------------------------------------------------------------
+\setbeamercolor{normal text}{fg=black, bg=white}
+\setbeamercolor{alerted text}{fg=YaleAccent}
+\setbeamercolor{example text}{fg=YaleBlue}
+
+\setbeamercolor{frametitle}{bg=YaleBlue, fg=white}
+\setbeamercolor{title separator}{fg=YaleBlueLight}
+\setbeamercolor{progress bar}{fg=YaleBlueLight, bg=YaleGrayLight}
+\setbeamercolor{progress bar in section page}{fg=YaleBlueLight, bg=YaleGrayLight}
+
+\setbeamercolor{section title}{fg=YaleBlue}
+\setbeamercolor{subsection title}{fg=YaleBlueLight}
+\setbeamercolor{standout}{bg=YaleBlue, fg=white}
+
+\setbeamercolor{block title}{bg=YaleBlue, fg=white}
+\setbeamercolor{block body}{bg=YaleGrayLight!30, fg=black}
+\setbeamercolor{block title alerted}{bg=YaleAccent, fg=white}
+\setbeamercolor{block body alerted}{bg=YaleGrayLight!30, fg=black}
+
+\setbeamercolor{itemize item}{fg=YaleBlue}
+\setbeamercolor{itemize subitem}{fg=YaleBlueLight}
+\setbeamercolor{enumerate item}{fg=YaleBlue}
+
+% ---------------------------------------------------------------------
+% Meta
+% ---------------------------------------------------------------------
+\title{Macro News Pipeline}
+\subtitle{Direct-link relevance framework}
+% \author{James Zhang}
+% \institute{Yale University}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{frame}{Outline}
+  \tableofcontents
+\end{frame}
+\section{The direct-link relevance rules}
+
+% --- Rules overview ---
+\begin{frame}{Rules for a valid asset mapping}
+  \small
+  An article--asset pair is relevant \textbf{only} when the asset is affected
+  through one of five direct mechanisms. These rules are intentionally
+  \emph{asset-class-agnostic} --- the same five cases apply to commodities,
+  currencies, rates, equity indices, and sectors. In the future we may layer
+  asset-class-specific rules on top (e.g., different thresholds for what
+  counts as a ``dominant input'' for base metals vs.\ energy), but the
+  current framework is general.
+
+  \medskip
+  \begin{enumerate}
+    \item \textbf{NAMED} --- the asset appears in the text as a subject.
+    \item \textbf{PRIMARY VEHICLE} --- the asset is the dominant traded
+          instrument for a specific force described in the article.
+    \item \textbf{ISSUING AUTHORITY} --- the article's subject is the
+          institution that controls this asset's price.
+    \item \textbf{SUBSTITUTION / INPUT LINK} --- a named commodity and this
+          asset are closely-related substitutes or inputs.
+    \item \textbf{SECTOR CONSTITUENT} --- a named company operates in this
+          equity \emph{sector} (not index).
+  \end{enumerate}
+
+  \medskip
+  The following slides walk through each rule with a concrete DJNW example.
+\end{frame}
+
+% --- Case 1 ---
+\begin{frame}{Case 1: NAMED}
+  \small
+  \textbf{Rule.} The asset is named in the text as a \emph{subject} affected
+  by a specific force --- not merely as a pricing unit, reporting currency,
+  denominating proxy, or incidental mention.
+
+  \medskip
+  \begin{block}{Example: \textit{``ICCO Cocoa Daily Price --- Mar 21''}}
+    The article reports the daily closing price of cocoa.
+    Cocoa futures $\to$ \textbf{strong}, relevance 1.0. \\[4pt]
+    The article originally also mentioned prices \textit{``in Euro/ton.''}
+    Euro is a pricing unit here, not a subject --- rejected under case 1's
+    exclusion clause. This led us to add an explicit
+    \textit{functional-currency / reporting-currency} rejection rule after
+    the same pattern leaked on the Carnival earnings article.
+  \end{block}
+
+  \medskip
+  \textbf{Signal:} always \textbf{strong} (no reasoning chain needed).
+\end{frame}
+
+% --- Case 2 ---
+\begin{frame}{Case 2: PRIMARY VEHICLE}
+  \small
+  \textbf{Rule.} The asset is the dominant traded instrument for the economic
+  exposure described in the article. The exposure must be a \emph{specific
+  force} --- not ``growth,'' ``uncertainty,'' or ``risk-off.'' The asset may
+  be listed in a different jurisdiction than the named force.
+
+  \medskip
+  \begin{block}{Example: \textit{``China Jan-Feb Property Investment Rose 3.7\%''}}
+    The article describes a slowdown in Chinese property construction.
+    The \textbf{Hang Seng Index} is the primary listed market for taking
+    direct equity exposure to the Chinese economy --- accepted as
+    \textbf{weak 0.60}. \\[4pt]
+    Without the cross-jurisdictional clause, the validator had rejected HSI
+    by inventing ``the Hong Kong economy'' as a fake intermediate step.
+    The safeguard we added stops the validator from fabricating intermediates.
+  \end{block}
+
+  \medskip
+  \textbf{Signal:} always \textbf{weak} (the asset itself is not named).
+\end{frame}
+
+% --- Case 3 ---
+\begin{frame}{Case 3: ISSUING AUTHORITY}
+  \small
+  \textbf{Rule.} The article's subject is the central bank, government
+  agency, or supranational body that issues, controls, or directly sets
+  this asset's price.
+
+  \medskip
+  \begin{block}{Example: \textit{``BOE's Rate Decision Could Benefit Sterling''}}
+    The Bank of England is the issuing authority for UK monetary policy.
+    \textbf{UK Long Gilt} $\to$ weak 0.60, \textbf{3-Month SONIA} $\to$
+    weak 0.85. Sterling itself comes in via case 1 (named, strong 1.00).
+    \\[4pt]
+    Case 3 also drives the full UST curve on the
+    \textit{``Dollar Firms, Ukraine War''} article, where the Fed's
+    tightening stance is the named subject and the Fed is the issuing
+    authority for US government debt.
+  \end{block}
+
+  \medskip
+  \textbf{Signal:} always \textbf{weak} (the asset is controlled by the
+  named institution, not named itself).
+\end{frame}
+
+% --- Case 4 ---
+\begin{frame}{Case 4: SUBSTITUTION / INPUT LINK}
+  \small
+  \textbf{Rule.} The article names a commodity, input, or product, and this
+  asset trades a closely-related substitute, input, or complement. The
+  relationship need not be stated in the article --- well-known industry
+  relationships count, as long as the original commodity is named.
+
+  \medskip
+  \begin{block}{Example: \textit{``China Jan-Feb Property Investment''} (cont.)}
+    The article names \textit{``new construction starts.''} \textbf{LME
+    Copper} (weak 0.50) and \textbf{LME Zinc} (weak 0.45) are accepted
+    because Chinese construction is the dominant global demand driver for
+    both metals. \\[4pt]
+    LME Aluminium and LME Lead are \emph{rejected} on the same article ---
+    property construction is not a dominant demand source for either.
+    The guardrail is the word \emph{dominant}: ``any industrial use'' is
+    not enough.
+  \end{block}
+
+  \medskip
+  \textbf{Signal:} always \textbf{weak}.
+  \textbf{Future work:} asset-class-specific rules may refine the
+  ``dominant'' threshold for base metals vs.\ energy vs.\ agriculture.
+\end{frame}
+
+% --- Case 5 ---
+\begin{frame}{Case 5: SECTOR CONSTITUENT}
+  \small
+  \textbf{Rule.} The article names a company or business event, and this
+  asset is an equity \textbf{sector} (not an equity index) where the named
+  company operates. Case 5 is restricted to sectors whose composition is
+  defined by industry classification.
+
+  \medskip
+  \begin{block}{Example: \textit{``Carnival 1Q Loss/Shr \$1.66''}}
+    Carnival Corporation is a major cruise-line operator.
+    \textbf{Consumer Discretionary Sector} $\to$ weak 0.65. \\[4pt]
+    Equity \emph{indices} (S\&P 500, Nasdaq 100, DAX, etc.) are
+    excluded from case 5 because LLMs cannot reliably recall index
+    composition. On the Russia/Boeing article, the model hallucinated
+    that Boeing is a Nasdaq 100 constituent --- it is not.
+    Indices can still be tagged via cases 1--4
+    (e.g., HSI on China via case 2).
+  \end{block}
+
+  \medskip
+  \textbf{Signal:} always \textbf{weak}. \\
+  \textbf{Design decision:} restricting case 5 to sectors eliminates an
+  entire class of factual-recall hallucinations at no recall cost.
+\end{frame}
+
+% --- Exclusion list ---
+\begin{frame}{What does not count as a direct link}
+  \scriptsize
+  Each exclusion was motivated by a specific pattern the pipeline proposed
+  that was judged incorrect upon review.
+
+  \smallskip
+  \begin{tabular}{@{}p{6.6cm}p{5.8cm}@{}}
+    \toprule
+    \textbf{Exclusion rule} & \textbf{Motivating example} \\
+    \midrule
+    Generic ``risk-off / safe-haven / global growth'' chains
+      & Gold, JPY, Swiss franc tagged on every geopolitical article \\
+    Historical correlations without article-specific pathway
+      & ``Commodities tend to move with the dollar'' as standalone justification \\
+    Secondary derivations through unnamed intermediates
+      & China property $\to$ ``Australian economy'' $\to$ AUD \\
+    Cross-country / cross-currency rate spillover
+      & Ukraine/Dollar $\to$ Euro Bund, EURIBOR (Fed $\ne$ ECB) \\
+    Functional-currency / reporting-currency boilerplate
+      & Carnival 10-Q functional currency ``euro'' $\to$ Euro tagged \\
+    Minority index/sector constituents
+      & Small-cap company in a broad index proposed under case 5 \\
+    Case 5 on equity indices (now sectors only)
+      & Boeing $\to$ Nasdaq 100 (LLM hallucinated composition) \\
+    Multi-step reasoning chains
+      & Oil sanctions $\to$ ruble $\to$ emerging-market currencies \\
+    Supply-chain-adjacent tiny exposure
+      & China property $\to$ LME Aluminium \\
+    \bottomrule
+  \end{tabular}
+\end{frame}
+
+\begin{frame}{The exclusion list is a living document}
+  \footnotesize
+  Every rule on the previous slide started as a false positive the pipeline
+  proposed and a human reviewer rejected. The process:
+
+  \begin{enumerate}
+    \item Run the pipeline on a new dataset.
+    \item Inspect accepted and rejected tags with domain experts.
+    \item When a pattern of incorrect proposals emerges, formalize it as an
+          exclusion rule in the prompt.
+    \item Re-run and verify the rule catches false positives without
+          killing true positives.
+  \end{enumerate}
+
+  \medskip
+  \textbf{Open question:} some exclusions may need asset-class-specific tuning:
+  \begin{itemize}
+    \item \textit{Substitution reach} (case 4) may need a stricter
+          ``dominant demand driver'' threshold for base metals than energy.
+    \item \textit{Cross-country rate spillover} may be too strict for
+          tightly-coupled currency pairs (e.g., EUR/CHF).
+  \end{itemize}
+
+  \medskip
+  For now, the rules are asset-class-agnostic.
+\end{frame}
+
+% ===================================================================
+\section{Generator-verifier architecture}
+
+\begin{frame}{Why split into mapper and validator}
+  \small
+  (Placeholder --- from ARCHITECTURE.md. Mapper recall-first, validator
+  precision-first, base-rate shift between stages.)
+\end{frame}
+
+\begin{frame}{Cross-mapper agreement as a free reliability signal}
+  \small
+  (Placeholder --- the 70\% accept rate on \texttt{source=both} vs 13\% on
+  single-source.)
+\end{frame}
+
+% ===================================================================
+\section{Results on DJNW March 2022}
+
+\begin{frame}{Aggregate numbers}
+  \small
+  (Placeholder --- accepted / rejected / strong / weak / source breakdown
+  from results/direct\_djnw\_v2\_summary.json.)
+\end{frame}
+
+\begin{frame}{Focal articles walkthrough}
+  \small
+  (Placeholder --- BOE Sterling, USDA Soybeans, Russia aerospace, China property,
+  Ukraine Dollar, Nymex Crude, ICCO Cocoa, ICE Sugar.)
+\end{frame}
+
+% ===================================================================
+\section{Example mappings: before / after}
+
+\begin{frame}{Reading these slides}
+  \small
+  Each example compares the mapping set produced at the last meeting against
+  what the current pipeline produces on the same article, under the same
+  direct-link rules.
+
+  \medskip
+  \begin{itemize}
+    \item \textcolor{goodgreen}{\textbf{Green}}: tag that the current pipeline correctly adds or keeps.
+    \item \textcolor{YaleAccent}{\textbf{Orange}}: tag correctly removed or still rejected.
+    \item \textcolor{YaleGray}{\textbf{Gray}}: unchanged from last meeting.
+  \end{itemize}
+
+  \medskip
+  The examples are chosen to show (a) the cases where iteration on the rules
+  recovered real signal and (b) the cases where the stricter framework
+  continues to reject chains it should reject.
+\end{frame}
+
+\begin{frame}{Example 1 --- China property investment (Jan-Feb)}
+  \footnotesize
+  \textit{``China Jan-Feb Property Investment Rose 3.7\% on Year''} --- slowdown in
+  new construction starts; Hong Kong property developers mentioned.
+
+  \medskip
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    \textbf{Asset} & \textbf{Last meeting} & \textbf{Now} \\
+    \midrule
+    Hang Seng Index        & --          & \textcolor{goodgreen}{weak 0.60 \checkmark} \\
+    LME Copper             & --          & \textcolor{goodgreen}{weak 0.50 \checkmark} \\
+    Copper (High Grade)    & --          & \textcolor{goodgreen}{weak 0.40 \checkmark} \\
+    LME Zinc               & --          & \textcolor{goodgreen}{weak 0.45 \checkmark} \\
+    LME Aluminium          & --          & \textcolor{YaleAccent}{rejected} \\
+    LME Lead               & --          & \textcolor{YaleAccent}{rejected} \\
+    Australian Dollar      & --          & \textcolor{YaleAccent}{rejected} \\
+    \bottomrule
+  \end{tabular}
+
+  \medskip
+  HSI returns via case 2 (primary listed market for China equity exposure).
+  Copper and Zinc come in via case 4 (China construction is the dominant global
+  demand driver for both metals).
+\end{frame}
+
+\begin{frame}{Why copper and zinc are a real case 4, not a floodgate}
+  \small
+  \textbf{Recommendation:} tag LME Copper / Copper HG / LME Zinc on this article.
+
+  \medskip
+  \begin{itemize}
+    \item The article explicitly names \textit{``new construction starts''} and
+          \textit{``real estate investment in China''} --- not a generic growth reference.
+    \item Chinese construction is the \emph{single largest} demand source for
+          both copper (wire, plumbing) and zinc (galvanized steel). This is the
+          textbook case-4 substitution/input link.
+    \item The guardrail is holding: on the same article, LME Aluminium, LME
+          Lead, and Australian Dollar are rejected as too indirect.
+    \item Aggregate commodity FPR \emph{fell} between versions (from 53\% to
+          43\%). If case 4 were over-firing, this would move the other way.
+  \end{itemize}
+
+  \medskip
+  The rule we should hold the line on: \emph{``dominant demand driver,'' not
+  ``any industrial use.''}
+\end{frame}
+
+\begin{frame}{Example 2 --- Dollar firms on Ukraine war}
+  \footnotesize
+  \textit{``Dollar Firms, Ukraine War Should Send It Higher''} --- USD strength,
+  Fed in tightening mode, safe-haven flows into US assets.
+
+  \medskip
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    \textbf{Asset} & \textbf{Last meeting} & \textbf{Now} \\
+    \midrule
+    Euro                         & \textcolor{YaleGray}{strong 0.85} & strong 0.85 \\
+    Japanese Yen                 & \textcolor{YaleGray}{strong 0.75} & strong 0.75 \\
+    3-Month SOFR                 & \textcolor{YaleGray}{weak 0.70}   & weak 0.70 \\
+    10 Year US Government Note   & \textcolor{YaleGray}{weak 0.75}   & weak 0.75 \\
+    2/5/30Y UST, Ultra T-Bond    & --                                & \textcolor{goodgreen}{weak 0.50--0.65 \checkmark} \\
+    \midrule
+    Euro Bund / Bobl             & --  & \textcolor{YaleAccent}{rejected} \\
+    3-Month EURIBOR              & --  & \textcolor{YaleAccent}{rejected} \\
+    DAX Index                    & --  & \textcolor{YaleAccent}{rejected} \\
+    Swedish Krona                & --  & \textcolor{YaleAccent}{rejected} \\
+    \bottomrule
+  \end{tabular}
+
+  \medskip
+  The full UST curve comes in via case 3 (Fed is the issuing authority for
+  USTs, and the article explicitly names the Fed's policy stance). Cross-country
+  rate spillover rejections still hold cleanly.
+\end{frame}
+
+\begin{frame}{Example 3 --- BOE rate decision}
+  \footnotesize
+  \textit{``BOE's Rate Decision Could Benefit Sterling in Short-Term''}
+
+  \medskip
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    \textbf{Asset} & \textbf{Last meeting} & \textbf{Now} \\
+    \midrule
+    Sterling        & \textcolor{YaleGray}{strong 1.00} & strong 1.00 \\
+    UK Long Gilt    & \textcolor{YaleGray}{weak 0.60}   & weak 0.60 \\
+    3-Month SONIA   & \textcolor{YaleGray}{weak 0.85}   & weak 0.85 \\
+    \bottomrule
+  \end{tabular}
+
+  \medskip
+  Clean case 1 (Sterling named) plus case 3 (BOE is the issuing authority for
+  gilts and SONIA). No change across versions --- this is what a stable focal
+  article looks like.
+\end{frame}
+
+\begin{frame}{Example 4 --- The Carnival functional-currency leak}
+  \footnotesize
+  \textit{``Carnival 1Q Loss/Shr \$1.66''} --- earnings note; the 10-Q risk-factor
+  section lists Euro and Sterling as functional currencies.
+
+  \medskip
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    \textbf{Asset} & \textbf{Last meeting} & \textbf{Now (pre-fix)} & \textbf{Now (fixed)} \\
+    \midrule
+    Euro      & strong 0.20 & strong 0.20 & \textcolor{YaleAccent}{rejected} \\
+    Sterling  & weak 0.20   & weak 0.20   & \textcolor{YaleAccent}{rejected} \\
+    Consumer Discretionary & \textcolor{YaleGray}{weak 0.65} & weak 0.65 & weak 0.65 \\
+    Brent / WTI / Gas Oil & \textcolor{YaleGray}{weak 0.45} & weak 0.45 & weak 0.45 \\
+    \bottomrule
+  \end{tabular}
+
+  \medskip
+  The validator was literal-matching ``euro'' in the risk-factor section
+  (``subject to foreign currency translational risk'') and upgrading to strong.
+  Case 1 already excluded ``reporting currency / denominating proxy,'' but not
+  prominently enough; added an explicit rejection rule to both mapper and
+  validator prompts.
+\end{frame}
+
+\begin{frame}{What the examples collectively show}
+  \small
+  \begin{itemize}
+    \item \textbf{Cross-jurisdictional case 2} recovered HSI on China without
+          breaking anything else --- validator chain-rejection safeguard prevents
+          it from inventing ``host country economy'' intermediates.
+    \item \textbf{Case 4} tags are well-anchored: copper/zinc on China
+          construction pass; aluminium, lead, AUD do not. Guardrail is the
+          word \emph{dominant}.
+    \item \textbf{Case 3} (issuing authority) is doing real work on rate stories
+          --- full UST curve on Fed discussion, Gilt + SONIA on BOE.
+    \item \textbf{Stable focals} (BOE, Cocoa, Sugar, Nymex Crude, Soybeans)
+          are unchanged, which is the expected behavior for well-specified
+          case-1 stories.
+    \item \textbf{Remaining leak}: functional-currency boilerplate upgraded to
+          case 1. Fix is a one-line prompt addition to both mapper and
+          validator.
+  \end{itemize}
+\end{frame}
+
+% ===================================================================
+\section{Open design questions}
+
+\begin{frame}{Where the framework has judgment calls}
+  \small
+  (Placeholder --- e.g. asset universe trim, base metals on China property,
+  substitution reach, validator-only vs two-mapper architecture, next dataset.)
+\end{frame}
+
+\end{document}

@@ -1,7 +1,7 @@
 --- GOVERNMENT BOND-SPECIFIC RULES ---
 Apply general rule (1) NAMED first, then the following.
 
-(2) BOND-MARKET DISCUSSION: The article must directly discuss the bond market — yield moves, Treasury auctions, curve repricing, term-premium, duration, or the market's reaction to policy — for the country whose bond this is. Inferential framings (e.g., "driver of bond-market pricing," "affects rate expectations," "has implications for Treasuries") do NOT count as direct discussion; the article must name the bond-market mechanism it is engaging with.
+(2) BOND-MARKET DISCUSSION: The article must directly discuss the bond market — yield moves, Treasury auctions, curve repricing, term-premium, or duration — for the country whose bond this is. Inferential framings (e.g., "driver of bond-market pricing," "affects rate expectations," "has implications for Treasuries," or central-bank policy / rate-path discussion without a named bond-market phenomenon) do NOT count as direct discussion; the article must name the bond-market mechanism it is engaging with.
 
 (3) SOVEREIGN FISCAL OR DEBT SUPPLY: The article discusses a fiscal or debt-related force specific to the country that issues this bond — deficit trajectory, budget dispute, auction dynamics, credit-rating action, or debt-sustainability concerns — AND states a bond-market implication (yield move, supply concern, debt-service cost, term-premium). A fiscal event named only as a driver of another asset's move does not qualify.
 

@@ -38,3 +38,15 @@ Thumbs.db
 .claude/
 claude.sh
 article_cache/
+
+# LaTeX build artifacts (tex/pdf are tracked; these regenerate)
+*.aux
+*.log
+*.nav
+*.snm
+*.toc
+*.vrb
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+slides/**/build.log

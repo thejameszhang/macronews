@@ -348,6 +348,28 @@ def load_djnw_articles(
         if max_articles is not None and len(articles) > max_articles:
             articles = articles[:max_articles]
 
+    # Post-sample filters. These run AFTER the seeded sample so that a given
+    # seed yields a STRICT SUBSET of the unfiltered sample — apples-to-apples
+    # comparisons across filter versions. Consequence: final article count may
+    # be below max_articles.
+    #
+    # Tabular-material filter: drop articles DJNW tags as pure data dumps.
+    # - N/TAB = "Tabular Material" (price ladders, yield tables, earnings grids)
+    # - N/DTA = "Data" (USDA bulletins, DOE stocks, commodity close reports)
+    # Both families have no narrative worth embedding for downstream retrieval.
+    # Known edge case: a small number of N/DTA-only USDA "Commodity Highlights"
+    # weekly reports contain genuine prose wrapping the data, but they are
+    # recurring bulletins and losing them is acceptable.
+    _DATA_SUBJECTS = {"N/TAB", "N/DTA"}
+    pre_filter_count = len(articles)
+    articles = [
+        a for a in articles
+        if not (_DATA_SUBJECTS & set(a.get("codes", {}).get("subject", [])))
+    ]
+    skipped_tab = pre_filter_count - len(articles)
+
+    if skipped_tab:
+        logger.info("Dropped %d sampled DJNW articles tagged N/TAB or N/DTA (tabular / data dumps)", skipped_tab)
     if skipped_long:
         logger.info("Skipped %d DJNW articles exceeding %d tokens", skipped_long, max_tokens)
     logger.info("Loaded %d DJNW articles from %s", len(articles), data_dir)

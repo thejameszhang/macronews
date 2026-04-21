@@ -25,7 +25,7 @@ END_DATE="${END_DATE:-2020-11}"
 RANDOM_SEED="${RANDOM_SEED:-}"
 PARTITION="${PARTITION:-priority_gpu}"
 ACCOUNT="${ACCOUNT:-prio_btk22}"
-GRES="${GRES:-gpu:b200:1}"
+GRES="${GRES:-gpu:h200:1}"
 EXTRA_ARGS="${*}"
 
 if [ ! -d "$MODEL_PATH" ]; then
@@ -48,6 +48,10 @@ jobid=$(sbatch --parsable \
         module load Python/3.12.3-GCCcore-13.3.0 2>/dev/null || true
         cd /nfs/roberts/project/pi_btk22/jyz32/macronews
         source .venv/bin/activate
+        # Deterministic vLLM output: same input + same seed -> bit-identical
+        # outputs regardless of batch size/composition. Requires compute
+        # capability >= 9.0 (H100/H200/B100/B200/rtx_pro_6000_blackwell).
+        export VLLM_BATCH_INVARIANT=1
         PYTHONPATH=src python src/experiments/pipeline.py \
             --model ${MODEL_PATH} \
             --max-model-len 65536 \

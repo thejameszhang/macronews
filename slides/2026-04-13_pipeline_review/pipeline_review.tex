@@ -1,0 +1,1053 @@
+\documentclass[10pt,aspectratio=169]{beamer}
+
+\usetheme{metropolis}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+\definecolor{triggerblue}{HTML}{1F6FB4}
+\definecolor{goodgreen}{HTML}{2E8B57}
+
+\title{Macro News and a Futures Mapping Pipeline}
+\subtitle{A review of capabilities, reasoning, and limitations}
+% \author{James Zhang}
+% \institute{}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+% ---------------------------------------------------------------
+\begin{frame}{Outline}
+  \tableofcontents
+\end{frame}
+
+% ---------------------------------------------------------------
+\section{Experiment background}
+
+\begin{frame}{Experiment background}
+  \scriptsize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.50\textwidth}
+      \textbf{Dataset}
+      \begin{itemize}\itemsep0.1em
+        \item Dow Jones Newswires, March 2022 (shards \texttt{a}--\texttt{e})
+        \item 1{,}000 articles, random sample with fixed seed
+        \item Month chosen for dense macro signal: Russia--Ukraine, Fed liftoff, commodity shock
+      \end{itemize}
+      \vspace{0.3em}
+      \textbf{Asset universe}
+      \begin{itemize}\itemsep0.1em
+        \item 95 futures contracts across 7 asset classes
+        \item Commodities, FX, government bonds, STIR, equity indices, US equity sectors, volatility
+      \end{itemize}
+      \vspace{0.3em}
+      \textbf{Model \& infra}
+      \begin{itemize}\itemsep0.1em
+        \item Gemma 4 26B A4B Instruct via vLLM 0.19
+        \item Deterministic ($T{=}0$), \texttt{max\_model\_len}${=}65{,}536$
+        \item 1$\times$ RTX Pro 6000 Blackwell, $\sim$25 min end-to-end
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Four-stage LLM pipeline}
+      \begin{enumerate}\itemsep0.1em
+        \item \textbf{Summarize} --- macro summary + company-specific gate
+        \item \textbf{ArticleMapper} --- whole article $\rightarrow$ (asset, signal, score)
+        \item \textbf{ParagraphMapper} --- each paragraph, with macro summary as context
+        \item \textbf{Validator} --- reviews union, accepts/rejects each pair
+      \end{enumerate}
+      \vspace{0.4em}
+      \textbf{Run totals}
+      \begin{itemize}\itemsep0.1em
+        \item 726 / 1000 filtered as company-specific (73\%)
+        \item 4{,}157 (article, asset) candidates evaluated
+        \item 4{,}019 accepted / 138 rejected (3.3\% reject)
+        \item Signal mix: 727 strong / 3{,}292 weak
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------
+\section{Example mappings}
+
+\begin{frame}[fragile]{Example 1 --- BOE rate decision}
+  \scriptsize
+  \textbf{Headline:} \emph{BOE's Rate Decision Could Benefit Sterling in Short-Term --- Market Talk} \hfill \scriptsize(DJNW, 2022-03-16, shard \texttt{c})
+
+  \vspace{0.4em}
+  \begin{block}{Full article text (single ``Market Talk'' blurb)}
+    \scriptsize
+    1119 GMT --- Sentiment around sterling looks quite downbeat but the Bank of England's meeting
+    on Thursday may offer the currency some brief relief, HSBC says. A 25 basis-point rate rise
+    is fully priced so that's unlikely to have a notable impact on sterling but the currency will
+    rise in the short-term if the split of votes on the decision shows some policymakers backing
+    a larger increase, HSBC forex analyst Dominic Bunning says in a note. ``Should we see further
+    calls for 50bp hikes this week by some Monetary Policy Committee members, then we would
+    expect GBP to bounce.'' The BOE raised its key rate by 25 basis points to 0.50\% in February
+    but four out of nine officials voted for a 50 basis-point rise. (renae.dyer@wsj.com)
+  \end{block}
+
+  \vspace{0.3em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.32\textwidth}
+      \textbf{\textcolor{triggerblue}{Sterling}} \\[0.1em]
+      [currency]\\
+      strong, 0.95, both\\[0.2em]
+      \emph{Transmission:} hawkish MPC split $\rightarrow$ higher expected
+      terminal rate $\rightarrow$ wider rate differential $\rightarrow$ GBP up.
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \textbf{\textcolor{triggerblue}{3-Month SONIA}} \\[0.1em]
+      [STIR]\\
+      strong, 0.95, both\\[0.2em]
+      \emph{Transmission:} 50bp-vote signal directly repriced into the SONIA
+      curve; SONIA is the sterling overnight benchmark.
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \textbf{\textcolor{triggerblue}{UK Long Gilt}} \\[0.1em]
+      [government bond]\\
+      strong, 0.75, both\\[0.2em]
+      \emph{Transmission:} more hawkish BoE path lifts gilt yields on the
+      long end via the expectations and term-premium components.
+    \end{column}
+  \end{columns}
+
+  \vspace{0.4em}
+  \textcolor{goodgreen}{\textbf{Why this is a clean showcase:}} one trigger, three asset classes,
+  both mappers independently agree, validator accepts all three. The pipeline correctly
+  scores the gilt lower --- a real but less direct channel than FX/STIR.
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}[fragile]{Example 2a --- USDA soybean export data (article text)}
+  \scriptsize
+  \textbf{Headline:} \emph{U.S. Export Sales and Shipments: Soybeans --- Mar 17}
+  \hfill (DJNW, 2022-03-17, shard \texttt{c})
+
+  \vspace{0.3em}
+  \textbf{[para 0, caption]} \emph{For the week ended Mar 10 in thousand metric tons.
+  Source: USDA. The current marketing year for soybeans began Sep 1.}
+
+  \vspace{0.2em}
+  \textbf{[para 1, data table]} \emph{Totals may not add due to rounding.}
+
+  \vspace{0.2em}
+  \centering
+  \setlength{\tabcolsep}{4pt}
+  \renewcommand{\arraystretch}{1.0}
+  \begin{tabular}{lrrrrrr}
+    \toprule
+     & \multicolumn{4}{c}{\textbf{2021--2022 (current MY)}} & \multicolumn{2}{c}{\textbf{2022--23}} \\
+    \cmidrule(lr){2-5}\cmidrule(lr){6-7}
+    \textbf{Country} & Wk $\Delta$ com. & Wk ship. & Seas. ship. & Seas. com. & Wk $\Delta$ com. & Seas. com. \\
+    \midrule
+    CHINA        & 395.5 & 370.2 & 25{,}626.3 & 27{,}686.3 & 406.0 & 5{,}639.0 \\
+    EGYPT        & 241.8 &  61.8 &  2{,}316.7 &  3{,}349.7 &     0 &   105.0 \\
+    TAIWAN       & 162.5 &  22.2 &     915.4 &  1{,}212.6 &     0 &       0 \\
+    INDONESIA    &  83.2 &  87.7 &     922.3 &  1{,}201.3 &     0 &       0 \\
+    MEXICO       &  56.2 & 120.6 &  2{,}812.9 &  4{,}805.6 &     0 &   123.5 \\
+    \multicolumn{7}{l}{\emph{\ldots 40+ other countries, most 0}} \\
+    \midrule
+    \textbf{TOTAL KNOWN} & \textbf{985.6} & 714.3 & 42{,}325.5 & 49{,}456.2 & 406.0 & 6{,}115.8 \\
+    \textbf{GRAND TOTAL} & 1{,}253.2 & 714.3 & 42{,}325.5 & 53{,}624.0 & 477.0 & 8{,}123.8 \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{0.3em}
+  \raggedright\footnotesize
+  \emph{Fully structured data release --- no prose ``trigger'' sentence. The pipeline must read
+  the table itself.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Example 2b --- reasoning \& transmission channel}
+  \scriptsize
+  \textbf{\textcolor{triggerblue}{Soybeans}} \quad [commodity] \quad \textbf{strong, 0.95, both}
+  \quad \textbf{AM:} 0.95 \quad \textbf{PM(max):} 0.95 (para 1) \quad \textbf{evidence:} [1]
+
+  \vspace{0.3em}
+  \begin{block}{ArticleMapper reasoning}
+    \scriptsize
+    USDA weekly export shipment and commitment data is a primary fundamental driver for CBOT
+    Soybean futures. It shows ``Week's net Shipments'' of \textbf{985.6k MT} and ``Season's
+    Total Shipments'' of \textbf{42{,}325.5k MT}. It highlights significant activity in major
+    demand centers like \textbf{China (395.5k MT)} and \textbf{Egypt (241.8k MT)}. These data
+    points directly impact the global supply/demand balance and the pace of US soybean exports.
+  \end{block}
+
+  \begin{block}{ParagraphMapper [1] reasoning --- 0.95 (paragraph 0 only got 0.50)}
+    \scriptsize
+    The trigger is the ``total known shipments of 985.6k MT'' and the high-volume net export
+    activity in China (395.5k MT) and Egypt (241.8k MT). Transmission: high weekly shipments
+    indicate strong international demand and reduce immediate domestic supply, exerting upward
+    pressure on soybean futures prices.
+  \end{block}
+
+  \begin{block}{Validator reasoning (accepted)}
+    \scriptsize
+    Direct report of USDA weekly data. The mappers correctly identified the China/Egypt figures
+    and total known shipments as the primary triggers. \emph{``I agree with the ArticleMapper's
+    assessment of a strong signal and high relevance.''}
+  \end{block}
+
+  \vspace{0.2em}
+  \textcolor{goodgreen}{\textbf{Takeaways:}} (1) the pipeline reads a pure-data table and
+  extracts the right country-level figures; (2) \textbf{evidence localization works} --- caption
+  para 0 = 0.50, data para 1 = 0.95; (3) all three stages converge independently.
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}[fragile]{Example 3a --- Russia aerospace sanctions (article text)}
+  \scriptsize
+  \textbf{Headline:} \emph{Heard on the Street: Russia Can't Fly Without The West --- WSJ}
+  \hfill (DJNW, 2022-03-09, shard \texttt{b})\\
+  \textbf{Public link:} \href{https://www.wsj.com/business/airlines/russia-cant-fly-without-the-westbut-may-eventually-propel-china-11646738302}{\texttt{wsj.com/\ldots/russia-cant-fly-without-the-west\ldots}}
+
+  \vspace{0.4em}
+  \begin{block}{Relevant article paragraphs}
+    \scriptsize
+    \textbf{[3]} Russia operates 3\% of the global fleet, representing a steady stream of
+    ``aftermarket'' cash for Western manufacturers. Boeing and Airbus have engineering centers
+    there, which have now suspended operations. The U.S. company said Monday it had stopped
+    buying from its Russian partner \textbf{VSMPO-AVISMA, the supplier of a quarter of the
+    world's titanium} --- a key input for airframes.\\[0.3em]
+    \textbf{[4]} Western lessors own \textbf{70\% of Russia's 981 jets} in service or in storage
+    and have no clear way of repossessing them. But the hit is deeply asymmetrical.
+    \textbf{Only 1\% of Airbus' and Boeing's order backlogs is affected.}\\[0.3em]
+    \textbf{[7]} Yet both use a lot of Western parts and engines: The MC-21 flies geared
+    turbofans built by Pratt \& Whitney. While work to ``russify'' the plane is already in the
+    works, it would take decades\ldots\ China, which has invested heavily in a similar plane,
+    the C919, is the obvious partner.
+  \end{block}
+
+  \vspace{0.3em}
+  \emph{A rich, narrative WSJ column. Multiple macro angles: a commodity supply shock (titanium),
+  aerospace-manufacturer revenue loss, and a long-horizon Russia--China technology pivot. The
+  pipeline tags} \textbf{6 assets} \emph{and rejects a seventh --- we will walk through all of
+  them.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Example 3b --- all 9 mappings the pipeline produced}
+  \scriptsize
+  \centering
+  \setlength{\tabcolsep}{5pt}
+  \renewcommand{\arraystretch}{1.12}
+  \begin{tabular}{llcccl}
+    \toprule
+    \textbf{Asset} & \textbf{Class} & \textbf{Signal} & \textbf{Score} & \textbf{Source} & \textbf{Channel (pipeline's own words)} \\
+    \midrule
+    \textcolor{goodgreen}{\textbf{Materials Sector}} & US equity sector & \textbf{strong} & \textbf{0.75} & both & titanium supply shock (25\% world supply) \\
+    Industrials Sector          & US equity sector & weak & 0.50 & both    & Boeing aerospace input costs \\
+    Euro Stoxx 50 Index         & equity index     & weak & 0.45 & article & Airbus heavyweight in Eurostoxx \\
+    Gold                        & commodity        & weak & 0.45 & para    & geopolitical risk premium \\
+    Information Tech.\ Sector   & US equity sector & weak & 0.40 & article & Pratt \& Whitney / MC-21 supply chain \\
+    CAC 40 Index                & equity index     & weak & 0.40 & article & Airbus (CAC 40 constituent) \\
+    Mini Nikkei 225 Index       & equity index     & weak & 0.35 & article & Japanese aerospace component exposure \\
+    DAX Index                   & equity index     & weak & 0.35 & article & German aerospace supply chain \\
+    Hang Seng Index             & equity index     & weak & 0.35 & article & Russia--China bloc / C919 partnership \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{0.4em}
+  \textcolor{goodgreen}{\textbf{What to notice:}}
+  \begin{itemize}\itemsep0.1em
+    \item \textbf{Only one strong tag.} Materials Sector gets promoted because titanium is a
+          quantifiable, article-specific driver. Everything else stays weak.
+    \item Weak mappings follow the actual \textbf{economic neighborhood}: Boeing's Industrials,
+          Airbus-heavy Euro indices (CAC 40, DAX, Euro Stoxx 50), Japanese aerospace via
+          Nikkei, HSI via the C919 pivot.
+    \item \textbf{No runaway tag.} The article caps the impact at 1\% of Boeing/Airbus order
+          backlogs; the pipeline respects that --- every weak mapping sits in a tight
+          0.35--0.50 score band.
+  \end{itemize}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Example 3c --- the Materials Sector reasoning, verbatim}
+  \scriptsize
+  \begin{block}{Materials Sector --- strong, 0.75, both (\textcolor{goodgreen}{accepted})}
+    \scriptsize
+    \textbf{ArticleMapper:} ``The article identifies a specific supply chain disruption involving
+    a critical industrial input: titanium. Boeing stopped buying from its Russian partner
+    VSMPO-AVISMA, the supplier of a quarter of the world's titanium --- a key input for
+    airframes. This creates a direct supply shock to the global titanium market. Because
+    titanium is a fundamental raw material for the aerospace and materials sectors, a sudden
+    loss of 25\% of global supply is a significant trigger\ldots'' \\[0.3em]
+    \textbf{ParagraphMapper [3]:} ``Boeing's decision to stop purchasing from VSMPO-AVISMA,
+    a supplier responsible for 25\% of the world's titanium. The transmission channel is a
+    direct supply-side shock to a critical raw material used in airframe manufacturing. The
+    Materials sector in US equities is heavily weighted toward producers and processors of
+    industrial metals\ldots'' \\[0.3em]
+    \textbf{Validator:} ``A direct supply-side shock to a critical commodity used in aerospace
+    manufacturing. The transmission channel to the US Materials sector is sound.''
+  \end{block}
+
+  \vspace{0.3em}
+  \textcolor{goodgreen}{\textbf{Why this example really sells the pipeline:}}
+  \begin{itemize}\itemsep0.15em
+    \item \textbf{Non-trivial domain routing.} The article is about Boeing (Industrials), but
+          the \emph{strong} tag goes to \textbf{Materials} via titanium --- the pipeline
+          follows the \emph{economic mechanism} not the company's home sector, and independently
+          across three stages (ArticleMapper, ParagraphMapper, Validator) converges on the
+          same conclusion.
+    \item \textbf{Quantified trigger drives the signal strength.} ``25\% of world titanium''
+          is specific and large, so Materials gets 0.75 strong. The same article's aerospace
+          angle drives Industrials/CAC~40/DAX but only to weak 0.35--0.45, because those
+          channels are indirect.
+    \item \textbf{Calibrated breadth overall.} Nine tags, one strong, zero rejected --- a
+          clean consensus that this article is moderately relevant to a specific neighborhood
+          of aerospace-exposed assets, with titanium as the one standout.
+  \end{itemize}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}[fragile]{Example 4a --- China property (article text)}
+  \scriptsize
+  \textbf{Headline:} \emph{China Jan-Feb Property Investment Rose 3.7\% on Year (+3 updates)}
+  \hfill (DJNW, 2022-03-14, shard \texttt{b})
+
+  \vspace{0.4em}
+  \begin{block}{Full article text}
+    \scriptsize
+    \textbf{[0]} The downturn in China's property sector extended into early 2022 as Beijing's
+    curbs on borrowing in the sector triggered uncertainty on the part of developers, while
+    tight credit policies continued to pressure home buyer demand. Home sales by volume, a key
+    indicator of demand, \textbf{plunged 22.1\%} in the first two months of 2022 from a year
+    earlier. This compares with the 5.3\% increase for 2021 and the 143.5\% gain for the same
+    period last year.\\[0.3em]
+    \textbf{[1]} Real estate investment in China rose 3.7\% in the January-February period,
+    slowing from the 4.4\% increase for 2021 and the 38.3\% increase in the same two-month
+    period last year. \textbf{New construction starts measured by floor area declined\ldots,
+    down 12.2\%} from a year earlier, widening from the 11.4\% fall for 2021.
+  \end{block}
+
+  \vspace{0.4em}
+  \textbf{Pipeline output:} \quad \textbf{40 accepted, 0 rejected} \quad|\quad \textbf{5 strong,
+  35 weak}
+
+  \vspace{0.4em}
+  \emph{Unlike the first two examples, one article here fans out across a large slice of the
+  universe. This is the pipeline's} \textbf{breadth behavior} \emph{--- we need to check each
+  tag to decide whether the reach is warranted.} The next slide bins all 40 tags by the
+  quality of the transmission channel.
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Example 4b --- the 40 tags, binned by transmission quality}
+  \tiny
+  \setlength{\tabcolsep}{4pt}
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabular}{p{0.20\textwidth}p{0.73\textwidth}}
+    \toprule
+    \textbf{Tier 1 --- Direct} & \textbf{LME Copper (0.80), Hang Seng Index (0.75), Copper HG (0.75), LME Zinc (0.75), AUD (0.75)} \\
+    \textcolor{goodgreen}{\emph{Strong}} & China is the world's largest consumer of industrial metals; construction is the primary end-use
+    (wiring, plumbing, cladding, galvanized steel). HSI is dominated by Chinese property developers
+    and their banks. AUD captures the commodity-FX channel --- China drives iron-ore and coal
+    demand, Australia's largest exports. \\
+    \midrule
+    \textbf{Tier 2 --- Regional \& base-metal complex} & LME Aluminium, LME Nickel, LME Lead, Materials Sector, Kospi 200, SPI 200 Australia,
+    Mini Nikkei, Mini TOPIX, CAD, 10Y/3Y Aus.\ Govt.\ Bonds \\
+    \emph{Defensible} & Korea/Japan export capital goods, chemicals and steel to China; Australia's
+    terms of trade hinge on iron ore and coal demand from Chinese construction. Real macro
+    linkages; weak/low scores are appropriate because the channel is indirect. \\
+    \midrule
+    \textbf{Tier 3 --- Global growth \& risk sentiment} & Brent, WTI, Gold, DAX, Mini S\&P 500, MSCI Singapore, OMXS30 Sweden, NOK, 10Y JGB,
+    2Y/5Y/10Y/30Y UST \& Ultra T-Bond \\
+    \emph{Stretched} & The pipeline leans on ``China is a global growth driver'' and routes the
+    shock into generic risk-off / commodity-demand channels. Coherent but exactly what the prompt
+    warns against as ``generic macro atmosphere.'' Correctly scored $\leq$ 0.45. \\
+    \midrule
+    \textbf{Tier 4 --- Tenuous} & Soybeans, Cotton, Silver, JPY, 90-Day Aus.\ Bank Bill \\
+    \textcolor{red!70!black}{\emph{Questionable}} & Multi-step chains (property $\rightarrow$
+    consumer confidence $\rightarrow$ meat $\rightarrow$ soy-meal). These survive validation
+    because the prompt was deliberately loosened to favor over-tagging --- a downstream
+    relevance-score + source filter is the intended place to handle these. \\
+    \bottomrule
+  \end{tabular}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Example 4c --- zoom + a filtering recommendation}
+  \scriptsize
+  \begin{block}{LME Copper --- strong, 0.80, both \ (\textcolor{goodgreen}{Tier 1})}
+    \scriptsize
+    \textbf{AM:} ``China is the world's largest consumer of copper, and the construction/real
+    estate sector is a primary driver of industrial copper demand (wiring, plumbing, structural
+    components)\ldots\ transmits directly to copper prices via a reduction in projected
+    industrial demand.'' \quad \textbf{Validator:} ``\ldots a direct bearish trigger for LME
+    Copper demand.''
+  \end{block}
+
+  \begin{block}{Soybeans --- weak, 0.45, paragraph\_only \ (Tier 4)}
+    \scriptsize
+    \textbf{Validator:} ``\ldots a sustained slump in property acts as a drag on the broader
+    economy, which can lead to reduced consumer confidence and lower demand for protein
+    (meat), particularly pork. Since pork consumption drives soybean-meal demand, and China is
+    the largest soybean importer, this is a real but indirect channel.'' \\[0.15em]
+    A five-step chain (property $\rightarrow$ confidence $\rightarrow$ meat $\rightarrow$ pork
+    $\rightarrow$ soy meal) \textemdash\ but note: \textbf{China is genuinely the world's largest
+    soybean importer}, and the pipeline is not hallucinating facts. Whether this kind of
+    macro-chain tag is \emph{useful} for a PM is a judgment call a macro trader would have to
+    make.
+  \end{block}
+
+  \begin{alertblock}{Recommendation: post-hoc filter}
+    \scriptsize
+    Drop any mapping that is \textbf{weak \textsc{and} score $\leq$ 0.45 \textsc{and} single-source}
+    (i.e.\ only one of the two mappers fired). Intuition: a tag without cross-mapper
+    corroboration \emph{and} a sub-median score is exactly the ``coherent but generic'' bucket.
+    On this article, the filter shrinks the tag set from \textbf{40 $\rightarrow$ 16}: it keeps
+    all 5 Tier-1 strongs, the defensible regional/base-metal cluster (Materials, Kospi, LME
+    Nickel/Lead, SPI~200), and the Tier-3/4 tags where both mappers independently agreed. It
+    drops the lone-mapper ``global growth'' chains (gold, US Treasuries, EAFE, Sweden, JPY,
+    Singapore, $\ldots$).
+  \end{alertblock}
+
+  \textcolor{goodgreen}{\textbf{Bottom line:}} reasoning is grounded, not hallucinated; open
+  question is calibration. The filter above is worth testing before tightening the validator
+  prompt itself.
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}[fragile]{Example 5a --- the ``tags everything'' article}
+  \scriptsize
+  \textbf{Headline:} \emph{Dollar Firms, Ukraine War Should Send It Higher --- Market Talk}
+  \hfill (DJNW, 2022-03-07, shard \texttt{a})
+
+  \vspace{0.3em}
+  \begin{block}{Full article text}
+    \scriptsize
+    \textbf{[0]} 1344 ET --- The dollar strengthens 0.4\% against the euro and yen and the WSJ
+    Dollar Index gains 0.6\%. The Ukraine war should lead to a stronger dollar via at least
+    three channels, Piper Sandler says: \textbf{safe-haven flows into US assets, a favorable
+    US interest rate differential and a relatively better US economic outlook.}
+    ``Normally, the dollar peaks soon after a decisive Fed policy response.'' \\[0.3em]
+    \textbf{[1]} ``This crisis, however, is different because the \textbf{Fed is in a tightening
+    mode given high inflation}.'' A stronger dollar tightens US financial conditions, the firm
+    says, but also makes imports cheaper for the US, which could help counter strong inflation
+    pressures. ``In the end, we think a stronger dollar will be another factor that could
+    restrain the Fed this year.''
+  \end{block}
+
+  \vspace{0.3em}
+  \textbf{Pipeline output:} \textbf{93 accepted, 0 rejected} \quad|\quad 2 strong / 91 weak
+  \quad|\quad \emph{fans across every asset class}
+
+  \vspace{0.2em}
+  \centering
+  \textbf{Class distribution:} commodity 25, equity index 23, gov't bond 18, US equity sector
+  10, currency 9, STIR 6, volatility 2.
+
+  \vspace{0.3em}
+  \raggedright
+  \textbf{The 2 strong tags are two of the three assets the article names:} Euro (0.95) and
+  JPY (0.85). 3M SOFR is weak --- arguably correct since the article discusses Fed
+  \emph{context}, not a direct SOFR trigger. The remaining 91 tags are weak ``global macro
+  atmosphere'' inferences.
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Example 5b --- stress-test of the 4c filter}
+  \scriptsize
+  Applying the filter from Example 4c (\texttt{weak $\wedge$ score $\leq$ 0.45 $\wedge$
+  single-source}) to this article:
+
+  \vspace{0.5em}
+  \centering
+  \setlength{\tabcolsep}{6pt}
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabular}{lccc}
+    \toprule
+    \textbf{Class} & \textbf{Before} & \textbf{After filter} & \textbf{Dropped} \\
+    \midrule
+    commodity                & 25 & 23 &  2 \\
+    equity index             & 23 & 12 & 11 \\
+    government bond          & 18 & 18 &  0 \\
+    US equity sector         & 10 &  8 &  2 \\
+    currency                 &  9 &  9 &  0 \\
+    short-term interest rate &  6 &  5 &  1 \\
+    volatility               &  2 &  2 &  0 \\
+    \midrule
+    \textbf{TOTAL}           & \textbf{93} & \textbf{77} & \textbf{16} \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{0.6em}
+  \raggedright
+  \textcolor{goodgreen}{\textbf{What survives the filter is still too many}} (77 tags on a
+  two-paragraph Market Talk blurb). The filter is deliberately gentle --- the relevance-framed
+  prompt increased cross-mapper agreement, so more tags now carry the \texttt{source=both}
+  label and bypass the filter. Gov't bond, currency, volatility classes lose nothing because
+  every tag in those classes is already both-source. The filter is \emph{purely post-hoc} ---
+  no prompt re-engineering, no re-run needed.
+
+  \vspace{0.3em}
+  \textbf{Open question:} should a two-paragraph blurb be allowed to tag 50+ assets at all?
+  A hard cap would force the pipeline to surface its top picks.
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}[fragile]{Example 6a --- a real failure we found, and fixed}
+  \scriptsize
+  \textbf{Headline:} \emph{Nymex Light Crude Oil Close --- Mar 23} (DJNW, 2022-03-23, shard \texttt{c})
+
+  \vspace{0.3em}
+  $\sim$10k chars of crude-oil contract data. No prose trigger anywhere in the body. The words
+  ``crude,'' ``oil,'' and ``cocoa'' each appear \textbf{zero times}.
+  \vspace{0.2em}
+  \tiny
+  \texttt{Source: CME Group\ldots\ Data as of: 15:54 ET\\
+  Contract  Open   High   Low   Last  Chg   Prev Settle\\
+  May '22\hspace{0.5em}108.85 115.40 108.38 114.58 5.31\hspace{0.5em}109.27\\
+  Jun '22\hspace{0.5em}105.84\ldots\hspace{2em} Dec '27\hspace{0.5em}\phantom{00}68.20\ldots}
+
+  \vspace{0.4em}
+  \scriptsize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.49\textwidth}
+      \textbf{\textcolor{red!70!black}{BEFORE the fix}} \quad (10 tags)\\[0.2em]
+      \textbf{Strong @ score = 1.0:}\\
+      Cocoa, Coffee, Kansas Wheat, Live Cattle, Sugar, Chicago Wheat\\[0.3em]
+      \textbf{Weak:} Cotton, Feeder Cattle, Lean Hogs, Heating Oil\\[0.3em]
+      \textbf{Crude Oil: 0 tags}\\[0.3em]
+      All six strong tags were hallucinated. The ParagraphMapper's reasoning for Cocoa (verbatim):
+      \emph{``a direct data feed of settlement prices and trading activity for Cocoa futures
+      contracts on the CME/NYBOT.''} Validator accepted every mapping.
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \textbf{\textcolor{goodgreen}{AFTER the fix}} \quad (2 tags)\\[0.2em]
+      \textbf{WTI Crude Oil}, \textbf{strong, 1.00}, paragraph\_only\\[0.1em]
+      Brent Crude Oil, weak, 0.55\\[0.3em]
+      \textbf{Hallucinated commodities: 0}\\[0.3em]
+      Every one of the six wrong strong tags is gone. The pipeline now correctly tags the
+      article's own asset (\textbf{WTI Crude Oil}) as strong, alongside a weak Brent tag for
+      the adjacent benchmark. Perfect routing.
+    \end{column}
+  \end{columns}
+
+  \vspace{0.2em}
+  \textcolor{goodgreen}{\textbf{Companion recovery:}} \emph{ICCO Cocoa Daily Price} (2022-03-21,
+  shard \texttt{c}) went 0~$\rightarrow$~\textbf{Cocoa strong 0.95}; \emph{ICE Europe White
+  Sugar Close} (2022-03-21, shard \texttt{c}) 0~$\rightarrow$~1 tag. Details next slide.
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Example 6b --- root cause and the two-part fix}
+  \scriptsize
+  \begin{block}{What the validator was actually seeing}
+    \scriptsize
+    Pipeline audit: \textbf{no stage saw the headline.} \texttt{run\_summarize},
+    \texttt{run\_article\_level}, \texttt{run\_paragraph\_level}, and the validator's
+    \texttt{\_build\_validation\_input} all constructed the article body as paragraphs-only.
+    The \texttt{headline} field was read from the article dict only when writing the output
+    JSON. So when the validator was asked \emph{``is this article relevant to Cocoa?''}, it
+    saw: a numerical price table, the asset label \texttt{Cocoa}, and a confident
+    ParagraphMapper prior. Nothing contradicted the story, so it accepted. Six times.
+  \end{block}
+
+  \begin{block}{Fix part 1: prepend [HEADLINE] to every stage}
+    \scriptsize
+    Prepend \texttt{[HEADLINE] <title>} to the input of every stage, plus one neutral prompt
+    sentence. No rejection instruction --- existing rules cover it. Once grounded on the
+    headline, the ParagraphMapper can no longer claim a number table is Cocoa settlement
+    data when the title says \emph{``Nymex Light Crude Oil Close.''}
+  \end{block}
+
+  \begin{block}{Fix part 2: drop the ``past price reporting alone'' exclusion}
+    \scriptsize
+    The prompt's \emph{WHAT IS NOT A SIGNAL} list had a bullet rejecting ``past price
+    reporting alone,'' meant to block secondary news mentions like ``gold rose 2\% yesterday''
+    --- but the mappers were also applying it to \emph{primary} exchange settlement data, so
+    ICE Sugar / ICE Gasoil / ICCO Cocoa got zero tags on their own-asset articles. Removed the
+    bullet; the pipeline now treats an exchange's own close report as a valid relevance
+    signal for the named asset (Bryan: relevance, not alpha).
+  \end{block}
+
+  \textcolor{goodgreen}{\textbf{Combined effect:}} strong tags 525 $\rightarrow$ 727,
+  both-source tags 1987 $\rightarrow$ 2428, and 34 of 57 previously zero-tag non-company
+  articles now fire at least one tag.
+\end{frame}
+
+% ---------------------------------------------------------------
+\section{Company-specific gate}
+
+\begin{frame}{Does the Stage~0 gate actually work?}
+  \scriptsize
+  \textbf{725 filtered as company-specific (73\%), 275 kept.} The gate has to do two things:
+  (a) drop pure corporate noise, and (b) \emph{not} drop articles that feature a company but
+  contain real macro content.
+
+  \vspace{0.5em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.49\textwidth}
+      \textbf{\textcolor{goodgreen}{Correctly gated out}} (5 of 725)
+      \vspace{0.1em}
+      \begin{itemize}\itemsep0.1em
+        \item \emph{CEO Herrman Acquires 101{,}682 Of TJX Companies Inc} --- insider buy
+        \item \emph{BSE: Ajanta Pharma Ltd.\ --- Compliances Reg 39(3) Details Of Loss Of
+              Certificate} --- administrative filing
+        \item \emph{eMagin 4Q Loss/Shr 3c} --- microcap earnings miss, no macro mention
+        \item \emph{Artiva Biotherapeutics Appoints Laura Bessen, M.D., to Its Board} ---
+              board appointment
+        \item \emph{HK Bourse: Announcement From SINOPEC Shanghai Petrochm} --- regulatory
+              disclosure, no substance
+      \end{itemize}
+      \vspace{0.2em}
+      Also correctly gated: Moody's municipal-debt rating changes, capital raises (e.g.\
+      \emph{Phoenix Copper Seeks to Raise \$60 Mln}), single-company Russia exits (\emph{Rockwell
+      Automation Suspends Business in Russia}).
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \textbf{\textcolor{goodgreen}{Correctly kept}} (company in headline, macro inside)
+      \vspace{0.1em}
+      \begin{itemize}\itemsep0.1em
+        \item \emph{Carnival 1Q Loss/Shr \$1.66} --- earnings note that discusses Ukraine's
+              impact on fuel prices $\rightarrow$ 10 tags (Brent, WTI, Gas Oil, Energy Sector,
+              Cons.\ Discretionary, FX).
+        \item \emph{S\&PGR: Rising Costs Loom As Key Test For Corporate Australia} --- sector
+              note citing RBA normalisation + cost inflation $\rightarrow$ SPI 200 \emph{strong},
+              90-Day AU Bank Bill \emph{strong}, AUD, AU gov bonds.
+        \item \emph{Boeing Co.: Suspended Parts and Maintenance Support for Russian Airlines}
+              --- EU sanctions content $\rightarrow$ Industrials Sector, DAX, Euro Stoxx 50,
+              VSTOXX.
+        \item \emph{Small Business Growth Surpasses Pre-Pandemic Levels} --- Equifax Canada
+              credit report $\rightarrow$ CAD, 10Y Canada Gov Bond, Cons.\ Discretionary,
+              Energy.
+        \item \emph{Wabtec and BNSF Railway Biofuels Pilot} --- renewable-diesel pilot
+              $\rightarrow$ Energy, Heating Oil, Corn, Soybeans (biofuels feedstock).
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}[fragile]{Carnival earnings --- macro hidden inside a company headline}
+  \scriptsize
+  \textbf{Headline:} \emph{Carnival 1Q Loss/Shr \$1.66 \textgreater CCL} \hfill (DJNW, 2022-03-22, shard \texttt{c})
+
+  \vspace{0.2em}
+  A naive company-name filter would drop this instantly (Carnival Corp, ticker, loss-per-share).
+  The pipeline keeps it because Stage~0 extracts the macro substance in the body:
+
+  \vspace{0.3em}
+  \begin{block}{Stage 0 macro\_summary (excerpt)}
+    \scriptsize
+    Carnival reported a US GAAP net loss of \$1.9B for Q1 2022, citing Omicron.
+    \textbf{The company noted that the invasion of Ukraine is creating uncertainty and exerting
+    upward pressure on fuel prices, which is materially impacting its business and liquidity.}
+    Fuel consumption forecast for 2022 is 2.2M metric tons.
+  \end{block}
+
+  \vspace{0.3em}
+  \textbf{Downstream tags (10 accepted, all weak):} Brent 0.45, WTI 0.40, Gas Oil 0.40, Energy
+  Sector 0.35, Cons.\ Discretionary 0.55, EUR/GBP/AUD.
+
+  \vspace{0.4em}
+  \textcolor{goodgreen}{\textbf{Why this proves the gate is doing real work:}}
+  \begin{itemize}\itemsep0.15em
+    \item Not a keyword filter. Every surface feature screams ``drop'' --- ticker, company
+          name, earnings number --- yet the article is kept because the body contains
+          substantive fuel-price commentary tied to Ukraine.
+    \item Downstream routing respects the economic mechanism: heaviest tags are on oil and
+          fuel, \emph{not} on cruise operators. Consistent with the article's macro angle,
+          not its corporate framing.
+    \item All tags weak. Pipeline correctly treats earnings as a secondary source of
+          fuel-price commentary, not a primary trigger.
+  \end{itemize}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Gate stress test --- macro keywords in gated headlines}
+  \scriptsize
+  We sampled every gated article (cs=True) whose headline contained a macro keyword (Fed, CPI,
+  Ukraine, Russia, oil, gold, copper, \ldots) --- \textbf{26 articles} --- and read the bodies.
+
+  \vspace{0.4em}
+  \setlength{\tabcolsep}{4pt}
+  \renewcommand{\arraystretch}{1.1}
+  \begin{tabular}{p{0.33\textwidth}p{0.62\textwidth}}
+    \toprule
+    \textbf{Headline (gated)} & \textbf{Verdict} \\
+    \midrule
+    \emph{Barrick Gold Corp.\ Stock Rises Tuesday} & \textcolor{goodgreen}{\textbf{Correct.}}
+    MarketWatch auto-blurb of a single stock's price move. Matches the prompt's explicit
+    non-signal: \emph{``Past price reporting alone.''} 10 Barrick Gold blurbs in the sample, all gated. \\
+    \emph{Rockwell Automation Suspends Business in Russia} & \textcolor{goodgreen}{\textbf{Correct.}}
+    Body verbatim: \emph{``Russia and Belarus account for less than 0.5\% of total revenue.''}
+    Article itself declares it immaterial. Contrast Boeing/titanium (not gated, 25\% of world supply). \\
+    \emph{ITAB Shop Concept discontinues Russia ops} & \textcolor{goodgreen}{\textbf{Correct.}}
+    Retail-fixture company closing a 125-employee facility. Not a bellwether. \\
+    \emph{Phoenix Copper Seeks \$60 Mln for Empire Open Pit} & \textcolor{goodgreen}{\textbf{Correct.}}
+    Single-company loan-note raise; \$60M for one mine is not a macro copper supply story. \\
+    \emph{Manz AG: Strong demand for battery production} & \textcolor{yellow!60!black}{\textbf{Borderline.}}
+    Press release about winning a Li-ion battery order. A macro strategist could argue battery
+    demand is a real Cu/Ni/Li signal; the gate treats it as a single-company order. Defensible
+    but the closest call in the 26. \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{0.4em}
+  \textcolor{goodgreen}{\textbf{Bottom line:}} 25 of 26 are clearly correct --- all match the
+  prompt's explicit ``not a signal'' categories. Manz AG is a genuine gray area, defensibly
+  gated under the current rules. The gate reads \emph{body content}, not headline keywords.
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{External benchmark --- DJNW's own \texttt{codes} field}
+  \scriptsize
+  Every DJNW article ships with a \texttt{codes} dict. The \texttt{company} field lists
+  tickers --- ticker-based ground truth for ``DJNW thinks this article is about a specific
+  company.''
+
+  \vspace{0.3em}
+  \textbf{DJNW's own tagging:} \textbf{67.3\%} of the 1000 articles have a company ticker.
+  \textbf{Our gate:} 72.6\% cs=True. \textbf{Within 5.3\,pp.}
+
+  \vspace{0.4em}
+  \centering
+  \setlength{\tabcolsep}{8pt}
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabular}{lrr}
+    \toprule
+                            & \textbf{Our gate = True} & \textbf{Our gate = False} \\
+    \midrule
+    DJNW has company ticker & 640 & 33 \\
+    DJNW no company ticker  &  86 & 241 \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{0.4em}
+  \raggedright
+  \textcolor{goodgreen}{\textbf{Raw agreement 88.1\%, recall 95.1\%}} on DJNW-company
+  articles. The 12\% disagreement decomposes cleanly:
+
+  \vspace{0.3em}
+  \textbf{33 we keep despite a company ticker} --- the intended macro-in-body cases: Apple /
+  Boeing / Sylvamo / Wintershall Russia sanctions; Adidas, Leumi, Arcos Dorados, Sembcorp,
+  Taiheiyo Cement earnings with macro content; \emph{Heard on the Street} columns; Wabtec
+  biofuels; JD Logistics oil-price pressure; nickel surge + Chinese manufacturers.
+
+  \textbf{86 we gate despite no ticker} --- DJNW's ticker field can't express these:
+  23 closing-price bulletins, 10 Moody's/Fitch/S\&PGR municipal bond ratings, 10 exchange
+  data reports, 8 small/private-company press releases, 3 WSJ culture pieces, 32 other.
+  All defensibly non-macro.
+
+  \vspace{0.2em}
+  \textcolor{goodgreen}{\textbf{Takeaway:}} 5pp from DJNW's own ticker rate; disagreement
+  is entirely (a) deliberate macro-body keeps and (b) non-ticker corporate content.
+\end{frame}
+
+% ---------------------------------------------------------------
+\section{Aggregate diagnostics}
+
+\begin{frame}{Relevance score distribution (all 4{,}019 accepted tags)}
+  \scriptsize
+  \centering
+  \setlength{\tabcolsep}{4pt}
+  \renewcommand{\arraystretch}{1.1}
+  \begin{tabular}{lrrrrrrrrrrrrrrr}
+    \toprule
+    \textbf{score} & 0.30 & 0.35 & 0.40 & 0.45 & 0.50 & 0.55 & 0.60 & 0.65 & 0.70 & 0.75 & 0.80 & 0.85 & 0.90 & 0.95--1.0 \\
+    \midrule
+    weak   (3292) & 130 & 368 & \textbf{716} & \textbf{1108} & 318 & \textbf{494} &  55 &  68 &  29 &   3 &   . &   . &   . &   . \\
+    strong ( 727) &   . &   . &   . &   . &   . &   . &   . &   . &   6 & 120 &  83 & \textbf{164} &  78 & \textbf{276} \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{0.5em}
+  \raggedright
+  \textbf{Honest observations:}
+  \begin{itemize}\itemsep0.15em
+    \item \textbf{Anchoring at specific values.} Weak scores cluster at 0.40/0.45/0.55; strong at
+          0.75/0.85/0.95. Earlier experiments with guard text in the prompt (``do not default
+          to 0.85'') made this \emph{worse}, not better --- the mapper just anchored elsewhere.
+    \item \textbf{The strong/weak boundary is clean.} Strong scores are bounded below at 0.70,
+          weak bounded above at 0.75, with only minor overlap. The \emph{label} is doing more
+          work than the raw score.
+    \item \textbf{Implication:} treat \texttt{(signal, score)} as a pair, not as a continuous
+          variable. Downstream: bin into 3--4 buckets (strong/high, strong/low, weak/med,
+          weak/low) rather than use scores as a float.
+  \end{itemize}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Validator catches a factual hallucination --- 3-Month SARON}
+  \scriptsize
+  \textbf{Article:} \emph{Global Forex and Fixed Income Roundup: Market Talk} \hfill (DJNW,
+  2022-03-02, shard \texttt{a}) --- discusses BoC rate hike and Desjardins' 2022 BoC outlook.
+  ParagraphMapper proposed \textbf{3-Month SARON} via a Canadian central-bank chain.
+
+  \vspace{0.3em}
+  \begin{block}{ParagraphMapper [paragraph 7] --- the error}
+    \scriptsize
+    ``The transmission channel is direct: \textbf{the Bank of Canada (BOC) controls the short
+    end of the Canadian yield curve}\ldots\ primary drivers for the 3-Month SARON (Swiss
+    Average Rate Overnight, though in this context, \emph{the user is likely referring to the
+    Canadian equivalent or the specific short-term rate benchmark for Canada given the BOC
+    context})\ldots''
+  \end{block}
+
+  \begin{block}{Validator --- \textcolor{red!70!black}{REJECTED}}
+    \scriptsize
+    ``The asset is `3-Month SARON', the Swiss Average Rate Overnight --- \textbf{the benchmark
+    interest rate for Switzerland}. The ParagraphMapper's claim in paragraph [7] that
+    \textbf{the BOC controls the `3-Month SARON' is factually incorrect; the BOC controls the
+    Canadian overnight rate (CORRA), not SARON}. There is no mention of the Swiss National
+    Bank, Swiss inflation, or Swiss economic conditions in the article.''
+  \end{block}
+
+  \vspace{0.2em}
+  \textcolor{goodgreen}{\textbf{Why this matters:}} the ParagraphMapper even flags its own
+  uncertainty (``the user is likely referring to the Canadian equivalent'') but still proposes
+  the mapping. The Validator --- the \emph{same} Gemma 4 26B A4B model, re-prompted --- catches
+  the factual error, names the correct central bank (SNB) and the correct Canadian rate
+  (CORRA), and rejects. Multi-stage self-correction as intended.
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Source $\times$ accept/reject --- what the validator actually does}
+  \scriptsize
+  Each (article, asset) pair reaches the validator with a \textbf{source} label recording which
+  mappers fired:
+
+  \vspace{0.5em}
+  \centering
+  \setlength{\tabcolsep}{8pt}
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabular}{lrrrr}
+    \toprule
+    \textbf{Source}       & \textbf{Accepted} & \textbf{Rejected} & \textbf{Total} & \textbf{Reject rate} \\
+    \midrule
+    both (AM $\cap$ PM agreed)     & 2{,}428 &  12 & 2{,}440 &  0.5\% \\
+    article\_only (only AM fired)  &    850 &  33 &    883 &  3.7\% \\
+    paragraph\_only (only PM fired)&    741 &  93 &    834 & \textbf{11.2\%} \\
+    \midrule
+    \textbf{total}                 & \textbf{4{,}019} & \textbf{138} & \textbf{4{,}157} & 3.3\% \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{0.6em}
+  \raggedright
+  \textbf{Read-outs:}
+  \begin{itemize}\itemsep0.15em
+    \item \textbf{Cross-mapper agreement is an extremely strong prior.} When both mappers
+          independently flag the same asset, the validator rejects just 0.5\% of the time
+          --- the two mappers effectively pre-corroborate each other.
+    \item \textbf{The ParagraphMapper is still the noisiest component.} Its lone tags get
+          rejected 22$\times$ more often than two-mapper tags, which is the empirical basis
+          for the ``single-source filter'' recommendation from Example 4c.
+    \item \textbf{The ArticleMapper is better calibrated solo} (3.7\% reject), which makes
+          sense: it sees the whole article, not one paragraph stripped of context.
+  \end{itemize}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Asset universe coverage}
+  \scriptsize
+  \textbf{All 95 assets are tagged at least once}, but the distribution is long-tailed.
+
+  \vspace{0.4em}
+  \centering
+  \setlength{\tabcolsep}{6pt}
+  \renewcommand{\arraystretch}{1.1}
+  \begin{tabular}{lrrrrr}
+    \toprule
+    \textbf{Class} & \textbf{\# assets} & \textbf{Tags} & \textbf{Strong} & \textbf{Tags/asset} & \textbf{Strong/asset} \\
+    \midrule
+    commodity                & 25 & 1{,}127 & 300 & 45.1 & 12.0 \\
+    equity index             & 23 &   882 & 133 & 38.3 & 5.8 \\
+    government bond          & 18 &   882 & 148 & 49.0 & 8.2 \\
+    currency                 &  9 &   549 &  44 & 61.0 & 4.9 \\
+    US equity sector         & 11 &   350 &  49 & 31.8 & 4.5 \\
+    short-term interest rate &  7 &   121 &  29 & 17.3 & 4.1 \\
+    volatility               &  2 &   108 &  24 & 54.0 & 12.0 \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{0.4em}
+  \raggedright
+  \textbf{Head (most-tagged):} CAD (103), Brent (87), WTI (81), Gold (81), AUD (78), Euro (77),
+  Heating Oil (77), Energy Sector (70), Euro Bobl (69), ICE Gas Oil (68). \\[0.2em]
+  \textbf{Tail (4--11 tags over 1000 articles):} 3-Month SARON (4), Health Care Sector (5),
+  Cocoa (5), 90-Day NZ Bank Bill (5), Coffee (7), Cotton (10), Comm.\ Services Sector (11).
+
+  \vspace{0.3em}
+  \textbf{Observations:} energy complex and G10 FX dominate (predictable for March 2022); the
+  tail is regional short rates and niche softs; STIR has lowest tags/asset because
+  SOFR/SONIA/ESTR dominate; volatility 54 tags/asset is just VIX + VSTOXX.
+\end{frame}
+
+% ---------------------------------------------------------------
+\section{Cost \& scale}
+
+% ---------------------------------------------------------------
+\begin{frame}{Per-stage call budget (baseline measurement)}
+  \scriptsize
+  \textbf{Pipeline calls for 1000 DJNW articles:}
+
+  \vspace{0.3em}
+  \centering
+  \setlength{\tabcolsep}{8pt}
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabular}{llrr}
+    \toprule
+    \textbf{Stage} & \textbf{What it does} & \textbf{LLM calls} & \textbf{Wall-clock} \\
+    \midrule
+    Stage 0 --- Summarize & 1 call per article (macro summary, company gate) & 1{,}000 & 1:56 \\
+    Stage 1 --- ArticleMapper & 1 call per (non-company article $\times$ 95 assets) & 26{,}125 & 3:53 \\
+    Stage 2 --- ParagraphMapper & 1 call per (paragraph $\times$ 95 assets) & 107{,}065 & 10:26 \\
+    Stage 3 --- Validator & 1 call per candidate (article, asset) pair & 3{,}484 & 2:18 \\
+    \midrule
+    \textbf{TOTAL}         &  & \textbf{$\sim$137{,}700} & \textbf{18:57} \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{0.4em}
+  \raggedright
+  Throughput: $\sim$121 calls/sec on 1$\times$ B200, batched through vLLM 0.19 with prefix
+  caching. \textbf{Stage 2 is 78\% of all calls} --- the dominant cost and the obvious lever
+  for scaling. The next slide translates this into wall-clock estimates for the full corpus.
+\end{frame}
+
+\begin{frame}{Full-DJNW scaling --- 1996+, Bouchet fleet}
+  \scriptsize
+  \textbf{Corpus:} 29.11M DJNW articles (1996-01 $\rightarrow$ 2025-08); trimming the pre-1996
+  head (2.56M of mostly headline-ticker feeds) removes $\sim$8\% of the total workload. Full
+  corpus (1979--2025) = 31.67M for reference.
+
+  \vspace{0.3em}
+  \textbf{Baseline:} 1.137 sec/article end-to-end on 1$\times$ B200, with the 73\%
+  company-specific gate already baked in. 1996+ workload is
+  \textbf{$\sim$9{,}200 GPU-hours}; full corpus is $\sim$10{,}000.
+
+  \vspace{0.3em}
+  \textbf{Bouchet fleet:} \texttt{gpu\_b200} (56 B200s, $\sim$3{,}170 art/hr/GPU measured),
+  \texttt{gpu\_h200} (72 H200s, $\sim$2{,}800 est.), \texttt{gpu\_rtx6000}
+  (56 RTX Pro 6000 Blackwells, $\sim$2{,}400 measured). \textbf{Fleet total $\sim$184 GPUs},
+  pipeline embarrassingly parallel across month shards.
+
+  \vspace{0.3em}
+  \centering
+  \setlength{\tabcolsep}{8pt}
+  \renewcommand{\arraystretch}{1.1}
+  \begin{tabular}{lrr}
+    \toprule
+    \textbf{Scenario (1996+ corpus)} & \textbf{Wall clock} & \textbf{w/ Stage-2 opt.} \\
+    \midrule
+    1$\times$ B200 baseline          & 383 days & 191 days \\
+    8 B200s (small sbatch)           &  48 days &  24 days \\
+    16 B200s                         &  24 days &  12 days \\
+    32 B200s (fair share)            &  12 days & \textbf{6.0 days} \\
+    Full B200 partition (56)         & 6.8 days & \textbf{3.4 days} \\
+    All H200s (72)                   & 6.0 days & 3.0 days \\
+    \textbf{Full fleet (184 mixed)}  & \textbf{2.4 days} & \textbf{1.2 days} \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{0.2em}
+  \raggedright
+  \textcolor{goodgreen}{\textbf{Stage 2 is the dominant cost lever.}} Two realistic levers:
+  asset-universe trim ($\sim$15--20\%, pending Bryan) and a paragraph-level prefilter. The
+  ``smaller Stage-2 model'' idea did \emph{not} pan out --- E4B ablation next.
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Small-model ablation program}
+  \scriptsize
+  Question: can a smaller model replace Gemma 4 26B A4B on Stage 2 without tanking quality?
+  Same 1000 DJNW articles, seed~42, same prompts.
+
+  \vspace{0.3em}
+  \tiny
+  \setlength{\tabcolsep}{3pt}
+  \renewcommand{\arraystretch}{1.1}
+  \begin{tabular}{p{0.15\textwidth}p{0.19\textwidth}p{0.27\textwidth}p{0.30\textwidth}}
+    \toprule
+    \textbf{Model} & \textbf{Architecture} & \textbf{Why tested} & \textbf{Result} \\
+    \midrule
+    Gemma 4 26B A4B \emph{(baseline)}
+    & MoE, 4B active, server-tuned
+    & \emph{baseline}
+    & \textbf{18:57} wall clock, 4019 acc, 727 strong, 138 rej \\[0.15em]
+    \textbf{Gemma 4 E4B}
+    & dense 4B, edge-NPU (PLE, selective activation)
+    & drop-in speedup attempt
+    & \textcolor{red!70!black}{\textbf{failed}}: 33:33 wall, +84\% tags, 5$\times$ more strong,
+      cross-currency hallucination (SARON on BoE) \\[0.15em]
+    \textbf{Qwen 3.5 9B}
+    & dense 9B, server-tuned
+    & non-Gemma quality datapoint; not a speed candidate
+    & \emph{[pending --- running on B200, gate verified 72.9\%]} \\[0.15em]
+    \textbf{Qwen 3.5 4B}
+    & dense 4B, server-tuned
+    & true speedup candidate; isolates architecture vs param count
+    & \emph{[pending --- queued on RTX]} \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{0.4em}
+  \scriptsize
+  \raggedright
+  \textbf{Why E4B failed:} 26B A4B is already at the 4B-active compute floor, so ``4B edge
+  dense'' brings no speedup. Edge-NPU architectures are tuned for mobile efficiency, not
+  server tensor cores. Quality also collapsed --- pipeline is reasoning-bound.
+
+  \vspace{0.15em}
+  \textbf{What Qwen 3.5 will tell us:} if 4B server-dense works $\rightarrow$ E4B failed due
+  to edge tuning, not param count. If it fails $\rightarrow$ reasoning floor is above 4B
+  regardless of architecture, and 26B A4B is irreducible for this task.
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{DJNW input shapes --- a running taxonomy}
+  \tiny
+  \setlength{\tabcolsep}{4pt}
+  \renewcommand{\arraystretch}{1.12}
+  \begin{tabular}{p{0.22\textwidth}p{0.30\textwidth}p{0.42\textwidth}}
+    \toprule
+    \textbf{Shape} & \textbf{Example} & \textbf{Pipeline behavior} \\
+    \midrule
+    Narrative analysis column & \emph{Heard on the Street: Russia Can't Fly Without The West}
+    & Multi-paragraph WSJ commentary. Best-case input: evidence localization + domain routing
+      (titanium $\rightarrow$ Materials). \\
+    Market Talk blurb & \emph{BOE's Rate Decision Could Benefit Sterling (HSBC)}
+    & Single-paragraph analyst quote, $\sim$500--1000 chars. Handled well; AM and PM
+      converge. \\
+    Market news update & \emph{China Jan-Feb Property Investment Rose 3.7\%}
+    & Short news story with data + commentary. The ``breadth'' case --- fans across 40+ tags;
+      post-hoc filter handles the tail. \\
+    Agricultural data release & \emph{USDA U.S. Export Sales and Shipments: Soybeans}
+    & Structured country-by-country export table. Evidence localized to the data paragraph
+      (0.95) vs the header (0.50). \\
+    Exchange settlement report & \emph{ICE White Sugar Close, Nymex Crude Oil Close, Comex
+    Gold Close}
+    & Pure numeric tables, no prose trigger. \emph{Was} the canonical failure case
+      (hallucination or silence); post-fix correctly tags the named asset (e.g.\ WTI 1.00
+      strong on the Nymex article). \\
+    Benchmark yield snapshot & \emph{10-Yr Benchmark Govt Yields --- U.S.\ vs Other Nations}
+    & Cross-country yield table. Weak-signal data point across relevant sovereigns + FX. \\
+    Market roundup / digest & \emph{Global Forex and Fixed Income Roundup: Market Talk}
+    & Multi-topic, multi-region aggregation. Dangerous cross-region reasoning ---
+      \textbf{where the SARON factual catch lives}. Validator is the backstop. \\
+    Company earnings w/ macro & \emph{Carnival 1Q Loss/Shr \$1.66}
+    & Corporate headline, macro body (Ukraine fuel pressure). Gate correctly keeps it;
+      routing goes to oil/fuel complex, not just Cons.\ Discretionary. \\
+    Pure corporate event & \emph{CEO Herrman Acquires 101k Of TJX}; \emph{HK Bourse
+    Announcement}; \emph{BSE Compliance}
+    & Insider trades, regulatory filings, MarketWatch auto-blurbs.
+      \textbf{Stage-0 gate drops 73\% of the DJNW universe in this bucket.} \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{0.3em}
+  \raggedright
+  \emph{This list is not exhaustive --- it's a running inventory of shapes we have verified
+  so far. New shapes will surface as we expand to other months, other wire services, and
+  eventually other text corpora (earnings transcripts, central bank speeches, research notes).}
+\end{frame}
+
+\end{document}

@@ -1,0 +1,82 @@
+# Regression tests for the gold dataset.
+#
+# Schema (per-article):
+#   - dataset: gold
+#     article_id: <id>
+#     expected_accepted:          # must be accepted (mapper proposed + validator passed)
+#       <asset>: <rule citation>
+#     expected_not_accepted:      # optional; must NOT be accepted
+#       <asset>: <rule citation>  # rejected-or-not-proposed both pass
+#     exact: true                 # optional; if true, any accepted asset outside
+#                                 # expected_accepted is a failure
+#
+# Ground truth is established by careful rule-by-rule review of each article
+# against src/mapping/prompts/asset_class/*.txt.
+
+tests:
+  # ======================================================================
+  # gold_01 — Gold Surges Above $5,000 on Shutdown Fears, Geopolitical Tensions
+  # ======================================================================
+  # Gold/silver rally; Trump 100% tariff threat on Canada; brief Fed discussion.
+  # Mining stocks (Zijin, Korea Zinc, Fresnillo, Antofagasta) explicitly named,
+  # which qualifies Materials Sector under Rule 3 (constituents).
+  # No yield/auction/curve language → US bond curve must not fire.
+  - dataset: gold
+    article_id: gold_01
+    expected_accepted:
+      Gold: "Rule 1 NAMED: gold is the named subject of the rally"
+      Silver: "Rule 1 NAMED: silver futures explicitly cited with 7.7% move"
+      Canadian Dollar: "Currency rule 3: explicit 100% tariff threat on Canada, country-specific force"
+      S&P TSX Canada 60 Index: "Index rule 2: trade policy (tariffs) on Canada, primary Canadian equity vehicle"
+      3-Month SOFR: "Rates rule 2: Fed discussed (easing, independence); borderline but Fed is a named subject"
+      Materials Sector: "Sector rule 3: mining-company constituents named (Zijin, Korea Zinc, Fresnillo, Antofagasta)"
+    exact: true
+
+  # ======================================================================
+  # gold_02 — Gold Breaks Through $4,600 on Fed Concerns, Haven Boost
+  # ======================================================================
+  # Rally driven by Powell criminal probe / Fed independence. SOFR accepted.
+  # No yield/auction/curve discussion → bond curve must not fire.
+  - dataset: gold
+    article_id: gold_02
+    expected_accepted:
+      Gold: "Rule 1 NAMED: gold is the named subject of the $4,600 break"
+      Silver: "Rule 1 NAMED: silver futures cited with 6.1% move"
+      3-Month SOFR: "Rates rule 2: Fed independence / FOMC composition is primary subject"
+    exact: true
+
+  # ======================================================================
+  # gold_03 — Underlying Inflation Was Stubborn in January by Fed's Preferred Metric
+  # ======================================================================
+  # PCE inflation + Fed rate-hold. No direct bond-market language → bonds
+  # must not fire. Oil is a one-clause background mention.
+  - dataset: gold
+    article_id: gold_03
+    expected_accepted:
+      3-Month SOFR: "Rates rule 2: Fed rate decision is the article's primary subject"
+    exact: true
+
+  # ======================================================================
+  # gold_05 — U.S. Trade Deficit Shrinks 25%, Driven by Gold Exports
+  # ======================================================================
+  # Gold exports drove the shrink; pharma imports fell. Nothing said about
+  # US stocks or silver. Gold is a minor slice of Materials.
+  - dataset: gold
+    article_id: gold_05
+    expected_accepted:
+      Gold: "Rule 1 NAMED: gold is the named driver of the export expansion"
+      Health Care Sector: "Sector rule 2: pharmaceutical demand shock is a major Health Care earnings driver"
+    exact: true
+
+  # ======================================================================
+  # gold_12 — Trouble Brewing: Why a Brazilian Tariff Might Cause Coffee Prices to Soar
+  # ======================================================================
+  # J.M. Smucker and Kraft Heinz are Consumer Staples (packaged food),
+  # not Consumer Discretionary. A company belongs to exactly one GICS sector.
+  - dataset: gold
+    article_id: gold_12
+    expected_accepted:
+      Coffee: "Rule 1 NAMED: coffee is the named subject throughout"
+      Consumer Staples Sector: "Sector rule 3: J.M. Smucker and Kraft Heinz are Consumer Staples constituents"
+    expected_not_accepted:
+      Consumer Discretionary Sector: "Sector rule 3: J.M. Smucker / Kraft Heinz are Staples, not Discretionary"
