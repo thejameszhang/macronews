@@ -14,7 +14,7 @@ from pathlib import Path
 from collections import defaultdict
 
 from config.paths import PROMPTS_DIR, DEFAULT_MODEL
-from experiments.loaders import load_gold_articles, load_sports_articles, load_wikigaming_articles, load_djnw_articles
+from loaders import load_gold_articles, load_sports_articles, load_wikigaming_articles, load_djnw_articles
 from mapping.llm import (
     ASSET_CLASS_DISQUALIFIERS_PLACEHOLDER,
     ASSET_CLASS_POSITIVES_PLACEHOLDER,

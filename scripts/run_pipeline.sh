@@ -53,7 +53,7 @@ jobid=$(sbatch --parsable \
         # outputs regardless of batch size/composition. Requires compute
         # capability >= 9.0 (H100/H200/B100/B200/rtx_pro_6000_blackwell).
         export VLLM_BATCH_INVARIANT=1
-        PYTHONPATH=src python src/experiments/pipeline.py \
+        PYTHONPATH=src python src/pipeline.py \
             --model ${MODEL_PATH} \
             --max-model-len ${MAX_MODEL_LEN} \
             --dataset ${DATASET} \
