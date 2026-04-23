@@ -5,14 +5,7 @@ import compat  # noqa: F401 — transformers 5.x / vLLM shim
 
 from config.paths import PROMPTS_DIR
 from mapping.base import BaseMapper
-from mapping.schemas import (
-    ASSET_SYMBOLS_SET,
-    AssetMapping,
-    NAME_TO_SYMBOL,
-    MappingResult,
-    SingleAssetResult,
-    SummarizeResult,
-)
+from mapping.schemas import SingleAssetResult
 
 logger = logging.getLogger(__name__)
 
@@ -236,51 +229,6 @@ class LLMMapper(BaseMapper):
                 gpu_memory_utilization=0.95,
             )
 
-    def _map_vllm(self, texts: list[str], schema_class=None, max_tokens: int = 256,
-                  guided: bool = True) -> list[MappingResult]:
-        from vllm import SamplingParams
-        self._init_llm()
-
-        if guided:
-            from vllm.sampling_params import StructuredOutputsParams
-            cls = schema_class or MappingResult
-            schema = cls.model_json_schema()
-            sampling_params = SamplingParams(
-                temperature=0.0,
-                max_tokens=max_tokens,
-                structured_outputs=StructuredOutputsParams(json=schema),
-            )
-        else:
-            # Unguided: no grammar constraint, rely on prompt + temperature=0.
-            # repetition_penalty=1.1 prevents degeneration loops on long inputs.
-            sampling_params = SamplingParams(
-                temperature=0.0,
-                max_tokens=max_tokens,
-                repetition_penalty=1.1,
-            )
-
-        conversations = [self._build_conversation(t) for t in texts]
-        logger.info(f"[vLLM] Generating {len(conversations):,} mappings...")
-        outputs = self._llm.chat(conversations, sampling_params)
-
-        results = []
-        total_dropped = 0
-        articles_with_drops = 0
-
-        for i, output in enumerate(outputs):
-            raw = output.outputs[0].text
-            logger.info("[vLLM] Output %d (len=%d): %s", i, len(raw), raw[:1000])
-            result, n_dropped = self._parse_lenient(raw)
-            results.append(result)
-            if n_dropped > 0:
-                total_dropped += n_dropped
-                articles_with_drops += 1
-
-        if total_dropped > 0:
-            logger.warning(f"Dropped {total_dropped} invalid asset symbols across {articles_with_drops} articles.")
-
-        return results
-
     def map_single_asset(
         self,
         texts: list[str],
@@ -326,47 +274,6 @@ class LLMMapper(BaseMapper):
 
         return results
 
-    def map_summarize(
-        self,
-        texts: list[str],
-        max_tokens: int = 1536,
-    ) -> list[SummarizeResult]:
-        """Summarize stage: one call per article, unguided (free-form macro summary)."""
-        from vllm import SamplingParams
-        self._init_llm()
-
-        sampling_params = SamplingParams(
-            temperature=0.0,
-            max_tokens=max_tokens,
-            repetition_penalty=1.1,
-        )
-
-        conversations = [self._build_conversation(t) for t in texts]
-        logger.info(f"[vLLM] Summarizing {len(conversations):,} articles...")
-        outputs = self._llm.chat(conversations, sampling_params)
-
-        results = []
-        for i, output in enumerate(outputs):
-            raw = output.outputs[0].text
-            logger.info("[vLLM] Summarize %d (len=%d): %s", i, len(raw), raw[:500])
-            json_str = self._extract_json(raw)
-            if json_str:
-                try:
-                    data = json.loads(json_str)
-                    result = SummarizeResult(
-                        company_specific=bool(data.get("company_specific", False)),
-                        macro_summary=data.get("macro_summary", ""),
-                    )
-                except Exception:
-                    logger.warning("Failed to parse summarize output %d: %s", i, raw[:200])
-                    result = SummarizeResult()
-            else:
-                logger.warning("No JSON in summarize output %d: %s", i, raw[:200])
-                result = SummarizeResult()
-            results.append(result)
-
-        return results
-
     # ------------------------------------------------------------------
     # Shared
     # ------------------------------------------------------------------
@@ -401,73 +308,3 @@ class LLMMapper(BaseMapper):
                     return text[start : i + 1]
         return None
 
-    def _parse_lenient(self, raw: str | None) -> tuple[MappingResult, int]:
-        if raw is None:
-            return MappingResult(), 0
-        json_str = self._extract_json(raw)
-        if json_str is None:
-            logger.debug("No JSON found in output: %s", raw[:200])
-            return MappingResult(), 0
-        try:
-            data = json.loads(json_str)
-        except (json.JSONDecodeError, TypeError):
-            logger.debug("JSON parse failed: %s", json_str[:200])
-            return MappingResult(), 0
-
-        if not isinstance(data, dict):
-            return MappingResult(), 0
-
-        # Parse relevant_assets (supports both list[str] and list[dict])
-        raw_assets = data.get("relevant_assets", [])
-        if not isinstance(raw_assets, list):
-            return MappingResult(), 0
-
-        valid: list[AssetMapping] = []
-        seen: set[str] = set()
-        n_dropped = 0
-        for item in raw_assets:
-            # Extract symbol, signal, and reasoning from either format
-            if isinstance(item, dict):
-                sym_raw = item.get("asset", "")
-                signal = item.get("signal", "strong")
-                if signal not in ("strong", "weak"):
-                    signal = "strong"
-                reasoning = item.get("reasoning", "") or item.get("rationale", "")
-            elif isinstance(item, str):
-                sym_raw = item
-                signal = "strong"
-                reasoning = ""
-            else:
-                n_dropped += 1
-                continue
-
-            sym_stripped = sym_raw.strip() if isinstance(sym_raw, str) else ""
-            if sym_stripped in ASSET_SYMBOLS_SET:
-                sym = sym_stripped
-            elif sym_stripped.lower() in NAME_TO_SYMBOL:
-                sym = NAME_TO_SYMBOL[sym_stripped.lower()]
-            else:
-                n_dropped += 1
-                continue
-
-            if sym not in seen:
-                valid.append(AssetMapping(asset=sym, signal=signal, reasoning=reasoning))
-                seen.add(sym)
-
-        # Parse company_specific (optional, only from article-level)
-        company_specific = data.get("company_specific", False)
-        if not isinstance(company_specific, bool):
-            company_specific = False
-
-        # Parse macro_summary (optional, only from article-level v2)
-        macro_summary = data.get("macro_summary", "")
-        if not isinstance(macro_summary, str):
-            macro_summary = ""
-
-        return MappingResult(relevant_assets=valid,
-                             company_specific=company_specific, macro_summary=macro_summary), n_dropped
-
-    def map(self, headlines: list[str], schema_class=None, max_tokens: int = 256,
-            guided: bool = True) -> list[MappingResult]:
-        return self._map_vllm(headlines, schema_class=schema_class,
-                              max_tokens=max_tokens, guided=guided)
