@@ -12,7 +12,6 @@ from mapping.schemas import (
     MappingResult,
     SingleAssetResult,
     SummarizeResult,
-    ValidationResult,
 )
 
 logger = logging.getLogger(__name__)
@@ -472,46 +471,3 @@ class LLMMapper(BaseMapper):
             guided: bool = True) -> list[MappingResult]:
         return self._map_vllm(headlines, schema_class=schema_class,
                               max_tokens=max_tokens, guided=guided)
-
-    def map_validate(
-        self,
-        texts: list[str],
-        max_tokens: int = 256,
-    ) -> list[ValidationResult]:
-        """Stage 3 validation: returns ValidationResult objects via guided decoding."""
-        from vllm import SamplingParams
-        from vllm.sampling_params import StructuredOutputsParams
-        self._init_llm()
-
-        result_class = ValidationResult
-        schema = result_class.model_json_schema()
-        sampling_params = SamplingParams(
-            temperature=0.0,
-            max_tokens=max_tokens,
-            structured_outputs=StructuredOutputsParams(json=schema),
-        )
-
-        conversations = [self._build_conversation(t) for t in texts]
-        logger.info(f"[vLLM] Validating {len(conversations):,} (article, asset) pairs...")
-        outputs = self._llm.chat(conversations, sampling_params)
-
-        results = []
-        for i, output in enumerate(outputs):
-            raw = output.outputs[0].text
-            logger.info("[vLLM] Validation %d (len=%d): %s", i, len(raw), raw[:500])
-            try:
-                result = result_class.model_validate_json(raw)
-            except Exception:
-                json_str = self._extract_json(raw)
-                if json_str:
-                    try:
-                        result = result_class.model_validate_json(json_str)
-                    except Exception:
-                        logger.warning("Failed to parse validation output %d: %s", i, raw[:200])
-                        result = result_class(valid=False)
-                else:
-                    logger.warning("No JSON in validation output %d: %s", i, raw[:200])
-                    result = result_class(valid=False)
-            results.append(result)
-
-        return results

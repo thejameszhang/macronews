@@ -1,8 +1,9 @@
 """
-Macronews two-stage LLM pipeline for article-to-asset tagging (v12).
+Macronews ArticleMapper pipeline for article-to-asset tagging.
 
-Stage 1: article-level mapping — per-asset relevance + evidence paragraphs
-Stage 2: validation — enforce rules, select final evidence paragraphs
+Per-asset article-level mapping: one LLM call per (article, asset) pair
+returns per-asset relevance, evidence paragraphs, signal strength, and
+score. Asset-class-specific rules are injected into the prompt per class.
 """
 
 import argparse
@@ -19,7 +20,7 @@ from mapping.llm import (
     ASSET_CLASS_POSITIVES_PLACEHOLDER,
     LLMMapper,
 )
-from mapping.schemas import SingleAssetResult, ValidationResult
+from mapping.schemas import SingleAssetResult
 from utils.config import load_asset_universe
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,6 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 ARTICLE_PROMPT = (PROMPTS_DIR / "single_asset.txt").read_text()
-VALIDATE_PROMPT = (PROMPTS_DIR / "validate.txt").read_text()
 
 # Asset symbol → human-readable name
 _ASSET_UNIVERSE = load_asset_universe()
@@ -158,16 +158,17 @@ def _run_per_asset_class(
 
 
 # ---------------------------------------------------------------------------
-# Stage 1: ArticleMapper (one call per article × asset)
+# ArticleMapper pipeline (one call per article × asset)
 # ---------------------------------------------------------------------------
 
-def run_article_level(
+def run_pipeline(
     mapper: LLMMapper,
     articles: list[dict],
 ) -> list[dict[str, SingleAssetResult]]:
-    """Stage 1: per-asset article-level mapping.
+    """Per-asset article-level mapping.
 
-    Returns list (one per article) of {asset_sym: SingleAssetResult} for relevant assets only.
+    Returns list (one per article) of {asset_sym: SingleAssetResult} for
+    relevant assets only.
     """
     tasks: list[tuple[int, str]] = []
     texts: list[str] = []
@@ -190,7 +191,7 @@ def run_article_level(
             tasks.append((art_idx, sym))
             texts.append(text)
 
-    logger.info("=== Stage 1: article-level (%d calls) ===", len(texts))
+    logger.info("=== ArticleMapper: %d calls ===", len(texts))
     results = _run_per_asset_class(
         mapper,
         ARTICLE_PROMPT,
@@ -211,155 +212,8 @@ def run_article_level(
 
 
 # ---------------------------------------------------------------------------
-# Stage 2: validation + text selection
+# Output
 # ---------------------------------------------------------------------------
-
-def _build_validation_input(
-    article: dict,
-    asset: str,
-    article_result: SingleAssetResult,
-) -> str:
-    """Build the user message for a validation call. [ASSET] first for the
-    same attention-priming reason as the ArticleMapper input."""
-    parts = [
-        f"[ASSET] {_asset_label(asset)}",
-        "",
-        f"[HEADLINE] {article['headline']}",
-        "[ARTICLE]",
-    ]
-    for idx, para in enumerate(article["paragraphs"]):
-        parts.append(f"[{idx}] {para}")
-    parts.append("[/ARTICLE]")
-    parts.append("\n[MAPPER REASONING]")
-    parts.append(
-        f"ArticleMapper (signal={article_result.signal}, "
-        f"relevance_score={article_result.relevance_score:.2f}, "
-        f"evidence_paragraphs={article_result.evidence_paragraphs}): "
-        f"{article_result.reasoning}"
-    )
-    parts.append("[/MAPPER REASONING]")
-    return "\n".join(parts)
-
-
-def build_selected_text(
-    paragraphs: list[str],
-    evidence_indices: list[int],
-) -> str:
-    """Construct the text to embed for a validated (article, asset) pair.
-
-    Only includes the raw evidence paragraphs — no LLM-generated reasoning.
-    Direction should come from the downstream ridge regression, not from
-    the LLM's interpretation baked into the embedding input.
-    """
-    return " ".join(
-        paragraphs[i] for i in evidence_indices if i < len(paragraphs)
-    )
-
-
-def run_validation(
-    mapper: LLMMapper,
-    articles: list[dict],
-    article_results: list[dict[str, SingleAssetResult]],
-) -> list[dict]:
-    """Stage 2: validate each (article, asset) pair proposed by the ArticleMapper.
-
-    Returns list of dicts with keys:
-        article_idx, asset, valid, signal, relevance_score,
-        evidence_paragraphs, reasoning, selected_text
-    """
-    logger.info("=== Stage 2: validation + text selection ===")
-
-    tasks: list[dict] = []
-    input_texts: list[str] = []
-
-    for art_idx, article in enumerate(articles):
-        for sym in sorted(article_results[art_idx].keys()):
-            text = _build_validation_input(
-                article, sym,
-                article_result=article_results[art_idx][sym],
-            )
-            tasks.append({"article_idx": art_idx, "asset": sym})
-            input_texts.append(text)
-
-    if not input_texts:
-        logger.info("  No (article, asset) pairs to validate")
-        return []
-
-    logger.info("  %d (article, asset) pairs to validate", len(input_texts))
-
-    validation_results = _run_per_asset_class(
-        mapper,
-        VALIDATE_PROMPT,
-        syms=[t["asset"] for t in tasks],
-        texts=input_texts,
-        call=lambda m, ts: m.map_validate(ts, max_tokens=512),
-    )
-
-    output = []
-    for task, vr in zip(tasks, validation_results):
-        art_idx = task["article_idx"]
-        paragraphs = articles[art_idx]["paragraphs"]
-        evidence = [i for i in vr.evidence_paragraphs if 0 <= i < len(paragraphs)]
-        selected_text = build_selected_text(paragraphs, evidence) if vr.valid and evidence else ""
-        output.append({
-            "article_idx": art_idx,
-            "asset": task["asset"],
-            "valid": vr.valid,
-            "signal": vr.signal,
-            "relevance_score": vr.relevance_score,
-            "evidence_paragraphs": evidence,
-            "reasoning": vr.reasoning,
-            "selected_text": selected_text,
-        })
-
-    n_valid = sum(1 for r in output if r["valid"])
-    logger.info("  Validation complete: %d valid, %d rejected", n_valid, len(output) - n_valid)
-    return output
-
-
-def _synthesize_validation_from_mapper(
-    article_results: list[dict[str, SingleAssetResult]],
-) -> list[dict]:
-    """Mapper-only mode: every relevant mapping is accepted as-is."""
-    out: list[dict] = []
-    for idx, am_map in enumerate(article_results):
-        for asset, sar in am_map.items():
-            if not sar.relevant:
-                continue
-            out.append({
-                "article_idx": idx,
-                "asset": asset,
-                "valid": True,
-                "signal": sar.signal,
-                "relevance_score": sar.relevance_score,
-                "evidence_paragraphs": list(sar.evidence_paragraphs),
-                "reasoning": sar.reasoning,
-            })
-    return out
-
-
-def run_pipeline(
-    mapper: LLMMapper,
-    articles: list[dict],
-    *,
-    use_validator: bool = True,
-) -> tuple[list[dict[str, SingleAssetResult]], list[dict]]:
-    """ArticleMapper, optionally followed by the validator.
-
-    Returns (article_results, validation_output). When ``use_validator`` is
-    False, validation_output is synthesized directly from the mapper (every
-    relevant mapping is accepted), skipping the validator LLM pass.
-    """
-    article_results = run_article_level(mapper, articles)
-    if use_validator:
-        validation_output = run_validation(mapper, articles, article_results)
-    else:
-        logger.info("=== Stage 2: validation SKIPPED (mapper-only mode) ===")
-        validation_output = _synthesize_validation_from_mapper(article_results)
-        logger.info("  %d mapper mappings accepted as-is", len(validation_output))
-    return article_results, validation_output
-
-
 
 def _asset_display_name(sym: str) -> str:
     """Human-readable asset name for JSON output."""
@@ -369,64 +223,34 @@ def _asset_display_name(sym: str) -> str:
 def save_final_results_json(
     articles: list[dict],
     article_results: list[dict[str, SingleAssetResult]],
-    validation_output: list[dict],
     out_path: Path,
 ) -> None:
-    """Save full experiment results to a JSON file."""
-    validation_by_article: dict[int, list[dict]] = {}
-    for v in validation_output:
-        validation_by_article.setdefault(v["article_idx"], []).append(v)
-
-    total_accepted = 0
-    total_rejected = 0
-    final_output = []
+    """Save mapper results to a JSON file with per-article asset mappings and
+    a top-level aggregate summary."""
+    total_mappings = 0
+    final_output: list[dict] = []
+    by_asset_class_count: dict[str, int] = {}
+    by_signal_count: dict[str, int] = {}
 
     for art_idx, art in enumerate(articles):
         am_map = article_results[art_idx]
-        validations = validation_by_article.get(art_idx, [])
-
-        accepted = []
-        rejected = []
+        mappings = []
         referenced_paras: set[int] = set()
-        for v in validations:
-            am_sar = am_map.get(v["asset"])
-            am_evidence = list(am_sar.evidence_paragraphs) if am_sar else []
-            # If the validator returned no evidence, fall back to the
-            # ArticleMapper's evidence_paragraphs.
-            evidence = v["evidence_paragraphs"] or am_evidence
-            am_score = am_sar.relevance_score if am_sar else 0.0
-            am_signal = am_sar.signal if am_sar else ""
-            am_reasoning = am_sar.reasoning if am_sar else ""
-            entry = {
-                "asset": _asset_display_name(v["asset"]),
-                "signal": v.get("signal", "strong"),
-                "relevance_score": v.get("relevance_score", 0.0),
-                "mapper_relevance_score": am_score,
+        for sym in sorted(am_map.keys()):
+            sar = am_map[sym]
+            evidence = list(sar.evidence_paragraphs)
+            mappings.append({
+                "asset": _asset_display_name(sym),
+                "signal": sar.signal,
+                "relevance_score": sar.relevance_score,
                 "evidence_paragraphs": evidence,
-                "mapper_reasoning": {
-                    "signal": am_signal,
-                    "relevance_score": am_score,
-                    "evidence_paragraphs": am_evidence,
-                    "reasoning": am_reasoning,
-                } if am_sar else "",
-                "validator_reasoning": v.get("reasoning", ""),
-            }
+                "reasoning": sar.reasoning,
+            })
             referenced_paras.update(evidence)
-            if v["valid"]:
-                accepted.append(entry)
-            else:
-                rejected.append(entry)
-
-        n_accepted = len(accepted)
-        n_rejected = len(rejected)
-        n_total = n_accepted + n_rejected
-        total_accepted += n_accepted
-        total_rejected += n_rejected
-
-        # Also include any paragraphs the AM flagged but were not surfaced by the validator,
-        # so readers can audit what the mapper saw.
-        for sar in am_map.values():
-            referenced_paras.update(sar.evidence_paragraphs)
+            ac = _ASSET_UNIVERSE.get(sym, {}).get("asset_class", "unknown")
+            by_asset_class_count[ac] = by_asset_class_count.get(ac, 0) + 1
+            by_signal_count[sar.signal] = by_signal_count.get(sar.signal, 0) + 1
+        total_mappings += len(mappings)
 
         paragraphs = art["paragraphs"]
         para_dict = {
@@ -435,53 +259,15 @@ def save_final_results_json(
             if i < len(paragraphs)
         }
 
-        article_entry = {
+        final_output.append({
             "article_id": art["id"],
             "headline": art["headline"],
             "url": art.get("url", ""),
             "filtered_reasons": art.get("filtered_reasons", []),
-            "false_positive_rate": round(n_rejected / n_total, 3) if n_total else 0.0,
-            "accepted_assets": [e["asset"] for e in accepted],
-            "rejected_assets": [e["asset"] for e in rejected],
+            "assets": [e["asset"] for e in mappings],
             "paragraphs": para_dict,
-            "accepted": accepted,
-            "rejected": rejected,
-        }
-        final_output.append(article_entry)
-
-    grand_total = total_accepted + total_rejected
-
-    # Aggregates: asset-class breakdown + mapper-signal acceptance rate.
-    ac_accepted: dict[str, int] = {}
-    ac_rejected: dict[str, int] = {}
-    sig_accepted: dict[str, int] = {}
-    sig_rejected: dict[str, int] = {}
-
-    for v in validation_output:
-        sym = v["asset"]
-        art_idx = v["article_idx"]
-        ac = _ASSET_UNIVERSE.get(sym, {}).get("asset_class", "unknown")
-        am_sar = article_results[art_idx].get(sym)
-        am_sig = am_sar.signal if am_sar else None
-        bucket = sig_accepted if v["valid"] else sig_rejected
-        if v["valid"]:
-            ac_accepted[ac] = ac_accepted.get(ac, 0) + 1
-        else:
-            ac_rejected[ac] = ac_rejected.get(ac, 0) + 1
-        if am_sig:
-            key = f"am_{am_sig}"
-            bucket[key] = bucket.get(key, 0) + 1
-
-    all_classes = sorted(set(ac_accepted) | set(ac_rejected))
-    by_asset_class = {}
-    for ac in all_classes:
-        a = ac_accepted.get(ac, 0)
-        r = ac_rejected.get(ac, 0)
-        t = a + r
-        by_asset_class[ac] = {
-            "accepted": a, "rejected": r, "total": t,
-            "false_positive_rate": round(r / t, 3) if t else 0.0,
-        }
+            "mappings": mappings,
+        })
 
     # Count filtered articles per-reason. An article matching multiple reasons
     # contributes to each reason's count (so reason counts sum to >= filtered_articles).
@@ -498,22 +284,9 @@ def save_final_results_json(
         "total_articles": len(articles),
         "filtered_articles": n_filtered,
         "filtered_by_reason": reason_counts,
-        "total_accepted": total_accepted,
-        "total_rejected": total_rejected,
-        "total_pairs": grand_total,
-        "false_positive_rate": round(total_rejected / grand_total, 3) if grand_total else 0.0,
-        "by_asset_class": by_asset_class,
-        "by_mapper_signal": {
-            key: {
-                "accepted": sig_accepted.get(key, 0),
-                "rejected": sig_rejected.get(key, 0),
-                "total": sig_accepted.get(key, 0) + sig_rejected.get(key, 0),
-                "acceptance_rate": round(
-                    sig_accepted.get(key, 0) / (sig_accepted.get(key, 0) + sig_rejected.get(key, 0)), 3
-                ) if (sig_accepted.get(key, 0) + sig_rejected.get(key, 0)) else 0.0,
-            }
-            for key in sorted(set(sig_accepted) | set(sig_rejected))
-        },
+        "total_mappings": total_mappings,
+        "by_asset_class": {ac: by_asset_class_count[ac] for ac in sorted(by_asset_class_count)},
+        "by_signal": {s: by_signal_count[s] for s in sorted(by_signal_count)},
     }
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -537,7 +310,6 @@ def run_experiment(
     start_date: str | None = None,
     end_date: str | None = None,
     random_seed: int | None = None,
-    use_validator: bool = True,
 ) -> None:
     # Leave ~2K tokens headroom for the system prompt and generation budget.
     # djnw loader uses this to skip articles whose text alone would push the
@@ -562,14 +334,14 @@ def run_experiment(
         tensor_parallel_size=tensor_parallel_size,
     )
 
-    article_results, validation_output = run_pipeline(mapper, articles, use_validator=use_validator)
+    article_results = run_pipeline(mapper, articles)
     if output_json:
-        save_final_results_json(articles, article_results, validation_output, output_json)
+        save_final_results_json(articles, article_results, output_json)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Three-stage LLM classification for article-to-asset mapping"
+        description="ArticleMapper: per-asset article-level LLM classification"
     )
     parser.add_argument(
         "--model", type=str,
@@ -605,10 +377,6 @@ def main():
         "--random-seed", type=int, default=None,
         help="Seed for random sampling of djnw articles within the date range",
     )
-    parser.add_argument(
-        "--no-validator", action="store_true",
-        help="Skip the validator LLM pass; accept every relevant mapper mapping as-is",
-    )
     args = parser.parse_args()
 
     # Default sample-dir and output-json based on dataset
@@ -640,7 +408,6 @@ def main():
         start_date=args.start_date,
         end_date=args.end_date,
         random_seed=args.random_seed,
-        use_validator=not args.no_validator,
     )
 
 

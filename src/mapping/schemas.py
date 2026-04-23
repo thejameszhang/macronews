@@ -72,42 +72,6 @@ class AssetMapping(BaseModel):
     )
 
 
-class ValidationResult(BaseModel):
-    valid: bool = Field(
-        description="True if you agree the asset is affected via "
-        "the described transmission channel.",
-    )
-    signal: Literal["strong", "weak"] = Field(
-        default="strong",
-        description='Your final determination of signal strength: "strong" '
-        '(direct channel) or "weak" (indirect but plausible). You may '
-        'upgrade or downgrade the mappers\' proposed signal.',
-    )
-
-    @field_validator("signal", mode="before")
-    @classmethod
-    def normalize_signal(cls, v: str) -> str:
-        if isinstance(v, str):
-            v = v.strip().rstrip(",").lower()
-            if v.startswith("strong"):
-                return "strong"
-        return "weak"
-    relevance_score: float = Field(
-        default=0.0,
-        description="Final relevance score from 0.0 to 1.0.",
-    )
-    evidence_paragraphs: list[int] = Field(
-        default_factory=list,
-        description="Paragraph indices containing the strongest evidence. "
-        "Required regardless of valid=true/false.",
-    )
-    reasoning: str = Field(
-        default="",
-        description="If valid=true: the transmission channel you agree with. "
-        "If valid=false: why the mappers' reasoning is flawed.",
-    )
-
-
 class SingleAssetResult(BaseModel):
     """Result of a single-asset mapping call (one article × one asset).
 
