@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # Prompts
 # ---------------------------------------------------------------------------
 
-ARTICLE_PROMPT = (PROMPTS_DIR / "single_asset.txt").read_text()
+ARTICLE_PROMPT = (PROMPTS_DIR / "mapper.txt").read_text()
 
 # Asset symbol → human-readable name
 _ASSET_UNIVERSE = load_asset_universe()

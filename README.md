@@ -6,11 +6,16 @@ This is the first systematic text-as-data study targeting macro futures rather t
 
 ## Pipeline
 
-1. **Summarize** -- LLM extracts macro context from each article, filters company-specific news
-2. **Article Mapper** -- per-asset relevance classification with transmission channel reasoning
-3. **Paragraph Mapper** -- paragraph-level relevance for finer-grained signal detection
-4. **Validator** -- cross-references mapper reasoning against full article, assigns final signal strength and relevance score (0.0--1.0)
-5. **Ridge Regression** -- downstream supervised model learns direction from relevance-weighted article aggregates
+**ArticleMapper** — one LLM call per (article, asset) pair. For each pair the model returns:
+  - `relevant`: yes/no
+  - `evidence_paragraphs`: indices of paragraphs where a rule-triggering force appears
+  - `reasoning`: rule citation + quoted phrase from the article
+  - `signal`: `"strong"` if the asset is named in the text, else `"weak"`
+  - `relevance_score`: 0.0--1.0
+
+The system prompt is `src/mapping/prompts/mapper.txt` with asset-class-specific disqualifiers and positive rules from `src/mapping/prompts/asset_class/{currency,rates,bonds,commodities,equity_sectors,equity_indices,volatility_indices}.txt` injected per batch.
+
+Downstream ridge regression on relevance-weighted article aggregates is a separate stage outside this repo.
 
 ## Setup
 
@@ -35,18 +40,25 @@ uv sync
 
 > **Note:** `uv sync` alone is insufficient -- the pip overrides in steps 3-4 are required for Gemma 4 model support. Run scripts with `source .venv/bin/activate && python ...`, not `uv run`.
 
-## Running Experiments
+## Running the pipeline
 
 ```bash
 # Set model path (defaults to gemma-4-31b-it if unset)
 export MODEL_PATH=$HOME/models/gemma-4-26b-a4b-it
 
-# Submit to SLURM
+# Gold sample (20 labeled articles) — default
 bash scripts/run_pipeline.sh
+
+# DJNW March 2022, 1000-article seeded sample
+DATASET=djnw MAX_ARTICLES=1000 \
+  START_DATE=2022-03 END_DATE=2022-03 RANDOM_SEED=42 \
+  bash scripts/run_pipeline.sh
 ```
+
+Results land in `results/<dataset>_summary.json`. See `scripts/run_pipeline.sh` for all env knobs.
 
 ## Data
 
-- **Articles**: DJNW (primary), WSJ web archive (interim) in `data/`
-- **Returns**: `src/datasets/sync_daily.csv` (1996--2025, 95 assets)
+- **Articles**: DJNW cleaned JSONL at `/nfs/roberts/project/pi_btk22/rc2573/output/cleaned/v2/articles/YYYY-MM*_clean.jsonl`. Gold labeled samples for regression checks at `data/articles_sample/gold_*.json`. Sports news and WikiGaming loaders also wired up via `--dataset`.
+- **Returns**: `datasets/sync_daily.csv` (1996--2025, 95 assets)
 - **Asset universe**: `src/config/asset_universe.yaml` (95 active contracts)

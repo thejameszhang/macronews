@@ -1,17 +1,20 @@
 #!/bin/bash
 #
-# SLURM launcher for the macronews tagging pipeline on Yale Bouchet.
+# SLURM launcher for the macronews ArticleMapper on Yale Bouchet.
 #
-# Four-stage pipeline on a dataset sample:
-#   Stage 0: summarize + company-specific filter
-#   Stage 1: article-level → (asset, signal, relevance_score, reasoning)
-#   Stage 2: paragraph-level with macro_summary context → same shape
-#   Stage 3: validate each (article, asset) pair + select text for embedding
-#   Final:   validated union of Stage 1 and Stage 2 mappings
+# Runs src/pipeline.py: one LLM call per (article, asset) pair returning
+# per-asset relevance, evidence paragraphs, signal ("strong"|"weak"), and
+# relevance_score in [0,1]. Asset-class-specific rules are injected into
+# the system prompt per class. Results are saved to results/<dataset>_summary.json.
 #
-# Usage:
-#   export MODEL_PATH=$HOME/models/gemma-4-26b-a4b-it   # optional override
-#   bash scripts/run_pipeline.sh [extra args passed to pipeline.py]
+# Common usage:
+#   bash scripts/run_pipeline.sh                              # gold dataset, default settings
+#   MAX_ARTICLES=1000 START_DATE=2022-03 END_DATE=2022-03 \
+#     RANDOM_SEED=42 DATASET=djnw bash scripts/run_pipeline.sh
+#
+# Env knobs: MODEL_PATH, MAX_MODEL_LEN, DATASET, MAX_ARTICLES, START_DATE,
+#            END_DATE, RANDOM_SEED, PARTITION, ACCOUNT, GRES.
+# Extra args after the script are passed through to pipeline.py.
 
 set -euo pipefail
 cd /nfs/roberts/project/pi_btk22/jyz32/macronews

@@ -28,7 +28,7 @@ has to handle all three:
    line.
 3. **Mixed** — normal articles with proper `\n\n` paragraph breaks.
 
-`experiments/loaders.py::split_into_paragraphs` now:
+`loaders.py::split_into_paragraphs` now:
 
 1. Prefers `\n\n` paragraph breaks when present, and **unwraps single-`\n` line
    wrapping** inside each block.

@@ -1,5 +1,5 @@
 """
-Article loaders for the three-stage experiment.
+Article loaders for the ArticleMapper pipeline.
 
 Each loader returns a list[dict] with the standard schema:
     {"id": str, "headline": str, "paragraphs": list[str], ...}
@@ -136,7 +136,7 @@ def load_sports_articles(
     data_dir : Path
         Root directory (e.g., data/sports_news_1994_2000).
     max_articles : int, optional
-        Limit number of articles loaded (for quick experiments).
+        Limit number of articles loaded.
     year : int, optional
         Load only articles from a specific year subdirectory.
     """
