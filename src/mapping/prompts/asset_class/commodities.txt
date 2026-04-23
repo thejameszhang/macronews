@@ -1,10 +1,45 @@
---- COMMODITY-SPECIFIC RULES ---
-Apply general rule (1) NAMED first, then the following.
+ - A commodity used as a pricing unit, reserve asset, or denominator
+   with no force acting on it (e.g., "gold-denominated" is not a force
+   on gold).
+ - Inflation or monetary-policy discussion without the commodity named
+   as a primary subject.
+ - Vertical production-chain relationships where the article names
+   only the raw/upstream commodity. A crude-oil article does NOT
+   extend to Heating Oil, RBOB Gasoline, or Gas Oil; a soybean article
+   does NOT extend to Soybean Oil or Soybean Meal. The refined/
+   downstream product or a force specifically acting on its market
+   must be named in the article.
+ - Background mentions. If the commodity or the force acting on it
+   appears only in a parenthetical, footnote, or one-clause aside
+   (e.g., "the report predates the Iran conflict, which has sent
+   energy prices sharply higher"), the commodity is not a primary
+   or co-equal subject and Rule 2 is not satisfied.
+ - Corporate events that incidentally name the commodity. Mergers,
+   acquisitions, earnings, capex plans, or portfolio-composition
+   language ("the company produces gold and copper") do not
+   qualify unless the article describes a commodity-market impact
+   of the event.
 
-(2) PRIMARY VEHICLE: The article's primary or co-equal subject is the commodity this contract trades, or a specific force acting on it — a supply or demand event, producing region or facility, geopolitical or regulatory action, weather event, sanctions, or industry organization decision (OPEC, IEA, USDA). Background mentions (e.g., "the report predates the Iran conflict, which has sent energy prices sharply higher") do NOT qualify — the commodity or the named force must be what the article is actually about. When the article names a generic label covering multiple graded contracts (e.g., "oil"), all primary vehicles for that label qualify; when it names a specific grade, only that grade qualifies.
+===POSITIVE RULES===
 
-(3) SUBSTITUTION, INPUT, OR COMPLEMENT LINK: The article names a commodity or commodity-specific event as a primary or co-equal subject, and this contract trades a direct substitute, input, or complement. Well-known industry relationships count. The chain must be one step; multi-hop chains do not qualify. The substitution applies only if the described force would act on the substitute through the same mechanism — a commodity-specific trade, accounting, or corporate event (e.g., gold driving a country's trade-balance number) does NOT extend to other commodities in the same category.
+A commodity is relevant when one of the following positive rules holds
+AND none of the disqualifiers above apply:
 
-NOT RELEVANT:
- - A commodity used as a pricing unit, reserve asset, or denominator with no force acting on it (e.g., "gold-denominated" is not a force on gold).
- - Inflation or monetary-policy discussion without the commodity named as a primary subject.
+(2) The article's primary or co-equal subject is the commodity this
+    contract trades, or a specific force acting on it — a supply or
+    demand event, producing region or facility, geopolitical or
+    regulatory action, weather event, sanctions, or industry
+    organization decision (OPEC, IEA, USDA). When the article names a
+    generic label covering multiple graded contracts (e.g., "oil"),
+    all primary vehicles for that label qualify; when it names a
+    specific grade, only that grade qualifies.
+
+(3) The article names a commodity or commodity-specific event as a
+    primary or co-equal subject, and this contract is a different
+    grade, delivery location, or origin of the same physical
+    commodity (e.g., WTI and Brent are horizontal grades of crude
+    oil; LME Copper and COMEX Copper are horizontal delivery
+    locations for copper). The substitution applies only when the
+    force described would act on this contract through the same
+    mechanism. Distinct commodities in the same category do not
+    qualify.

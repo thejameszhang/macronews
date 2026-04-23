@@ -1,10 +1,32 @@
---- EQUITY SECTOR-SPECIFIC RULES ---
-Apply general rule (1) NAMED first, then the following. These rules apply only to sector-level equity assets defined by industry classification.
+These rules apply to US-listed GICS sector ETFs. Under general rule
+(1), the sector must be named directly — a constituent company's
+name does not count as the sector's name.
 
-(2) SECTOR-LEVEL FORCE: The article names a commodity, regulation, or demand/supply shock acting on the sector — not on a minor sub-industry, and not a sector-related term appearing only as a sub-component within an article about a different topic. E.g., pharma demand qualifies Health Care; gold does NOT qualify Materials (precious metals are a minor slice).
+  - Foreign-market sectors, unless the article explicitly states a
+    transmission channel to the US sector.
+  - Incidental constituent mentions — peer comparisons, conference
+    topic lists, stock-move footers, analyst-target boilerplate.
+  - Macro rate or policy news without a sector-specific transmission
+    channel stated in the text.
+  - Corporate events that incidentally name the sector's commodities
+    or constituents. Mergers, acquisitions, earnings, capex plans, or
+    portfolio descriptions do not qualify unless the article describes
+    a sector-wide impact of the event.
 
-(3) SECTOR CONSTITUENT: The article names a company or business event, and this sector contains that company as a material constituent (not a minority position). A company belongs to ONE GICS sector — before tagging, identify the named company's actual sector; if it is not this asset, reject.
+===POSITIVE RULES===
 
-NOT RELEVANT:
- - Macro rate moves without a sector-specific mechanism stated in the text (a Fed rate cut alone does not qualify Financials or Utilities).
- - Commodity price moves where the commodity is a small input for the sector.
+A sector is relevant when one of the following positive rules holds AND
+none of the disqualifiers above apply:
+
+(2) A commodity, regulation, or demand/supply shock central to the
+    sector is the primary or co-equal subject of the article. The
+    link must be direct; the commodity or regulation cannot be a
+    minor slice of the sector's activity, and cannot appear only as
+    a sub-component of a broader story. For example, a story about 
+    gold and silver prices increasing alone does not warrant a mapping 
+    for the Materials sector. One-clause background citations do not
+    qualify.
+
+(3) A US bellwether company — one of a handful of dominant constituents
+    driving a large share of the sector's weight — is the subject of
+    news with clear sector-wide implications.

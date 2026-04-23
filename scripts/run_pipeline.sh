@@ -18,10 +18,11 @@ cd /nfs/roberts/project/pi_btk22/jyz32/macronews
 mkdir -p logs results
 
 MODEL_PATH="${MODEL_PATH:-/nfs/roberts/scratch/pi_btk22/jyz32/gemma-4-26b-a4b-it}"
+MAX_MODEL_LEN="${MAX_MODEL_LEN:-65536}"
 DATASET="${DATASET:-djnw}"
 MAX_ARTICLES="${MAX_ARTICLES:-100}"
-START_DATE="${START_DATE:-2020-11}"
-END_DATE="${END_DATE:-2020-11}"
+START_DATE="${START_DATE-}"
+END_DATE="${END_DATE-}"
 RANDOM_SEED="${RANDOM_SEED:-}"
 PARTITION="${PARTITION:-priority_gpu}"
 ACCOUNT="${ACCOUNT:-prio_btk22}"
@@ -54,11 +55,11 @@ jobid=$(sbatch --parsable \
         export VLLM_BATCH_INVARIANT=1
         PYTHONPATH=src python src/experiments/pipeline.py \
             --model ${MODEL_PATH} \
-            --max-model-len 65536 \
+            --max-model-len ${MAX_MODEL_LEN} \
             --dataset ${DATASET} \
             --max-articles ${MAX_ARTICLES} \
-            --start-date ${START_DATE} \
-            --end-date ${END_DATE} \
+            ${START_DATE:+--start-date ${START_DATE}} \
+            ${END_DATE:+--end-date ${END_DATE}} \
             ${RANDOM_SEED:+--random-seed ${RANDOM_SEED}} \
             ${EXTRA_ARGS}
     ")

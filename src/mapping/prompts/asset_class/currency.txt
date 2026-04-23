@@ -1,10 +1,26 @@
---- CURRENCY-SPECIFIC RULES ---
-Apply general rule (1) NAMED first, then the following.
+ - Reporting-, functional-, pricing-unit, or category-example
+   mentions (named only to illustrate a broader category, with no
+   force in the article acting on this specific currency).
+ - Calendar-style name-drops or inclusion in a peer list. If the
+   central bank or currency appears only in a sentence listing
+   multiple central banks or currencies (e.g., "Bank X, Bank Y, and
+   Bank Z will announce decisions this week"), Rule 2 is not
+   satisfied.
+ - Commodity or safe-haven flows inferred from the article's topic
+   without the FX link stated in the text.
 
-(2) POLICY DISCUSSION: The article substantively discusses the central bank, monetary authority, or FX regime issuing this currency — its decisions, statements, actions, intervention, leadership, or the market reaction to them. A calendar-style name-drop or inclusion in a peer list does NOT qualify.
+===POSITIVE RULES===
 
-(3) NATIONAL MACRO VEHICLE: The article names a country-specific force — tariffs on the country, trade-balance or current-account shift, capital-flow event, FX intervention, sovereign-debt event, or country-specific fiscal action — and this currency is the primary FX instrument through which that country is traded.
+A currency is relevant when one of the following positive rules holds
+AND none of the disqualifiers above apply:
 
-NOT RELEVANT:
- - Reporting-, functional-, or pricing-unit mentions.
- - Commodity or safe-haven flows inferred from the article's topic without the FX link stated in the text.
+(2) The article substantively discusses the central bank or monetary
+    authority issuing this currency — its decisions, statements,
+    actions, intervention, leadership, or the market reaction to
+    them.
+
+(3) The article names a country-specific force — tariffs on the
+    country, trade-balance or current-account shift, capital-flow
+    event, FX intervention, sovereign-debt event, or country-specific
+    fiscal action — and this currency is the primary FX instrument
+    through which that country is traded.

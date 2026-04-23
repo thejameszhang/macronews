@@ -1,10 +1,26 @@
---- GOVERNMENT BOND-SPECIFIC RULES ---
-Apply general rule (1) NAMED first, then the following.
-
-(2) BOND-MARKET DISCUSSION: The article must directly discuss the bond market — yield moves, Treasury auctions, curve repricing, term-premium, or duration — for the country whose bond this is. Inferential framings (e.g., "driver of bond-market pricing," "affects rate expectations," "has implications for Treasuries," or central-bank policy / rate-path discussion without a named bond-market phenomenon) do NOT count as direct discussion; the article must name the bond-market mechanism it is engaging with.
-
-(3) SOVEREIGN FISCAL OR DEBT SUPPLY: The article discusses a fiscal or debt-related force specific to the country that issues this bond — deficit trajectory, budget dispute, auction dynamics, credit-rating action, or debt-sustainability concerns — AND states a bond-market implication (yield move, supply concern, debt-service cost, term-premium). A fiscal event named only as a driver of another asset's move does not qualify.
-
-NOT RELEVANT:
  - A foreign central bank or foreign bond is the subject.
- - A different tenor or instrument of the same country is named (each contract must be named specifically).
+ - A different tenor of the same country is the only bond mentioned.
+   Each contract is defined by its tenor and must be named or
+   yield-matched specifically — mention of a country's 10-year yield
+   does NOT qualify its short-end or long-end contracts.
+ - Inferential framings (e.g., "driver of bond-market pricing,"
+   "affects rate expectations," or central-bank policy without a named
+   bond-market phenomenon at this tenor).
+
+===POSITIVE RULES===
+
+A bond contract is relevant when one of the following positive rules
+holds AND none of the disqualifiers above apply:
+
+(2) The article directly discusses the bond market for THIS SPECIFIC
+    CONTRACT, identified by its tenor/maturity. The article must name
+    either the contract itself or a yield/instrument whose tenor
+    matches this contract's underlying (e.g., a 10-year yield quote
+    qualifies a 10-year-note contract; a generic country-level bond
+    mention does NOT qualify the short-end or long-end contracts of
+    that country).
+
+(3) The article discusses a fiscal or debt-related force specific to
+    the country that issues this bond AND states a bond-market
+    implication. A fiscal event named only as a driver of another
+    asset's move does not qualify.

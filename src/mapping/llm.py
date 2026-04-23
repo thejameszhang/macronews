@@ -34,7 +34,12 @@ ASSET_CLASS_PROMPT_FILES = {
     "volatility":               "volatility_indices.txt",
 }
 
-ASSET_CLASS_RULES_PLACEHOLDER = "{{ASSET_CLASS_RULES}}"
+ASSET_CLASS_DISQUALIFIERS_PLACEHOLDER = "{{ASSET_CLASS_DISQUALIFIERS}}"
+ASSET_CLASS_POSITIVES_PLACEHOLDER = "{{ASSET_CLASS_POSITIVES}}"
+
+# In-file delimiter between the class-specific NOT-RELEVANT bullets and the
+# positive-rule block. Stripped at load time; the LLM never sees this marker.
+_CLASS_SECTION_SPLIT = "===POSITIVE RULES==="
 
 
 class LLMMapper(BaseMapper):
@@ -53,21 +58,31 @@ class LLMMapper(BaseMapper):
         self._asset_list_str = self._get_formatted_asset_list()
         self._asset_class_rules = self._load_asset_class_rules()
 
-    def _load_asset_class_rules(self) -> dict[str, str]:
-        """Load asset-class-specific rule files and verify every class in the
-        asset universe has a registered prompt file. Raise on any mismatch."""
+    def _load_asset_class_rules(self) -> dict[str, tuple[str, str]]:
+        """Load asset-class-specific rule files split into (disqualifiers,
+        positives) sections on the ``_CLASS_SECTION_SPLIT`` marker. Verify
+        every class in the asset universe has a registered prompt file and
+        that each file has exactly one split marker."""
         from utils.config import load_asset_universe
         from config.paths import ASSET_UNIVERSE_YAML
 
         asset_class_dir = PROMPTS_DIR / "asset_class"
-        rules: dict[str, str] = {}
+        rules: dict[str, tuple[str, str]] = {}
         for ac, fname in ASSET_CLASS_PROMPT_FILES.items():
             fpath = asset_class_dir / fname
             if not fpath.exists():
                 raise FileNotFoundError(
                     f"Asset-class prompt file missing: {fpath} (for asset_class={ac!r})"
                 )
-            rules[ac] = fpath.read_text()
+            text = fpath.read_text()
+            parts = text.split(_CLASS_SECTION_SPLIT)
+            if len(parts) != 2:
+                raise ValueError(
+                    f"{fpath}: expected exactly one {_CLASS_SECTION_SPLIT!r} "
+                    f"separator, found {len(parts) - 1}"
+                )
+            disqualifiers, positives = (p.strip("\n") for p in parts)
+            rules[ac] = (disqualifiers, positives)
 
         universe_classes = {
             info["asset_class"] for info in load_asset_universe(ASSET_UNIVERSE_YAML).values()
@@ -86,8 +101,8 @@ class LLMMapper(BaseMapper):
             )
         return rules
 
-    def asset_class_rules(self, asset_class: str) -> str:
-        """Return the class-specific rule text for an asset class, or raise."""
+    def asset_class_rules(self, asset_class: str) -> tuple[str, str]:
+        """Return (disqualifiers, positives) for an asset class, or raise."""
         if asset_class not in self._asset_class_rules:
             raise KeyError(
                 f"No asset-class-specific rules registered for asset_class={asset_class!r}"

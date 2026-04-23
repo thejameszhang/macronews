@@ -58,20 +58,20 @@ ZW:
     - tier: b
       url: "https://hedgepointglobal.com/en/blog/how-is-the-price-of-wheat-formed"
       source: "Hedgepoint Global"
-KE:
-  exchange_name: Kansas City Board of Trade
-  calcseriesname: KCBT-HRW WHEAT COMP CONTINUOUS
-  name: Kansas Wheat
-  asset_class: commodity
-  curcdd: USD
-  ric: KW
-  primers:
-    - tier: a
-      url: "https://www.ers.usda.gov/topics/crops/wheat/wheat-sector-at-a-glance/"
-      source: "USDA Economic Research Service"
-    - tier: b
-      url: "https://www.cmegroup.com/education/courses/introduction-to-grains-and-oilseeds/wheat-production-use-and-transportation.html"
-      source: "CME Group"
+# KE:
+#   exchange_name: Kansas City Board of Trade
+#   calcseriesname: KCBT-HRW WHEAT COMP CONTINUOUS
+#   name: Kansas Wheat
+#   asset_class: commodity
+#   curcdd: USD
+#   ric: KW
+#   primers:
+#     - tier: a
+#       url: "https://www.ers.usda.gov/topics/crops/wheat/wheat-sector-at-a-glance/"
+#       source: "USDA Economic Research Service"
+#     - tier: b
+#       url: "https://www.cmegroup.com/education/courses/introduction-to-grains-and-oilseeds/wheat-production-use-and-transportation.html"
+#       source: "CME Group"
 ZC:
   exchange_name: Chicago Board of Trade (CBOT)
   calcseriesname: CBT-CORN COMP. CONTINUOUS
@@ -186,20 +186,20 @@ LE:
     - tier: b
       url: "https://www.ers.usda.gov/topics/animal-products/cattle-beef/market-outlook/"
       source: "USDA Economic Research Service"
-GF:
-  exchange_name: Chicago Mercantile Exchange (CME)
-  calcseriesname: CME-FEEDER CATTLE COMP. CONTINUOUS
-  name: Feeder Cattle
-  asset_class: commodity
-  curcdd: USD
-  ric: FC
-  primers:
-    - tier: a
-      url: "https://www.ers.usda.gov/topics/animal-products/cattle-beef/sector-at-a-glance/"
-      source: "USDA Economic Research Service"
-    - tier: b
-      url: "https://www.ers.usda.gov/topics/animal-products/cattle-beef/market-outlook/"
-      source: "USDA Economic Research Service"
+# GF:
+#   exchange_name: Chicago Mercantile Exchange (CME)
+#   calcseriesname: CME-FEEDER CATTLE COMP. CONTINUOUS
+#   name: Feeder Cattle
+#   asset_class: commodity
+#   curcdd: USD
+#   ric: FC
+#   primers:
+#     - tier: a
+#       url: "https://www.ers.usda.gov/topics/animal-products/cattle-beef/sector-at-a-glance/"
+#       source: "USDA Economic Research Service"
+#     - tier: b
+#       url: "https://www.ers.usda.gov/topics/animal-products/cattle-beef/market-outlook/"
+#       source: "USDA Economic Research Service"
 CL:
   exchange_name: New York Mercantile Exchange
   calcseriesname: NYM-LIGHT CRUDE OIL CONTINUOUS
@@ -231,7 +231,7 @@ HO:
 RB:
   exchange_name: New York Mercantile Exchange
   calcseriesname: NYMEX-RBOB GASOLINE CONTINUOUS
-  name: RBOB Gasoline
+  name: RBOB Gasoline (replaces NY Harbor Unleaded Gasoline, pre-2006)
   asset_class: commodity
   curcdd: USD
   ric: RB
@@ -459,40 +459,40 @@ ZN:
       # url: "https://www.stlouisfed.org/education/the-yield-curve"  # BLOCKED (timeout)
       url: "https://www.investopedia.com/terms/y/yieldcurve.asp"
       source: "Investopedia"
-TN:
-  exchange_name: eCBOT
-  calcseriesname: CBT-ULTRA 10-YEAR US T-NOTE CONT
-  name: Ultra 10 Year US Government Note
-  asset_class: government bond
-  curcdd: USD
-  ric: TN
-  primers:
-    - tier: a
-      url: "https://www.treasurydirect.gov/marketable-securities/treasury-notes/"
-      source: "U.S. Treasury — TreasuryDirect"
-    - tier: b
-      # url: "https://www.stlouisfed.org/education/the-yield-curve"  # BLOCKED (timeout)
-      url: "https://www.investopedia.com/terms/y/yieldcurve.asp"
-      source: "Investopedia"
-UB:
-  exchange_name: Chicago Board of Trade (CBOT)
-  calcseriesname: CBOT-ULTRA T-BOND COMP. CONT.
-  name: Ultra T-Bond
-  asset_class: government bond
-  curcdd: USD
-  ric: AUL
-  primers:
-    - tier: a
-      url: "https://www.treasurydirect.gov/marketable-securities/treasury-bonds/"
-      source: "U.S. Treasury — TreasuryDirect"
-    - tier: b
-      # url: "https://www.stlouisfed.org/education/the-yield-curve"  # BLOCKED (timeout)
-      url: "https://www.investopedia.com/terms/y/yieldcurve.asp"
-      source: "Investopedia"
+# TN:
+#   exchange_name: eCBOT
+#   calcseriesname: CBT-ULTRA 10-YEAR US T-NOTE CONT
+#   name: Ultra 10 Year US Government Note
+#   asset_class: government bond
+#   curcdd: USD
+#   ric: TN
+#   primers:
+#     - tier: a
+#       url: "https://www.treasurydirect.gov/marketable-securities/treasury-notes/"
+#       source: "U.S. Treasury — TreasuryDirect"
+#     - tier: b
+#       # url: "https://www.stlouisfed.org/education/the-yield-curve"  # BLOCKED (timeout)
+#       url: "https://www.investopedia.com/terms/y/yieldcurve.asp"
+#       source: "Investopedia"
+# UB:
+#   exchange_name: Chicago Board of Trade (CBOT)
+#   calcseriesname: CBOT-ULTRA T-BOND COMP. CONT.
+#   name: Ultra T-Bond
+#   asset_class: government bond
+#   curcdd: USD
+#   ric: AUL
+#   primers:
+#     - tier: a
+#       url: "https://www.treasurydirect.gov/marketable-securities/treasury-bonds/"
+#       source: "U.S. Treasury — TreasuryDirect"
+#     - tier: b
+#       # url: "https://www.stlouisfed.org/education/the-yield-curve"  # BLOCKED (timeout)
+#       url: "https://www.investopedia.com/terms/y/yieldcurve.asp"
+#       source: "Investopedia"
 FGBS:
   exchange_name: EUREX
   calcseriesname: EUREX-EURO SCHATZ CONTINUOUS
-  name: Euro Schatz
+  name: Euro Schatz (2-Year German Federal Bond)
   asset_class: government bond
   curcdd: EUR
   ric: FGBS
@@ -506,7 +506,7 @@ FGBS:
 FGBM:
   exchange_name: EUREX
   calcseriesname: EUREX-EURO BOBL CONTINUOUS
-  name: Euro Bobl
+  name: Euro Bobl (5-Year German Federal Bond)
   asset_class: government bond
   curcdd: EUR
   ric: FGBM
@@ -520,7 +520,7 @@ FGBM:
 FGBL:
   exchange_name: EUREX
   calcseriesname: EUREX-EURO BUND CONTINUOUS
-  name: Euro Bund
+  name: Euro Bund (10-Year German Federal Bond)
   asset_class: government bond
   curcdd: EUR
   ric: FGBL
@@ -534,7 +534,7 @@ FGBL:
 FGBX:
   exchange_name: EUREX
   calcseriesname: EUREX-EURO BUXL CONTINUOUS
-  name: Euro Buxl
+  name: Euro Buxl (30-Year German Federal Bond)
   asset_class: government bond
   curcdd: EUR
   ric: FGBX
@@ -548,7 +548,7 @@ FGBX:
 FOAT:
   exchange_name: EUREX
   calcseriesname: EUREX-LONG EURO OAT CONTINUOUS
-  name: French OAT Government Bond
+  name: French OAT (10-Year Government Bond)
   asset_class: government bond
   curcdd: EUR
   ric: FOAT
@@ -563,7 +563,7 @@ FOAT:
 FBTP:
   exchange_name: EUREX
   calcseriesname: EUREX-EURO BTP CONTINUOUS
-  name: Italian BTP Government Bond
+  name: Italian BTP (10-Year Government Bond)
   asset_class: government bond
   curcdd: EUR
   ric: FBTP
@@ -578,7 +578,7 @@ FBTP:
 CONF:
   exchange_name: EUREX
   calcseriesname: EUREX-SWISS CONF CONTINUOUS
-  name: Swiss Confederation Bond
+  name: Swiss Confederation Bond (~10-Year benchmark)
   asset_class: government bond
   curcdd: CHF
   ric: CONF
@@ -593,7 +593,7 @@ CONF:
 R:
   exchange_name: Euronext.LIFFE London
   calcseriesname: LIFFE-LONG GILT CONTINUOUS
-  name: UK Long Gilt
+  name: UK Long Gilt (~10-Year benchmark)
   asset_class: government bond
   curcdd: GBP
   ric: FLG
@@ -843,21 +843,21 @@ RTY:
     - tier: b
       url: "https://www.federalreserve.gov/monetarypolicy.htm"
       source: "U.S. Federal Reserve"
-EMD:
-  exchange_name: Chicago Mercantile Exchange (CME)
-  calcseriesname: CME-EMINI S&P 400 MIDCAP CONTINUOU
-  name: S&P 400 Midcap Index
-  asset_class: equity index
-  curcdd: USD
-  ric: DM
-  primers:
-    - tier: a
-      # url: "https://www.spglobal.com/spdji/en/indices/equity/sp-400/#overview"  # BLOCKED (403)
-      url: "https://www.investopedia.com/terms/s/sp-midcap-400-index.asp"
-      source: "Investopedia"
-    - tier: b
-      url: "https://www.federalreserve.gov/monetarypolicy.htm"
-      source: "U.S. Federal Reserve"
+# EMD:
+#   exchange_name: Chicago Mercantile Exchange (CME)
+#   calcseriesname: CME-EMINI S&P 400 MIDCAP CONTINUOU
+#   name: S&P 400 Midcap Index
+#   asset_class: equity index
+#   curcdd: USD
+#   ric: DM
+#   primers:
+#     - tier: a
+#       # url: "https://www.spglobal.com/spdji/en/indices/equity/sp-400/#overview"  # BLOCKED (403)
+#       url: "https://www.investopedia.com/terms/s/sp-midcap-400-index.asp"
+#       source: "Investopedia"
+#     - tier: b
+#       url: "https://www.federalreserve.gov/monetarypolicy.htm"
+#       source: "U.S. Federal Reserve"
 YM:
   exchange_name: Chicago Board of Trade (CBOT)
   calcseriesname: CBT-MINI DOW JONES CONTINUOUS
@@ -876,7 +876,7 @@ YM:
 AP:
   exchange_name: Sydney Futures Exchange
   calcseriesname: SFE-SPI 200 INDEX CONT. TRAD
-  name: SPI 200 Index
+  name: SPI 200 Index (Australia)
   asset_class: equity index
   curcdd: AUD
   ric: YAP
@@ -935,7 +935,7 @@ FESX:
 FCE:
   exchange_name: Euronext Paris
   calcseriesname: MONEP-CAC 40 INDEX CONTINUOUS
-  name: CAC 40 Index
+  name: CAC 40 Index (France)
   asset_class: equity index
   curcdd: EUR
   ric: FCE
@@ -949,7 +949,7 @@ FCE:
 FDAX:
   exchange_name: EUREX
   calcseriesname: EUREX-DAX INDEX CONTINUOUS
-  name: DAX Index
+  name: DAX Index (Germany)
   asset_class: equity index
   curcdd: EUR
   ric: FDX
@@ -963,7 +963,7 @@ FDAX:
 FIE:
   exchange_name: MEFF Renta Variable
   calcseriesname: MEFF-IBEX 35 PLUS INDEX CONT.
-  name: IBEX 35 Plus Index
+  name: IBEX 35 Plus Index (Spain)
   asset_class: equity index
   curcdd: EUR
   ric: MFXI
@@ -978,7 +978,7 @@ FIE:
 FIB:
   exchange_name: Italian Derivatives Market
   calcseriesname: IDEM-FTSE MIB CONTINUOUS
-  name: FTSE MIB Index
+  name: FTSE MIB Index (Italy)
   asset_class: equity index
   curcdd: EUR
   ric: IFS
@@ -992,7 +992,7 @@ FIB:
 HSI:
   exchange_name: Hong Kong Futures Exchange
   calcseriesname: HKFE-HANG SENG INDEX CONTINUOUS
-  name: Hang Seng Index
+  name: Hang Seng Index (China / Hong Kong)
   asset_class: equity index
   curcdd: HKD
   ric: HSI
@@ -1007,7 +1007,7 @@ HSI:
 "160120006":
   exchange_name: Osaka Exchange
   calcseriesname: TSE-MINI-TOPIX CONTINUOUS
-  name: TOPIX Index
+  name: TOPIX Index (Japan)
   asset_class: equity index
   curcdd: JPY
   ric: JNI
@@ -1021,7 +1021,7 @@ HSI:
 "164120019":
   exchange_name: Osaka Exchange
   calcseriesname: OSX-NIKKEI 225 INDEX CONTINUOUS
-  name: Nikkei 225 Index
+  name: Nikkei 225 Index (Japan)
   asset_class: equity index
   curcdd: JPY
   ric: JNI
@@ -1032,25 +1032,25 @@ HSI:
     - tier: b
       url: "https://www.boj.or.jp/en/mopo/outline/index.htm"
       source: "Bank of Japan"
-MFS:
-  exchange_name: ICE Futures U.S.
-  calcseriesname: NYL-MSCI EAFE MINI CONTINUOUS
-  name: MSCI EAFE Index
-  asset_class: equity index
-  curcdd: USD
-  ric: MFS
-  primers:
-    - tier: a
-      url: "https://www.msci.com/indexes/index/990300"
-      source: "MSCI"
-    - tier: b
-      # url: "https://www.imf.org/en/Publications/WEO"  # BLOCKED (403)
-      url: "https://www.investopedia.com/terms/e/eafe_index.asp"
-      source: "Investopedia"
+# MFS:
+#   exchange_name: ICE Futures U.S.
+#   calcseriesname: NYL-MSCI EAFE MINI CONTINUOUS
+#   name: MSCI EAFE Index
+#   asset_class: equity index
+#   curcdd: USD
+#   ric: MFS
+#   primers:
+#     - tier: a
+#       url: "https://www.msci.com/indexes/index/990300"
+#       source: "MSCI"
+#     - tier: b
+#       # url: "https://www.imf.org/en/Publications/WEO"  # BLOCKED (403)
+#       url: "https://www.investopedia.com/terms/e/eafe_index.asp"
+#       source: "Investopedia"
 FTI:
   exchange_name: Euronext Amsterdam
   calcseriesname: AEX-AEX INDEX CONTINUOUS
-  name: AEX Index
+  name: AEX Index (Netherlands)
   asset_class: equity index
   curcdd: EUR
   ric: AEX
@@ -1122,7 +1122,7 @@ SGP:
 A01:
   exchange_name: Korea Stock Exchange
   calcseriesname: KSE-KOSPI 200 INDEX CONTINUOUS
-  name: Kospi 200 Index
+  name: Kospi 200 Index (South Korea)
   asset_class: equity index
   curcdd: KRW
   ric: KS
@@ -1167,7 +1167,7 @@ FVS:
 SR3:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-3 MONTH SOFR CONT
-  name: 3-Month SOFR
+  name: 3-Month SOFR (replaces 3-Month USD LIBOR / Eurodollar, pre-2018)
   asset_class: short-term interest rate
   curcdd: USD
   ric: SRA
@@ -1201,7 +1201,7 @@ I:
 "91":
   exchange_name: Osaka Exchange
   calcseriesname: OSX-3-MONTH TONA CONT
-  name: 3-Month TONA
+  name: 3-Month TONA (replaces Euroyen / 3-Month JPY LIBOR / TIBOR, pre-2023)
   asset_class: short-term interest rate
   curcdd: JPY
   ric: JTOA
@@ -1218,7 +1218,7 @@ I:
 SO3:
   exchange_name: Euronext.LIFFE London
   calcseriesname: LIFFE-3MTH STERLING CONT.TRADITIONAL
-  name: 3-Month SONIA
+  name: 3-Month SONIA (replaces Short Sterling / 3-Month GBP LIBOR, pre-2018)
   asset_class: short-term interest rate
   curcdd: GBP
   ric: SON3
@@ -1277,7 +1277,7 @@ BB:
 SA3:
   exchange_name: Intercontinental Exchange - ICE Futures Limited
   calcseriesname: ICE-3MTH SARBON CONT
-  name: 3-Month SARON
+  name: 3-Month SARON (replaces 3-Month CHF LIBOR, pre-2021)
   asset_class: short-term interest rate
   curcdd: CHF
   ric: SARO3

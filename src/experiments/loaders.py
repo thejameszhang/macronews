@@ -350,26 +350,109 @@ def load_djnw_articles(
 
     # Post-sample filters. These run AFTER the seeded sample so that a given
     # seed yields a STRICT SUBSET of the unfiltered sample — apples-to-apples
-    # comparisons across filter versions. Consequence: final article count may
-    # be below max_articles.
+    # comparisons across filter versions. Each article is tagged with
+    # ``filtered_reasons: list[str]`` listing EVERY structural filter it
+    # matches; the full seeded sample flows through to the summary JSON, and
+    # downstream code skips LLM calls when that list is non-empty.
     #
-    # Tabular-material filter: drop articles DJNW tags as pure data dumps.
-    # - N/TAB = "Tabular Material" (price ladders, yield tables, earnings grids)
-    # - N/DTA = "Data" (USDA bulletins, DOE stocks, commodity close reports)
-    # Both families have no narrative worth embedding for downstream retrieval.
-    # Known edge case: a small number of N/DTA-only USDA "Commodity Highlights"
-    # weekly reports contain genuine prose wrapping the data, but they are
-    # recurring bulletins and losing them is acceptable.
-    _DATA_SUBJECTS = {"N/TAB", "N/DTA"}
-    pre_filter_count = len(articles)
-    articles = [
-        a for a in articles
-        if not (_DATA_SUBJECTS & set(a.get("codes", {}).get("subject", [])))
-    ]
-    skipped_tab = pre_filter_count - len(articles)
+    # Reasons are structural categories (not individual codes):
+    #   - tabular_subject:      data-table subject codes (N/TAB, N/DTA)
+    #   - tabular_headline:     headline-regex tabular match (TABLE: prefix or
+    #                           calendar/schedule templates)
+    #   - seeking_alpha_stub:   N/SAT — wire item is a ~280-char URL stub
+    #   - exchange_press_release: 10 exchange-branded product codes (procedural
+    #                           trading halts, AGM notices, compliance filings)
+    #   - unembeddable:         empty body / wire-marker-only / corrections-only
+    #   - insider_filing:       Form 4 / Rule 144 / insider stock sell/buy
+    #                           template rows (N/ISD, N/144, N/ISS, N/ISB)
+    #   - lifestyle_nonmacro:   16 non-macro subject codes (sports, arts,
+    #                           entertainment, lifestyle, food, holidays)
+    _TABULAR_SUBJECTS = {"N/TAB", "N/DTA"}
+    _SEEKING_ALPHA_SUBJECTS = {"N/SAT"}
+    _INSIDER_SUBJECTS = {"N/ISD", "N/144", "N/ISS", "N/ISB"}
+    # 16 lifestyle codes. N/TVL (Travel), N/RLG (Religion), N/OBT (Obituaries)
+    # were removed after audit: TVL catches hurricanes/geopolitics, RLG is
+    # mostly international political news, and OBT catches deaths of materially
+    # relevant figures (e.g. Japan finance minister). Fashion/Lifestyles/Food
+    # are kept because they are framed through a lifestyle lens --- real macro
+    # articles on those topics carry broader macro codes that dominate.
+    _LIFESTYLE_SUBJECTS = {
+        "N/SPT", "N/SPO", "N/BSE", "N/FTB", "N/BKT", "N/HKY", "N/SOC", "N/TNS",
+        "N/GLF", "N/OLY", "N/ART", "N/RVW", "N/LIF", "N/FSH", "N/FCG", "N/HOL",
+    }
+    _EXCHANGE_PR_PRODUCTS = {
+        "P/ASX",    # Australian Stock Exchange
+        "P/BSEX",   # Bombay Stock Exchange
+        "P/HKEX",   # Hong Kong Stock Exchange
+        "P/MYX",    # Malaysian Stock Exchange
+        "P/SXH",    # Singapore Exchange
+        "P/TSEX",   # Tokyo Stock Exchange
+        "P/XTAI",   # Taiwan Stock Exchange
+        "P/JSE",    # Johannesburg Stock Exchange
+        "P/KSXC",   # Karachi Stock Exchange
+        "P/AKT",    # AktieTorget (Sweden)
+    }
+    _TABLE_HEADLINE_RE = re.compile(r"^\s*(Table|TABLE)\s*:")
+    # Calendar/schedule headline templates (Tier 1: generic structural patterns
+    # covering ~75% of DJ N/CAL-tagged articles in a 1000-sample audit, with
+    # zero narrative false positives). See design/main.tex for rationale.
+    _CALENDAR_HEADLINE_RE = re.compile(
+        r"(?:"
+        r"-\s+(?:Week|Month)\s+Ahead\b"
+        r"|(?:Political,?\s+Economic|Corporate\s+And\s+Economic|Economic\s+Indicators|Financial)\s+Calendar\b"
+        r"|Calendar\s+[Oo]f\s+(?:Corporate|Corporate\s+Earnings)\s+(?:Events|Conference\s+Calls)\b"
+        r"|Calendar\s+[Oo]f\s+[A-Za-z .]*?Earnings\s+(?:Expected|Conference\s+Calls)"
+        r"|Calendar\s+[Oo]f\s+(?:Debt|Equity\s+Issues|Wealth\s+Management)"
+        r"|International\s+Debt\s+Calendar|U\.?S\.?\s+Treasury\s+Calendar|(?:DJ\s+)?Muni\s+Pricing\s+Calendar"
+        r"|[A-Za-z, ]+\s+Calendar\s*[-–]\s*(?:\d{4},?\s*)?(?:\d{4}\s+)?Futures,?\s+Options\s+Dates"
+        r"|Holiday\s+Advisory\b|Markets,\s+Banks,\s+Government\s+Offices\s+Closed"
+        r")",
+        re.IGNORECASE,
+    )
+    _WIRE_MARKER_ONLY_RE = re.compile(r"^(-0-?|\(END\)|(\(MORE\)\s*)+)\s*$")
 
-    if skipped_tab:
-        logger.info("Dropped %d sampled DJNW articles tagged N/TAB or N/DTA (tabular / data dumps)", skipped_tab)
+    def _text_unembeddable(paragraphs: list[str]) -> bool:
+        body = "\n".join(paragraphs).strip()
+        if not body:
+            return True
+        if _WIRE_MARKER_ONLY_RE.match(body):
+            return True
+        # Correction-notice-only bodies: starts with "Corrections & Amplifications"
+        # and is short enough to contain no actual article content. The
+        # 300-char threshold keeps real articles that prepend a correction
+        # block (typical pattern: notice, then "---", then body).
+        if body.startswith("Corrections & Amplifications") and len(body) < 300:
+            return True
+        return False
+
+    reason_counts: dict[str, int] = {}
+    for a in articles:
+        codes = a.get("codes", {}) or {}
+        subs = set(codes.get("subject", []) or [])
+        products = set(codes.get("product", []) or [])
+        headline = a.get("headline", "") or ""
+        paragraphs = a.get("paragraphs", [])
+        reasons: list[str] = []
+        if _TABULAR_SUBJECTS & subs:
+            reasons.append("tabular_subject")
+        if _TABLE_HEADLINE_RE.match(headline) or _CALENDAR_HEADLINE_RE.search(headline):
+            reasons.append("tabular_headline")
+        if _SEEKING_ALPHA_SUBJECTS & subs:
+            reasons.append("seeking_alpha_stub")
+        if _EXCHANGE_PR_PRODUCTS & products:
+            reasons.append("exchange_press_release")
+        if _text_unembeddable(paragraphs):
+            reasons.append("unembeddable")
+        if _INSIDER_SUBJECTS & subs:
+            reasons.append("insider_filing")
+        if _LIFESTYLE_SUBJECTS & subs:
+            reasons.append("lifestyle_nonmacro")
+        a["filtered_reasons"] = reasons
+        for r in reasons:
+            reason_counts[r] = reason_counts.get(r, 0) + 1
+
+    for reason in sorted(reason_counts):
+        logger.info("Flagged %d DJNW articles as filtered: %s", reason_counts[reason], reason)
     if skipped_long:
         logger.info("Skipped %d DJNW articles exceeding %d tokens", skipped_long, max_tokens)
     logger.info("Loaded %d DJNW articles from %s", len(articles), data_dir)

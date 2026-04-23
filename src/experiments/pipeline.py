@@ -1,10 +1,8 @@
 """
-Macronews four-stage LLM pipeline for article-to-asset tagging.
+Macronews two-stage LLM pipeline for article-to-asset tagging (v12).
 
-Stage 0: summarize article + company-specific gate
-Stage 1: article-level mapping → (asset, signal, relevance_score, reasoning)
-Stage 2: paragraph-level mapping with macro_summary as context
-Stage 3: validate each (article, asset) pair + select evidence text
+Stage 1: article-level mapping — per-asset relevance + evidence paragraphs
+Stage 2: validation — enforce rules, select final evidence paragraphs
 """
 
 import argparse
@@ -16,8 +14,12 @@ from collections import defaultdict
 
 from config.paths import PROMPTS_DIR, DEFAULT_MODEL
 from experiments.loaders import load_gold_articles, load_sports_articles, load_wikigaming_articles, load_djnw_articles
-from mapping.llm import ASSET_CLASS_RULES_PLACEHOLDER, LLMMapper
-from mapping.schemas import AssetMapping, MappingResult, SingleAssetResult, SummarizeResult, ValidationResult
+from mapping.llm import (
+    ASSET_CLASS_DISQUALIFIERS_PLACEHOLDER,
+    ASSET_CLASS_POSITIVES_PLACEHOLDER,
+    LLMMapper,
+)
+from mapping.schemas import SingleAssetResult, ValidationResult
 from utils.config import load_asset_universe
 
 logger = logging.getLogger(__name__)
@@ -26,9 +28,7 @@ logger = logging.getLogger(__name__)
 # Prompts
 # ---------------------------------------------------------------------------
 
-SUMMARIZE_PROMPT = (PROMPTS_DIR / "summarize.txt").read_text()
 ARTICLE_PROMPT = (PROMPTS_DIR / "single_asset.txt").read_text()
-PARAGRAPH_PROMPT = (PROMPTS_DIR / "single_asset_paragraph.txt").read_text()
 VALIDATE_PROMPT = (PROMPTS_DIR / "validate.txt").read_text()
 
 # Asset symbol → human-readable name
@@ -106,23 +106,6 @@ def load_articles(
 
 
 # ---------------------------------------------------------------------------
-# Stage 0: Summarize (one call per article)
-# ---------------------------------------------------------------------------
-
-def run_summarize(
-    mapper: LLMMapper, articles: list[dict],
-) -> list[SummarizeResult]:
-    """Stage 0: macro summary + company-specific check, one call per article."""
-    logger.info("=== Stage 0: summarize (%d articles) ===", len(articles))
-    mapper.system_prompt = SUMMARIZE_PROMPT
-    texts = [
-        f"[HEADLINE] {a['headline']}\n\n" + "\n\n".join(a["paragraphs"])
-        for a in articles
-    ]
-    return mapper.map_summarize(texts, max_tokens=1536)
-
-
-# ---------------------------------------------------------------------------
 # Per-asset-class batching helper
 # ---------------------------------------------------------------------------
 
@@ -142,10 +125,14 @@ def _run_per_asset_class(
     """
     if not texts:
         return []
-    if ASSET_CLASS_RULES_PLACEHOLDER not in prompt_template:
-        raise ValueError(
-            f"Prompt template is missing {ASSET_CLASS_RULES_PLACEHOLDER} placeholder"
-        )
+    for placeholder in (
+        ASSET_CLASS_DISQUALIFIERS_PLACEHOLDER,
+        ASSET_CLASS_POSITIVES_PLACEHOLDER,
+    ):
+        if placeholder not in prompt_template:
+            raise ValueError(
+                f"Prompt template is missing {placeholder} placeholder"
+            )
     if len(syms) != len(texts):
         raise ValueError(f"syms/texts length mismatch: {len(syms)} vs {len(texts)}")
 
@@ -156,8 +143,11 @@ def _run_per_asset_class(
 
     results: list = [None] * len(texts)
     for ac, indices in by_class.items():
+        disqualifiers, positives = mapper.asset_class_rules(ac)
         mapper.system_prompt = prompt_template.replace(
-            ASSET_CLASS_RULES_PLACEHOLDER, mapper.asset_class_rules(ac)
+            ASSET_CLASS_DISQUALIFIERS_PLACEHOLDER, disqualifiers
+        ).replace(
+            ASSET_CLASS_POSITIVES_PLACEHOLDER, positives
         )
         batch_texts = [texts[i] for i in indices]
         logger.info("  [%s] %d calls", ac, len(batch_texts))
@@ -174,23 +164,29 @@ def _run_per_asset_class(
 def run_article_level(
     mapper: LLMMapper,
     articles: list[dict],
-    skip_indices: set[int] | None = None,
 ) -> list[dict[str, SingleAssetResult]]:
     """Stage 1: per-asset article-level mapping.
 
     Returns list (one per article) of {asset_sym: SingleAssetResult} for relevant assets only.
     """
-    skip = skip_indices or set()
-
-    # Build all (article, asset) pairs
     tasks: list[tuple[int, str]] = []
     texts: list[str] = []
     for art_idx, a in enumerate(articles):
-        if art_idx in skip:
+        # Pre-LLM filtered articles (DJNW denylist, unembeddable, etc.) produce
+        # no mapping tasks; they are still emitted in the final summary with
+        # their filtered_reasons recorded.
+        if a.get("filtered_reasons"):
             continue
-        article_text = f"[HEADLINE] {a['headline']}\n\n" + "\n\n".join(a["paragraphs"])
+        # Indexed paragraphs so the model can reference them by [N] in evidence_paragraphs.
+        article_text = (
+            f"[HEADLINE] {a['headline']}\n\n[ARTICLE]\n"
+            + "\n\n".join(f"[{i}] {p}" for i, p in enumerate(a["paragraphs"]))
+            + "\n[/ARTICLE]"
+        )
         for sym in ALL_ASSETS:
-            text = f"{article_text}\n\n[ASSET] {_asset_label(sym)}"
+            # [ASSET] first so the model reads the article with the target in
+            # mind (primes attention for localized relevance passages).
+            text = f"[ASSET] {_asset_label(sym)}\n\n{article_text}"
             tasks.append((art_idx, sym))
             texts.append(text)
 
@@ -203,179 +199,45 @@ def run_article_level(
         call=lambda m, ts: m.map_single_asset(ts, max_tokens=512),
     )
 
-    # Group by article, keep only relevant
     by_article: list[dict[str, SingleAssetResult]] = [{} for _ in articles]
     for (art_idx, sym), sar in zip(tasks, results):
         if sar.relevant:
             by_article[art_idx][sym] = sar
 
     for art_idx, a in enumerate(articles):
-        n = len(by_article[art_idx])
-        if art_idx not in skip:
-            logger.info("  %s: %d assets flagged by ArticleMapper", a["id"], n)
+        logger.info("  %s: %d assets flagged by ArticleMapper", a["id"], len(by_article[art_idx]))
 
     return by_article
 
 
 # ---------------------------------------------------------------------------
-# Stage 2: ParagraphMapper (one call per paragraph × asset)
-# ---------------------------------------------------------------------------
-
-def run_paragraph_level(
-    mapper: LLMMapper,
-    articles: list[dict],
-    context_per_article: list[str],
-    skip_indices: set[int] | None = None,
-) -> list[dict[str, list[tuple[int, SingleAssetResult]]]]:
-    """Stage 2: per-asset paragraph-level mapping.
-
-    Returns list (one per article) of {asset_sym: [(para_idx, SingleAssetResult), ...]}.
-    """
-    skip = skip_indices or set()
-
-    # Build all (paragraph, asset) pairs
-    tasks: list[tuple[int, int, str]] = []
-    texts: list[str] = []
-    for art_idx, a in enumerate(articles):
-        if art_idx in skip:
-            continue
-        context = context_per_article[art_idx]
-        headline_block = f"[HEADLINE] {a['headline']}\n\n"
-        for para_idx, para in enumerate(a["paragraphs"]):
-            if context:
-                para_text = f"{headline_block}[CONTEXT]\n{context}\n[/CONTEXT]\n\n{para}"
-            else:
-                para_text = f"{headline_block}{para}"
-            for sym in ALL_ASSETS:
-                text = f"{para_text}\n\n[ASSET] {_asset_label(sym)}"
-                tasks.append((art_idx, para_idx, sym))
-                texts.append(text)
-
-    logger.info("=== Stage 2: paragraph-level (%d calls) ===", len(texts))
-    results = _run_per_asset_class(
-        mapper,
-        PARAGRAPH_PROMPT,
-        syms=[sym for _, _, sym in tasks],
-        texts=texts,
-        call=lambda m, ts: m.map_single_asset(ts, max_tokens=512),
-    )
-
-    # Group by article and asset, keep only relevant
-    by_article: list[dict[str, list[tuple[int, SingleAssetResult]]]] = [{} for _ in articles]
-    for (art_idx, para_idx, sym), sar in zip(tasks, results):
-        if sar.relevant:
-            by_article[art_idx].setdefault(sym, []).append((para_idx, sar))
-
-    for art_idx, a in enumerate(articles):
-        n = len(by_article[art_idx])
-        if art_idx not in skip:
-            logger.info("  %s: %d unique assets flagged by ParagraphMapper", a["id"], n)
-
-    return by_article
-
-
-# ---------------------------------------------------------------------------
-# Orchestrate Stages 0-2
-# ---------------------------------------------------------------------------
-
-def run_two_stage(
-    mapper: LLMMapper, articles: list[dict],
-) -> tuple[
-    list[SummarizeResult],
-    list[dict[str, SingleAssetResult]],
-    list[dict[str, list[tuple[int, SingleAssetResult]]]],
-]:
-    """
-    Three-stage pipeline (stages 0-2):
-      Stage 0: summarize → company_specific + macro_summary
-      Stage 1: article-level per-asset mapping
-      Stage 2: paragraph-level per-asset mapping with [CONTEXT]
-
-    Returns (summaries, article_results, para_results).
-    """
-    # Stage 0: summarize
-    summaries = run_summarize(mapper, articles)
-
-    # Identify company-specific articles
-    company_specific_indices: set[int] = set()
-    for i, (a, s) in enumerate(zip(articles, summaries)):
-        if s.company_specific:
-            logger.info("  %s flagged as company-specific — skipping Stages 1-2", a["id"])
-            company_specific_indices.add(i)
-        else:
-            logger.info("  %s summary: %s", a["id"], s.macro_summary[:100] if s.macro_summary else "(empty)")
-
-    # Stage 1: article-level per-asset
-    article_results = run_article_level(mapper, articles, skip_indices=company_specific_indices)
-
-    # Stage 2: paragraph-level per-asset with context
-    context_per_article = [s.macro_summary for s in summaries]
-    para_results = run_paragraph_level(
-        mapper, articles, context_per_article=context_per_article,
-        skip_indices=company_specific_indices,
-    )
-
-    return summaries, article_results, para_results
-
-
-# ---------------------------------------------------------------------------
-# Stage 3: validation + text selection
+# Stage 2: validation + text selection
 # ---------------------------------------------------------------------------
 
 def _build_validation_input(
     article: dict,
     asset: str,
-    article_result: SingleAssetResult | None,
-    paragraph_results: list[tuple[int, SingleAssetResult]],
+    article_result: SingleAssetResult,
 ) -> str:
-    """Build the user message for a validation call.
-
-    The validator always receives the full article so it can reason across
-    paragraphs — finding corroborating or contradicting evidence beyond
-    what the mappers flagged.
-    """
-    parts = []
-
-    parts.append(f"[HEADLINE] {article['headline']}")
-    parts.append("[ARTICLE]")
+    """Build the user message for a validation call. [ASSET] first for the
+    same attention-priming reason as the ArticleMapper input."""
+    parts = [
+        f"[ASSET] {_asset_label(asset)}",
+        "",
+        f"[HEADLINE] {article['headline']}",
+        "[ARTICLE]",
+    ]
     for idx, para in enumerate(article["paragraphs"]):
         parts.append(f"[{idx}] {para}")
     parts.append("[/ARTICLE]")
-
-    # Asset
-    parts.append(f"\n[ASSET] {_asset_label(asset)}")
-
-    # Mapper reasoning (includes signal strength)
     parts.append("\n[MAPPER REASONING]")
-    if article_result:
-        parts.append(
-            f"ArticleMapper (read the entire article, signal={article_result.signal}, relevance_score={article_result.relevance_score:.2f}): "
-            f"{article_result.reasoning}"
-        )
-    else:
-        parts.append(
-            "ArticleMapper (read the entire article): did not flag this asset."
-        )
-
-    if paragraph_results:
-        for para_idx, sar in paragraph_results:
-            if sar.reasoning:
-                parts.append(
-                    f"ParagraphMapper (paragraph [{para_idx}], signal={sar.signal}, relevance_score={sar.relevance_score:.2f}): "
-                    f"{sar.reasoning}"
-                )
-            else:
-                parts.append(
-                    f"ParagraphMapper (paragraph [{para_idx}], signal={sar.signal}, relevance_score={sar.relevance_score:.2f}): "
-                    "flagged this asset but provided no reasoning."
-                )
-    else:
-        parts.append(
-            "ParagraphMapper (reviewed individual paragraphs): "
-            "did not flag this asset."
-        )
+    parts.append(
+        f"ArticleMapper (signal={article_result.signal}, "
+        f"relevance_score={article_result.relevance_score:.2f}, "
+        f"evidence_paragraphs={article_result.evidence_paragraphs}): "
+        f"{article_result.reasoning}"
+    )
     parts.append("[/MAPPER REASONING]")
-
     return "\n".join(parts)
 
 
@@ -398,48 +260,25 @@ def run_validation(
     mapper: LLMMapper,
     articles: list[dict],
     article_results: list[dict[str, SingleAssetResult]],
-    para_results: list[dict[str, list[tuple[int, SingleAssetResult]]]],
 ) -> list[dict]:
-    """
-    Stage 3: validate each (article, asset) pair proposed by AM or PM.
+    """Stage 2: validate each (article, asset) pair proposed by the ArticleMapper.
 
     Returns list of dicts with keys:
-        article_idx, asset, valid, source, evidence_paragraphs,
-        reasoning, selected_text
+        article_idx, asset, valid, signal, relevance_score,
+        evidence_paragraphs, reasoning, selected_text
     """
-    logger.info("=== Stage 3: validation + text selection ===")
+    logger.info("=== Stage 2: validation + text selection ===")
 
-    # Enumerate all (article, asset) pairs from the union of AM and PM
     tasks: list[dict] = []
     input_texts: list[str] = []
 
     for art_idx, article in enumerate(articles):
-        art_syms = set(article_results[art_idx].keys())
-        para_syms = set(para_results[art_idx].keys())
-        all_proposed = sorted(art_syms | para_syms)
-
-        for sym in all_proposed:
-            in_article = sym in art_syms
-            in_paragraph = sym in para_syms
-
-            if in_article and in_paragraph:
-                source = "both"
-            elif in_article:
-                source = "article_only"
-            else:
-                source = "paragraph_only"
-
+        for sym in sorted(article_results[art_idx].keys()):
             text = _build_validation_input(
-                article,
-                sym,
-                article_result=article_results[art_idx].get(sym),
-                paragraph_results=para_results[art_idx].get(sym, []),
+                article, sym,
+                article_result=article_results[art_idx][sym],
             )
-            tasks.append({
-                "article_idx": art_idx,
-                "asset": sym,
-                "source": source,
-            })
+            tasks.append({"article_idx": art_idx, "asset": sym})
             input_texts.append(text)
 
     if not input_texts:
@@ -448,8 +287,6 @@ def run_validation(
 
     logger.info("  %d (article, asset) pairs to validate", len(input_texts))
 
-    # Batch validation call, grouped by asset class so each batch uses the
-    # correct class-specific rule block.
     validation_results = _run_per_asset_class(
         mapper,
         VALIDATE_PROMPT,
@@ -458,63 +295,69 @@ def run_validation(
         call=lambda m, ts: m.map_validate(ts, max_tokens=512),
     )
 
-    # Combine results
     output = []
     for task, vr in zip(tasks, validation_results):
         art_idx = task["article_idx"]
         paragraphs = articles[art_idx]["paragraphs"]
-
-        # Range-check evidence_paragraphs
         evidence = [i for i in vr.evidence_paragraphs if 0 <= i < len(paragraphs)]
-
-        selected_text = ""
-        if vr.valid and evidence:
-            selected_text = build_selected_text(paragraphs, evidence)
-
+        selected_text = build_selected_text(paragraphs, evidence) if vr.valid and evidence else ""
         output.append({
             "article_idx": art_idx,
             "asset": task["asset"],
             "valid": vr.valid,
             "signal": vr.signal,
             "relevance_score": vr.relevance_score,
-            "source": task["source"],
             "evidence_paragraphs": evidence,
             "reasoning": vr.reasoning,
             "selected_text": selected_text,
         })
 
     n_valid = sum(1 for r in output if r["valid"])
-    n_invalid = len(output) - n_valid
-    logger.info("  Validation complete: %d valid, %d rejected", n_valid, n_invalid)
-
+    logger.info("  Validation complete: %d valid, %d rejected", n_valid, len(output) - n_valid)
     return output
 
 
-def run_three_stage(
+def _synthesize_validation_from_mapper(
+    article_results: list[dict[str, SingleAssetResult]],
+) -> list[dict]:
+    """Mapper-only mode: every relevant mapping is accepted as-is."""
+    out: list[dict] = []
+    for idx, am_map in enumerate(article_results):
+        for asset, sar in am_map.items():
+            if not sar.relevant:
+                continue
+            out.append({
+                "article_idx": idx,
+                "asset": asset,
+                "valid": True,
+                "signal": sar.signal,
+                "relevance_score": sar.relevance_score,
+                "evidence_paragraphs": list(sar.evidence_paragraphs),
+                "reasoning": sar.reasoning,
+            })
+    return out
+
+
+def run_pipeline(
     mapper: LLMMapper,
     articles: list[dict],
-) -> tuple[
-    list[SummarizeResult],
-    list[dict[str, SingleAssetResult]],
-    list[dict[str, list[tuple[int, SingleAssetResult]]]],
-    list[dict],
-]:
+    *,
+    use_validator: bool = True,
+) -> tuple[list[dict[str, SingleAssetResult]], list[dict]]:
+    """ArticleMapper, optionally followed by the validator.
+
+    Returns (article_results, validation_output). When ``use_validator`` is
+    False, validation_output is synthesized directly from the mapper (every
+    relevant mapping is accepted), skipping the validator LLM pass.
     """
-    Four-stage pipeline:
-      Stage 0: summarize → company_specific + macro_summary
-      Stage 1: article-level per-asset mapping
-      Stage 2: paragraph-level per-asset mapping with [CONTEXT]
-      Stage 3: validate each proposed (article, asset) pair
-
-    Returns (summaries, article_results, para_results, validation_output).
-    """
-    summaries, article_results, para_results = run_two_stage(mapper, articles)
-
-    validation_output = run_validation(
-        mapper, articles, article_results, para_results,
-    )
-
-    return summaries, article_results, para_results, validation_output
+    article_results = run_article_level(mapper, articles)
+    if use_validator:
+        validation_output = run_validation(mapper, articles, article_results)
+    else:
+        logger.info("=== Stage 2: validation SKIPPED (mapper-only mode) ===")
+        validation_output = _synthesize_validation_from_mapper(article_results)
+        logger.info("  %d mapper mappings accepted as-is", len(validation_output))
+    return article_results, validation_output
 
 
 
@@ -525,14 +368,11 @@ def _asset_display_name(sym: str) -> str:
 
 def save_final_results_json(
     articles: list[dict],
-    summaries: list[SummarizeResult],
     article_results: list[dict[str, SingleAssetResult]],
-    para_results: list[dict[str, list[tuple[int, SingleAssetResult]]]],
     validation_output: list[dict],
     out_path: Path,
 ) -> None:
     """Save full experiment results to a JSON file."""
-    # Group validation results by article
     validation_by_article: dict[int, list[dict]] = {}
     for v in validation_output:
         validation_by_article.setdefault(v["article_idx"], []).append(v)
@@ -542,45 +382,33 @@ def save_final_results_json(
     final_output = []
 
     for art_idx, art in enumerate(articles):
-        summary = summaries[art_idx]
-        s1_map = article_results[art_idx]
-        s2_map = para_results[art_idx]
+        am_map = article_results[art_idx]
         validations = validation_by_article.get(art_idx, [])
 
-        # Stage 3 pairs: accepted and rejected
         accepted = []
         rejected = []
         referenced_paras: set[int] = set()
         for v in validations:
-            evidence = v["evidence_paragraphs"]
-            # Backfill from Stage 2 if validator returned empty evidence
-            if not evidence:
-                pm_entries = s2_map.get(v["asset"], [])
-                evidence = [idx for idx, _ in pm_entries]
-            # Collect mapper reasoning for diagnostics
-            s1_sar = s1_map.get(v["asset"])
-            s1_r = s1_sar.reasoning if s1_sar else ""
-            s1_signal = s1_sar.signal if s1_sar else ""
-            s2_entries = s2_map.get(v["asset"], [])
-            s2_r_list = [
-                {"paragraph": idx, "signal": sar.signal, "relevance_score": sar.relevance_score, "reasoning": sar.reasoning}
-                for idx, sar in s2_entries if sar.reasoning
-            ]
-            # Relevance scores: AM score, max PM score, and validator's final score
-            s1_score = s1_sar.relevance_score if s1_sar else 0.0
-            s2_score = max((sar.relevance_score for _, sar in s2_entries), default=0.0)
-            validator_score = v.get("relevance_score", 0.0)
+            am_sar = am_map.get(v["asset"])
+            am_evidence = list(am_sar.evidence_paragraphs) if am_sar else []
+            # If the validator returned no evidence, fall back to the
+            # ArticleMapper's evidence_paragraphs.
+            evidence = v["evidence_paragraphs"] or am_evidence
+            am_score = am_sar.relevance_score if am_sar else 0.0
+            am_signal = am_sar.signal if am_sar else ""
+            am_reasoning = am_sar.reasoning if am_sar else ""
             entry = {
                 "asset": _asset_display_name(v["asset"]),
                 "signal": v.get("signal", "strong"),
-                "relevance_score": validator_score,
-                "mapper_relevance_scores": {"article_mapper": s1_score, "paragraph_mapper_max": s2_score},
-                "source": v["source"],
+                "relevance_score": v.get("relevance_score", 0.0),
+                "mapper_relevance_score": am_score,
                 "evidence_paragraphs": evidence,
                 "mapper_reasoning": {
-                    "article_mapper": {"signal": s1_signal, "relevance_score": s1_score, "reasoning": s1_r} if s1_sar else "",
-                    "paragraph_mapper": s2_r_list,
-                },
+                    "signal": am_signal,
+                    "relevance_score": am_score,
+                    "evidence_paragraphs": am_evidence,
+                    "reasoning": am_reasoning,
+                } if am_sar else "",
                 "validator_reasoning": v.get("reasoning", ""),
             }
             referenced_paras.update(evidence)
@@ -595,12 +423,11 @@ def save_final_results_json(
         total_accepted += n_accepted
         total_rejected += n_rejected
 
-        # Collect all referenced paragraphs
-        for sym, entries in s2_map.items():
-            for idx, _ in entries:
-                referenced_paras.add(idx)
+        # Also include any paragraphs the AM flagged but were not surfaced by the validator,
+        # so readers can audit what the mapper saw.
+        for sar in am_map.values():
+            referenced_paras.update(sar.evidence_paragraphs)
 
-        # Paragraphs dict: only include paragraphs referenced by any stage
         paragraphs = art["paragraphs"]
         para_dict = {
             str(i): paragraphs[i]
@@ -612,8 +439,7 @@ def save_final_results_json(
             "article_id": art["id"],
             "headline": art["headline"],
             "url": art.get("url", ""),
-            "company_specific": summary.company_specific,
-            "macro_summary": summary.macro_summary,
+            "filtered_reasons": art.get("filtered_reasons", []),
             "false_positive_rate": round(n_rejected / n_total, 3) if n_total else 0.0,
             "accepted_assets": [e["asset"] for e in accepted],
             "rejected_assets": [e["asset"] for e in rejected],
@@ -623,14 +449,11 @@ def save_final_results_json(
         }
         final_output.append(article_entry)
 
-    # Aggregate stats
     grand_total = total_accepted + total_rejected
 
-    # Per-asset-class, per-source, and per-mapper-signal breakdowns
+    # Aggregates: asset-class breakdown + mapper-signal acceptance rate.
     ac_accepted: dict[str, int] = {}
     ac_rejected: dict[str, int] = {}
-    src_accepted: dict[str, int] = {}
-    src_rejected: dict[str, int] = {}
     sig_accepted: dict[str, int] = {}
     sig_rejected: dict[str, int] = {}
 
@@ -638,40 +461,17 @@ def save_final_results_json(
         sym = v["asset"]
         art_idx = v["article_idx"]
         ac = _ASSET_UNIVERSE.get(sym, {}).get("asset_class", "unknown")
-        source = v["source"]
-
-        # Look up mapper signals
         am_sar = article_results[art_idx].get(sym)
-        pm_entries = para_results[art_idx].get(sym, [])
-
         am_sig = am_sar.signal if am_sar else None
-        pm_sig = None
-        if pm_entries:
-            pm_sig = "strong" if any(sar.signal == "strong" for _, sar in pm_entries) else "weak"
-
         bucket = sig_accepted if v["valid"] else sig_rejected
-
         if v["valid"]:
             ac_accepted[ac] = ac_accepted.get(ac, 0) + 1
-            src_accepted[source] = src_accepted.get(source, 0) + 1
         else:
             ac_rejected[ac] = ac_rejected.get(ac, 0) + 1
-            src_rejected[source] = src_rejected.get(source, 0) + 1
-
-        # Marginal stats
         if am_sig:
             key = f"am_{am_sig}"
             bucket[key] = bucket.get(key, 0) + 1
-        if pm_sig:
-            key = f"pm_{pm_sig}"
-            bucket[key] = bucket.get(key, 0) + 1
 
-        # Joint stats (only when both mappers tagged)
-        if am_sig and pm_sig:
-            key = f"am_{am_sig}_pm_{pm_sig}"
-            bucket[key] = bucket.get(key, 0) + 1
-
-    # Asset class breakdown with per-class FPR
     all_classes = sorted(set(ac_accepted) | set(ac_rejected))
     by_asset_class = {}
     for ac in all_classes:
@@ -679,37 +479,30 @@ def save_final_results_json(
         r = ac_rejected.get(ac, 0)
         t = a + r
         by_asset_class[ac] = {
-            "accepted": a,
-            "rejected": r,
-            "total": t,
+            "accepted": a, "rejected": r, "total": t,
             "false_positive_rate": round(r / t, 3) if t else 0.0,
         }
 
-    # Source breakdown with acceptance rate
-    all_sources = sorted(set(src_accepted) | set(src_rejected))
-    by_source = {}
-    for src in all_sources:
-        a = src_accepted.get(src, 0)
-        r = src_rejected.get(src, 0)
-        t = a + r
-        by_source[src] = {
-            "accepted": a,
-            "rejected": r,
-            "total": t,
-            "acceptance_rate": round(a / t, 3) if t else 0.0,
-        }
+    # Count filtered articles per-reason. An article matching multiple reasons
+    # contributes to each reason's count (so reason counts sum to >= filtered_articles).
+    reason_counts: dict[str, int] = {}
+    n_filtered = 0
+    for a in articles:
+        reasons = a.get("filtered_reasons") or []
+        if reasons:
+            n_filtered += 1
+            for r in reasons:
+                reason_counts[r] = reason_counts.get(r, 0) + 1
 
     aggregate = {
         "total_articles": len(articles),
+        "filtered_articles": n_filtered,
+        "filtered_by_reason": reason_counts,
         "total_accepted": total_accepted,
         "total_rejected": total_rejected,
         "total_pairs": grand_total,
         "false_positive_rate": round(total_rejected / grand_total, 3) if grand_total else 0.0,
-        "company_specific_count": sum(
-            1 for s in summaries if s.company_specific
-        ),
         "by_asset_class": by_asset_class,
-        "by_source": by_source,
         "by_mapper_signal": {
             key: {
                 "accepted": sig_accepted.get(key, 0),
@@ -723,14 +516,9 @@ def save_final_results_json(
         },
     }
 
-    output = {
-        "aggregate": aggregate,
-        "articles": final_output,
-    }
-
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(output, f, indent=2, ensure_ascii=False)
+        json.dump({"aggregate": aggregate, "articles": final_output}, f, indent=2, ensure_ascii=False)
     logger.info(f"Saved results for {len(final_output)} articles to {out_path}")
 
 
@@ -749,10 +537,11 @@ def run_experiment(
     start_date: str | None = None,
     end_date: str | None = None,
     random_seed: int | None = None,
+    use_validator: bool = True,
 ) -> None:
-    # Leave ~2K tokens headroom for the system prompt, macro summary context,
-    # and generation budget. djnw loader uses this to skip articles whose text
-    # alone would push the prompt past ``max_model_len``.
+    # Leave ~2K tokens headroom for the system prompt and generation budget.
+    # djnw loader uses this to skip articles whose text alone would push the
+    # prompt past ``max_model_len``.
     max_article_tokens = max(1024, max_model_len - 2000)
     chars_per_token = 2.0
     articles = load_articles(
@@ -773,14 +562,9 @@ def run_experiment(
         tensor_parallel_size=tensor_parallel_size,
     )
 
-    summaries, article_results, para_results, validation_output = run_three_stage(
-        mapper, articles,
-    )
+    article_results, validation_output = run_pipeline(mapper, articles, use_validator=use_validator)
     if output_json:
-        save_final_results_json(
-            articles, summaries, article_results,
-            para_results, validation_output, output_json,
-        )
+        save_final_results_json(articles, article_results, validation_output, output_json)
 
 
 def main():
@@ -821,6 +605,10 @@ def main():
         "--random-seed", type=int, default=None,
         help="Seed for random sampling of djnw articles within the date range",
     )
+    parser.add_argument(
+        "--no-validator", action="store_true",
+        help="Skip the validator LLM pass; accept every relevant mapper mapping as-is",
+    )
     args = parser.parse_args()
 
     # Default sample-dir and output-json based on dataset
@@ -852,6 +640,7 @@ def main():
         start_date=args.start_date,
         end_date=args.end_date,
         random_seed=args.random_seed,
+        use_validator=not args.no_validator,
     )
 
 
