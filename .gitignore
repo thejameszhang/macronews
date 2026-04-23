@@ -39,7 +39,7 @@ Thumbs.db
 claude.sh
 article_cache/
 
-# LaTeX build artifacts (tex/pdf are tracked; these regenerate)
+# LaTeX build artifacts
 *.aux
 *.log
 *.nav
@@ -49,4 +49,8 @@ article_cache/
 *.fls
 *.fdb_latexmk
 *.synctex.gz
-slides/**/build.log
+
+# Personal notes / design docs / slides — kept local, not tracked
+ARCHITECTURE.md
+design/
+slides/
