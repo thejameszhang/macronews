@@ -52,9 +52,11 @@ jobid=$(sbatch --parsable \
         module load Python/3.12.3-GCCcore-13.3.0 2>/dev/null || true
         cd /nfs/roberts/project/pi_btk22/jyz32/macronews
         source .venv/bin/activate
-        # Deterministic vLLM output: same input + same seed -> bit-identical
-        # outputs regardless of batch size/composition. Requires compute
-        # capability >= 9.0 (H100/H200/B100/B200/rtx_pro_6000_blackwell).
+        # Deterministic vLLM output: same input + same seed -> near-bit-identical
+        # outputs regardless of batch size/composition (measured 0.09% tag drift
+        # on DJNW June 2015 1000 articles; without this flag, tag drift jumps
+        # to ~29%). Requires compute capability >= 9.0 (H100/H200/B100/B200/
+        # rtx_pro_6000_blackwell).
         export VLLM_BATCH_INVARIANT=1
         PYTHONPATH=src python src/pipeline.py \
             --model ${MODEL_PATH} \

@@ -185,9 +185,11 @@ def run_pipeline(
             + "\n[/ARTICLE]"
         )
         for sym in ALL_ASSETS:
-            # [ASSET] first so the model reads the article with the target in
-            # mind (primes attention for localized relevance passages).
-            text = f"[ASSET] {_asset_label(sym)}\n\n{article_text}"
+            # Asset-last layout so sys_prompt + article body form a shared
+            # prefix across siblings in a class batch (prefix-cache reuse).
+            # mapper.txt YOUR TASK block now instructs the model to read
+            # [ASSET] first despite its physical position at the end.
+            text = f"{article_text}\n\n[ASSET] {_asset_label(sym)}"
             tasks.append((art_idx, sym))
             texts.append(text)
 
