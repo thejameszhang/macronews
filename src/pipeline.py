@@ -246,7 +246,6 @@ def save_final_results_json(
                 "signal": sar.signal,
                 "relevance_score": sar.relevance_score,
                 "evidence_paragraphs": evidence,
-                "reasoning": sar.reasoning,
             })
             referenced_paras.update(evidence)
             ac = _ASSET_UNIVERSE.get(sym, {}).get("asset_class", "unknown")

@@ -13,6 +13,11 @@ constituent company's name does not count as the index's name.
     each member country's national index. Only the regional index
     qualifies; country-level indices require macro discussion
     specific to that country.
+  - U.S. equity indices (S&P 500, Nasdaq 100, Dow Jones Industrial,
+    Russell 2000) do not co-tag — qualifying one does not extend to
+    the others; each needs its own evidence.
+  - "Nasdaq" or "Nasdaq Composite" alone does not qualify the
+    Nasdaq 100; only an explicit Nasdaq 100 mention does.
 
 ===POSITIVE RULES===
 

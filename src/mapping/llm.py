@@ -227,6 +227,10 @@ class LLMMapper(BaseMapper):
                 max_model_len=self.max_model_len,
                 tensor_parallel_size=self.tensor_parallel_size,
                 gpu_memory_utilization=0.95,
+                # Gemma 4 is multimodal but we only send text. Skipping vision
+                # warmup avoids the video position-embedding 4D x 3D matmul that
+                # vLLM 0.19.0's batch-invariant op can't handle on B200.
+                limit_mm_per_prompt={"video": 0, "image": 0},
             )
 
     def map_single_asset(

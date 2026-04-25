@@ -10,22 +10,16 @@ from pydantic import BaseModel, Field, field_validator
 class SingleAssetResult(BaseModel):
     """Result of a single-asset mapping call (one article × one asset).
 
-    Field order is deliberately evidence -> reasoning -> signal -> score ->
-    decision. Under guided JSON decoding, fields are emitted in declaration
-    order; putting `relevant` last forces the model to enumerate evidence
-    and reason BEFORE committing to a yes/no. This is the chain-of-thought-
-    via-field-order technique and is required for reliable detection of
-    localized relevance in otherwise off-topic articles.
+    Experimental no-reasoning schema: the `reasoning` field is dropped to
+    cut output tokens, and the prompt carries an instruction asking the
+    model to reason before committing. Field order: evidence -> signal ->
+    score -> decision. Compare against HEAD (with `reasoning`) on gold.
     """
     evidence_paragraphs: list[int] = Field(
         default_factory=list,
         description="Paragraph indices where a force acting on this asset "
         "appears. Scan the article paragraph by paragraph and list every "
         "paragraph that names a rule-triggering force. Empty if not relevant.",
-    )
-    reasoning: str = Field(
-        default="",
-        description="Rule citation and quoted phrase from the article.",
     )
     signal: Literal["strong", "weak"] = Field(
         default="weak",
@@ -39,8 +33,7 @@ class SingleAssetResult(BaseModel):
     relevant: bool = Field(
         default=False,
         description="True if evidence_paragraphs is non-empty AND the "
-        "evidence triggers a rule for this asset. Commit to this decision "
-        "AFTER enumerating evidence and reasoning above.",
+        "evidence triggers a rule for this asset.",
     )
 
     @field_validator("signal", mode="before")
