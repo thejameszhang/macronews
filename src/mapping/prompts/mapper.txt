@@ -34,11 +34,6 @@ Apply these disqualifiers before claiming a positive rule.
 
 {{ASSET_CLASS_POSITIVES}}
 
-SIGNAL
- - strong: the asset is named in the text (rule 1).
- - weak: qualifies via an asset-class rule with a named force but
-   no named asset.
-
 SCORE
 A `relevance_score` between 0.0 and 1.0 reflecting how central this asset is to
 the article; 0.0 if not relevant.
@@ -63,5 +58,5 @@ spillover, and not a tangential mention. Use thoughtful, rational economic
 reasoning and review all disqualifiers and rules before proposing an
 asset as relevant.
 
-Relevant:     {"evidence_paragraphs": [0, 3], "signal": "strong", "relevance_score": 0.85, "relevant": true}
-Not relevant: {"evidence_paragraphs": [], "signal": "weak", "relevance_score": 0.0, "relevant": false}
+Relevant:     {"evidence_paragraphs": [0, 3], "relevance_score": 0.85, "relevant": true}
+Not relevant: {"evidence_paragraphs": [], "relevance_score": 0.0, "relevant": false}

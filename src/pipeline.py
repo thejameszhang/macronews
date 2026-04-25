@@ -232,7 +232,6 @@ def save_final_results_json(
     total_mappings = 0
     final_output: list[dict] = []
     by_asset_class_count: dict[str, int] = {}
-    by_signal_count: dict[str, int] = {}
 
     for art_idx, art in enumerate(articles):
         am_map = article_results[art_idx]
@@ -243,14 +242,12 @@ def save_final_results_json(
             evidence = list(sar.evidence_paragraphs)
             mappings.append({
                 "asset": _asset_display_name(sym),
-                "signal": sar.signal,
                 "relevance_score": sar.relevance_score,
                 "evidence_paragraphs": evidence,
             })
             referenced_paras.update(evidence)
             ac = _ASSET_UNIVERSE.get(sym, {}).get("asset_class", "unknown")
             by_asset_class_count[ac] = by_asset_class_count.get(ac, 0) + 1
-            by_signal_count[sar.signal] = by_signal_count.get(sar.signal, 0) + 1
         total_mappings += len(mappings)
 
         paragraphs = art["paragraphs"]
@@ -287,7 +284,6 @@ def save_final_results_json(
         "filtered_by_reason": reason_counts,
         "total_mappings": total_mappings,
         "by_asset_class": {ac: by_asset_class_count[ac] for ac in sorted(by_asset_class_count)},
-        "by_signal": {s: by_signal_count[s] for s in sorted(by_signal_count)},
     }
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
