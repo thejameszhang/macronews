@@ -1,9 +1,9 @@
- - A foreign central bank or foreign bond is the subject.
- - A different tenor of the same country is the only bond mentioned.
-   Each contract is defined by its tenor and must be named or
-   yield-matched specifically — mention of a country's 10-year yield
-   does NOT qualify its short-end or long-end contracts.
- - Inferential framings (e.g., "driver of bond-market pricing,"
+ - Do not tag if a foreign central bank or a foreign bond is the subject.
+ - Do not tag if only a different tenor of the same country is mentioned.
+   Each contract is defined by its tenor and must be named or yield-
+   matched specifically — a country's 10-year yield does not qualify
+   its short-end or long-end contracts.
+ - Do not tag on inferential framings ("driver of bond-market pricing,"
    "affects rate expectations," or central-bank policy without a named
    bond-market phenomenon at this tenor).
 

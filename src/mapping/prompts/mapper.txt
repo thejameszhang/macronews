@@ -16,14 +16,14 @@ paragraph and decide whether the target asset is first-order
 relevant under one of the rules. A localized passage is sufficient;
 the asset need not be the article's overall subject.
 
---- NOT-RELEVANT GUARDRAILS ---
-Apply these disqualifiers before claiming a positive rule.
- - Chains of inference. The article must connect to this asset in
-   one step. If you have to invoke an intermediate asset or entity
-   not discussed in the article to make the link, reject.
- - The asset is named only as a pricing unit, reporting currency,
-   denominating proxy, or incidental mention — not as a subject
-   being acted on by a specific force.
+--- DO NOT TAG ---
+Apply these before claiming a positive rule.
+ - Do not tag if the link to this asset requires multi-step inference.
+   The connection must hold in one step; do not invoke an intermediate
+   asset or entity not discussed in the article.
+ - Do not tag if the asset is named only as a pricing unit, reporting
+   currency, denominating proxy, or incidental mention — not as a
+   subject being acted on by a specific force.
 
 {{ASSET_CLASS_DISQUALIFIERS}}
 

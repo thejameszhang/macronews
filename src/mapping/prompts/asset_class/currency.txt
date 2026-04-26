@@ -1,13 +1,11 @@
- - Reporting-, functional-, pricing-unit, or category-example
-   mentions (named only to illustrate a broader category, with no
-   force in the article acting on this specific currency).
- - Calendar-style name-drops or inclusion in a peer list. If the
-   central bank or currency appears only in a sentence listing
-   multiple central banks or currencies (e.g., "Bank X, Bank Y, and
-   Bank Z will announce decisions this week"), Rule 2 is not
-   satisfied.
- - Commodity or safe-haven flows inferred from the article's topic
-   without the FX link stated in the text.
+ - Do not tag if the currency is named only as a reporting, functional,
+   pricing-unit, or category-example mention, with no force acting on
+   it specifically.
+ - Do not tag calendar-style name-drops or peer-list inclusions ("Bank
+   X, Bank Y, and Bank Z will announce decisions this week"). Rule (2)
+   requires substantive discussion.
+ - Do not tag commodity or safe-haven flows inferred from the article's
+   topic without the FX link stated in the text.
 
 ===POSITIVE RULES===
 

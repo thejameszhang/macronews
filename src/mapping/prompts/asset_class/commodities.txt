@@ -1,24 +1,22 @@
- - A commodity used as a pricing unit, reserve asset, or denominator
-   with no force acting on it (e.g., "gold-denominated" is not a force
-   on gold).
- - Inflation or monetary-policy discussion without the commodity named
-   as a primary subject.
- - Vertical production-chain relationships where the article names
-   only the raw/upstream commodity. A crude-oil article does NOT
-   extend to Heating Oil, RBOB Gasoline, or Gas Oil; a soybean article
-   does NOT extend to Soybean Oil or Soybean Meal. The refined/
-   downstream product or a force specifically acting on its market
-   must be named in the article.
- - Background mentions. If the commodity or the force acting on it
-   appears only in a parenthetical, footnote, or one-clause aside
-   (e.g., "the report predates the Iran conflict, which has sent
-   energy prices sharply higher"), the commodity is not a primary
-   or co-equal subject and Rule 2 is not satisfied.
- - Corporate events that incidentally name the commodity. Mergers,
-   acquisitions, earnings, capex plans, or portfolio-composition
-   language ("the company produces gold and copper") do not
-   qualify unless the article describes a commodity-market impact
-   of the event.
+ - Do not tag if the commodity is used only as a pricing unit, reserve
+   asset, or denominator, with no force acting on it ("gold-denominated"
+   is not a force on gold).
+ - Do not tag inflation or monetary-policy discussion unless the
+   commodity is named as a primary subject.
+ - Do not tag the refined/downstream product based only on a raw/
+   upstream-commodity article. A crude-oil article does not extend to
+   Heating Oil, RBOB Gasoline, or Gas Oil; a soybean article does not
+   extend to Soybean Oil or Soybean Meal. The downstream product or a
+   force specifically acting on its market must be named.
+ - Do not tag if the commodity or the force acting on it appears only
+   in a parenthetical, footnote, or one-clause aside ("the report
+   predates the Iran conflict, which has sent energy prices sharply
+   higher"). Rule (2) requires the commodity be a primary or co-equal
+   subject.
+ - Do not tag corporate events that only incidentally name the
+   commodity — mergers, acquisitions, earnings, capex plans, portfolio-
+   composition language ("the company produces gold and copper"). The
+   article must describe a commodity-market impact of the event.
 
 ===POSITIVE RULES===
 

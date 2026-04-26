@@ -2,22 +2,23 @@ These rules apply to broad country-level or region-level equity
 indices. Under general rule (1), the index must be named directly — a
 constituent company's name does not count as the index's name.
 
-  - The index named only as a pricing unit or benchmark for a single
-    company's stock move, including automated stock-performance
-    templates.
-  - Incidental constituent mentions — added-to-index events, peer
-    comparisons, exchange-disclosure footnotes, conference topic lists.
-  - Monetary policy news about a country without an equity-market
-    transmission channel stated.
-  - Regional macro discussion (e.g., eurozone) does not qualify
-    each member country's national index. Only the regional index
-    qualifies; country-level indices require macro discussion
-    specific to that country.
-  - U.S. equity indices (S&P 500, Nasdaq 100, Dow Jones Industrial,
-    Russell 2000) do not co-tag — qualifying one does not extend to
-    the others; each needs its own evidence.
-  - "Nasdaq" or "Nasdaq Composite" alone does not qualify the
-    Nasdaq 100; only an explicit Nasdaq 100 mention does.
+  - Do not tag if the index is named only as a pricing unit or
+    benchmark for a single company's stock move, including automated
+    stock-performance templates.
+  - Do not tag incidental constituent mentions — added-to-index events,
+    peer comparisons, exchange-disclosure footnotes, conference topic
+    lists.
+  - Do not tag monetary-policy news about a country unless an equity-
+    market transmission channel is stated.
+  - Do not tag a member country's national index based on regional
+    macro discussion (e.g., eurozone). Only the regional index
+    qualifies; country-level indices require macro discussion specific
+    to that country.
+  - Do not co-tag U.S. equity indices (S&P 500, Nasdaq 100, Dow Jones
+    Industrial, Russell 2000) — qualifying one does not extend to the
+    others; each needs its own evidence.
+  - Do not qualify the Nasdaq 100 from "Nasdaq" or "Nasdaq Composite"
+    alone — only an explicit Nasdaq 100 mention does.
 
 ===POSITIVE RULES===
 

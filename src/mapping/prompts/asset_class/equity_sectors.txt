@@ -2,16 +2,17 @@ These rules apply to US-listed GICS sector ETFs. Under general rule
 (1), the sector must be named directly — a constituent company's
 name does not count as the sector's name.
 
-  - Foreign-market sectors, unless the article explicitly states a
-    transmission channel to the US sector.
-  - Incidental constituent mentions — peer comparisons, conference
-    topic lists, stock-move footers, analyst-target boilerplate.
-  - Macro rate or policy news without a sector-specific transmission
-    channel stated in the text.
-  - Corporate events that incidentally name the sector's commodities
-    or constituents. Mergers, acquisitions, earnings, capex plans, or
-    portfolio descriptions do not qualify unless the article describes
-    a sector-wide impact of the event.
+  - Do not tag based on foreign-market sectors unless the article
+    explicitly states a transmission channel to the US sector.
+  - Do not tag incidental constituent mentions — peer comparisons,
+    conference topic lists, stock-move footers, analyst-target
+    boilerplate.
+  - Do not tag macro rate or policy news unless a sector-specific
+    transmission channel is stated.
+  - Do not tag corporate events that only incidentally name the
+    sector's commodities or constituents — mergers, acquisitions,
+    earnings, capex plans, portfolio descriptions. The article must
+    describe a sector-wide impact of the event.
 
 ===POSITIVE RULES===
 

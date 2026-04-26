@@ -1,11 +1,12 @@
 These rules apply only to equity-volatility indices tracking the
 implied volatility of a specific underlying equity benchmark.
 
- - Commodity, currency, or bond volatility — only equity volatility
-   qualifies.
- - The underlying equity index discussed without volatility language.
- - Stock-price moves, selloffs, or generic "uncertainty" language
-   without volatility-specific terminology.
+ - Do not tag commodity, currency, or bond volatility — only equity
+   volatility qualifies.
+ - Do not tag if the underlying equity index is discussed without
+   volatility-specific language.
+ - Do not tag stock-price moves, selloffs, or generic "uncertainty"
+   language without volatility-specific terminology.
 
 ===POSITIVE RULES===
 

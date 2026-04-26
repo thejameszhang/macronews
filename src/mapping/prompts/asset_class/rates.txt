@@ -1,11 +1,10 @@
- - A foreign central bank is the subject (cross-country rate
-   spillover does not transfer to this contract).
- - A different reference rate for the same economy is named (e.g.,
-   "Fed funds futures" does not name SOFR).
- - One-clause background citations of the central bank, or
-   central-bank language cited only to contextualize another
-   asset's move rather than as the article's primary/co-equal
-   subject.
+ - Do not tag if a foreign central bank is the subject — cross-country
+   rate spillover does not transfer to this contract.
+ - Do not tag if a different reference rate for the same economy is
+   named (e.g., "Fed funds futures" does not name SOFR).
+ - Do not tag one-clause background citations of the central bank, or
+   central-bank language cited only to contextualize another asset's
+   move rather than as the article's primary/co-equal subject.
 
 ===POSITIVE RULES===
 
