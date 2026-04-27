@@ -31,6 +31,12 @@ _SENT_SPLIT = re.compile(
 _MIN_PARA_LEN = 30
 # Target sentences per paragraph when splitting a single text block
 _SENTS_PER_PARA = 3
+# A block whose mean line length is below this is treated as hard-wrapped at
+# ~80 cols (single \n is line wrapping, not a paragraph break). DJ wire format
+# wraps at column 80; modern paragraph-formatted text averages well above this.
+_HARDWRAP_MEAN_THRESHOLD = 80
+
+
 def clean_web_text(text: str) -> str:
     """Remove web navigation cruft from scraped article text.
 
@@ -53,53 +59,104 @@ def clean_web_text(text: str) -> str:
     return "\n".join(cleaned)
 
 
-def split_into_paragraphs(text: str, sents_per_para: int = _SENTS_PER_PARA) -> list[str]:
-    """Split a text block into paragraphs.
+def _normalize_whitespace(s: str) -> str:
+    """Collapse any run of whitespace (spaces, tabs, CR, unicode separators,
+    etc.) to a single space and strip ends. Defends against residual whitespace
+    inside a paragraph string being read by the LLM as a paragraph break."""
+    return re.sub(r"\s+", " ", s).strip()
 
-    Handles three text shapes seen in the wild:
-      A. Proper paragraph breaks (``\\n\\n`` between blocks, e.g. long DJNW filings
-         or web-scraped articles).
-      B. Hard-wrapped single-``\\n`` line breaks with no paragraph structure
-         (many DJNW stories are pre-wrapped at ~80 cols — splitting on ``\\n``
-         would give one "paragraph" per line).
-      C. A single run-on block with no newlines at all (short DJNW headlines/
-         correction notices) — split by sentences.
 
-    Strategy:
-      1. Prefer ``\\n\\n`` paragraph breaks when they exist. Within each block
-         unwrap single-``\\n`` line wrapping.
-      2. Otherwise, unwrap the whole text into one block.
-      3. If that one block has enough sentences, group them into paragraphs;
-         otherwise return it as a single paragraph.
-    """
-    def _unwrap(block: str) -> str:
-        # Collapse single-newline line wrapping into spaces, preserving nothing.
-        return re.sub(r"\s*\n\s*", " ", block).strip()
-
-    # Step 1: prefer double-newline paragraph breaks
-    if "\n\n" in text:
-        blocks = [_unwrap(b) for b in text.split("\n\n")]
-        meaningful = [b for b in blocks if len(b) >= _MIN_PARA_LEN]
-        if len(meaningful) > 1:
-            return meaningful
-
-    # Step 2: unwrap the entire text into one block
-    full_text = _unwrap(text)
-    if not full_text:
+def _group_sentences(text: str, sents_per_para: int = _SENTS_PER_PARA) -> list[str]:
+    """Bin sentences in groups of ``sents_per_para`` to form paragraphs.
+    Used when a block has no usable paragraph structure of its own."""
+    if not text:
         return []
-
-    sentences = _SENT_SPLIT.split(full_text)
-    sentences = [s.strip() for s in sentences if s.strip()]
-
+    sentences = [s.strip() for s in _SENT_SPLIT.split(text) if s.strip()]
     if len(sentences) <= sents_per_para:
-        return [full_text]
-
-    # Step 3: group sentences into paragraphs of size ``sents_per_para``
+        return [text]
     paragraphs = []
     for i in range(0, len(sentences), sents_per_para):
         chunk = " ".join(sentences[i : i + sents_per_para])
         if chunk:
             paragraphs.append(chunk)
+    return paragraphs
+
+
+def split_into_paragraphs(text: str, sents_per_para: int = _SENTS_PER_PARA) -> list[str]:
+    """Split a text block into paragraphs robust to DJNW formatting variants.
+
+    Three text shapes appear in the cleaned-v2 corpus:
+      A. Modern paragraph format: each paragraph is its own line, separated
+         by single ``\\n`` (some articles also have a stray ``\\n\\n`` between
+         byline and body).
+      B. Hard-wrapped wire format: ``\\n`` every ~80 chars within a paragraph,
+         ``\\n\\n`` between paragraphs.
+      C. Run-on block with no newlines: split by sentences.
+
+    Algorithm:
+      1. ``\\n\\n`` is *always* a paragraph break (explicit editorial signal).
+         Split text on ``\\n\\n`` first to get blocks.
+      2. For each block, decide whether internal ``\\n``s are paragraph breaks
+         or hard-wrap based on the mean line length within that block:
+           - mean < 80 chars → hard-wrap; unwrap to a flat string and
+             sentence-group (handles shape B and shape C with no ``\\n\\n``).
+           - mean >= 80 chars → each ``\\n`` is a paragraph break (handles
+             shape A); keep the lines as separate paragraphs.
+      3. Drop paragraphs below ``_MIN_PARA_LEN`` chars.
+      4. Normalize whitespace within each remaining paragraph so the LLM
+         doesn't see residual ``\\t``/``\\r``/Unicode separators that would
+         confuse its mental paragraph numbering.
+      5. Reproducibility guarantee: any non-whitespace input text yields at
+         least one paragraph. If the MIN_PARA_LEN filter would empty the
+         result, fall back to the whole-text normalization. This keeps the
+         loader's seeded sampling stable across splitter changes — the
+         downstream ``unembeddable`` filter can still flag short bodies.
+
+    Per-block routing (rather than a single global decision) is needed
+    because some articles mix shapes — e.g. a hard-wrapped table block
+    inside an otherwise paragraph-formatted article.
+    """
+    if not text or not text.strip():
+        return []
+
+    # Step 1: \n\n is always a paragraph break.
+    blocks = text.split("\n\n") if "\n\n" in text else [text]
+
+    result: list[str] = []
+    for block in blocks:
+        block = block.strip()
+        if not block:
+            continue
+
+        # Step 2: split the block on single \n; route by mean line length.
+        lines = [l.strip() for l in block.split("\n") if l.strip()]
+        if not lines:
+            continue
+        if len(lines) == 1:
+            result.append(lines[0])
+            continue
+
+        mean_line_len = sum(len(l) for l in lines) / len(lines)
+        if mean_line_len < _HARDWRAP_MEAN_THRESHOLD:
+            # Hard-wrap within this block: unwrap, then sentence-group.
+            unwrapped = " ".join(lines)
+            result.extend(_group_sentences(unwrapped, sents_per_para))
+        else:
+            # Each line is a paragraph in its own right.
+            result.extend(lines)
+
+    # Step 3+4: filter tiny fragments and normalize internal whitespace.
+    paragraphs = [
+        _normalize_whitespace(p)
+        for p in result
+        if len(p) >= _MIN_PARA_LEN
+    ]
+
+    # Step 5: never drop a non-empty article. If everything was below
+    # MIN_PARA_LEN, return the whole text normalized as one paragraph.
+    if not paragraphs:
+        fallback = _normalize_whitespace(text)
+        return [fallback] if fallback else []
     return paragraphs
 
 
