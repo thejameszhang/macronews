@@ -60,6 +60,7 @@ def load_articles(
     max_tokens: int | None = None,
     tokenizer_path: str | None = None,
     chars_per_token: float = 2.0,
+    input_file: Path | None = None,
 ) -> list[dict]:
     """Load articles in the standard schema {id, headline, paragraphs}.
 
@@ -98,6 +99,7 @@ def load_articles(
             random_seed=random_seed,
             max_tokens=max_tokens,
             tokenizer_path=tokenizer_path,
+            input_file=input_file,
             chars_per_token=chars_per_token,
         )
     else:
@@ -222,61 +224,66 @@ def _asset_display_name(sym: str) -> str:
     return ASSET_NAMES.get(sym, sym)
 
 
-def save_final_results_json(
+def save_results_jsonl(
     articles: list[dict],
     article_results: list[dict[str, SingleAssetResult]],
     out_path: Path,
 ) -> None:
-    """Save mapper results to a JSON file with per-article asset mappings and
-    a top-level aggregate summary."""
+    """Write one JSONL record per article and a sidecar `<basename>.summary.json`
+    with per-shard aggregates. summarize.py rolls these up across shards."""
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
     total_mappings = 0
-    final_output: list[dict] = []
     by_asset_class_count: dict[str, int] = {}
-
-    for art_idx, art in enumerate(articles):
-        am_map = article_results[art_idx]
-        mappings = []
-        referenced_paras: set[int] = set()
-        for sym in sorted(am_map.keys()):
-            sar = am_map[sym]
-            evidence = list(sar.evidence_paragraphs)
-            mappings.append({
-                "asset": _asset_display_name(sym),
-                "relevance_score": sar.relevance_score,
-                "evidence_paragraphs": evidence,
-            })
-            referenced_paras.update(evidence)
-            ac = _ASSET_UNIVERSE.get(sym, {}).get("asset_class", "unknown")
-            by_asset_class_count[ac] = by_asset_class_count.get(ac, 0) + 1
-        total_mappings += len(mappings)
-
-        paragraphs = art["paragraphs"]
-        para_dict = {
-            str(i): paragraphs[i]
-            for i in sorted(referenced_paras)
-            if i < len(paragraphs)
-        }
-
-        final_output.append({
-            "article_id": art["id"],
-            "headline": art["headline"],
-            "url": art.get("url", ""),
-            "filtered_reasons": art.get("filtered_reasons", []),
-            "assets": [e["asset"] for e in mappings],
-            "paragraphs": para_dict,
-            "mappings": mappings,
-        })
-
-    # Count filtered articles per-reason. An article matching multiple reasons
-    # contributes to each reason's count (so reason counts sum to >= filtered_articles).
     reason_counts: dict[str, int] = {}
     n_filtered = 0
-    for a in articles:
-        reasons = a.get("filtered_reasons") or []
-        if reasons:
-            n_filtered += 1
-            for r in reasons:
-                reason_counts[r] = reason_counts.get(r, 0) + 1
+    n_written = 0
+
+    with open(out_path, "w", encoding="utf-8") as f:
+        for art_idx, art in enumerate(articles):
+            am_map = article_results[art_idx]
+            mappings = []
+            referenced_paras: set[int] = set()
+            for sym in sorted(am_map.keys()):
+                sar = am_map[sym]
+                evidence = list(sar.evidence_paragraphs)
+                ac = _ASSET_UNIVERSE.get(sym, {}).get("asset_class", "unknown")
+                mappings.append({
+                    "asset": _asset_display_name(sym),
+                    "asset_class": ac,
+                    "relevance_score": sar.relevance_score,
+                    "evidence_paragraphs": evidence,
+                })
+                referenced_paras.update(evidence)
+                by_asset_class_count[ac] = by_asset_class_count.get(ac, 0) + 1
+            total_mappings += len(mappings)
+
+            reasons = art.get("filtered_reasons") or []
+            if reasons:
+                n_filtered += 1
+                for r in reasons:
+                    reason_counts[r] = reason_counts.get(r, 0) + 1
+
+            paragraphs = art["paragraphs"]
+            para_dict = {
+                str(i): paragraphs[i]
+                for i in sorted(referenced_paras)
+                if i < len(paragraphs)
+            }
+
+            record = {
+                "article_id": art["id"],
+                "headline": art["headline"],
+                "filtered_reasons": reasons,
+                "assets": [e["asset"] for e in mappings],
+                "paragraphs": para_dict,
+                "mappings": mappings,
+            }
+            url = art.get("url")
+            if url:
+                record["url"] = url
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+            n_written += 1
 
     aggregate = {
         "total_articles": len(articles),
@@ -285,11 +292,10 @@ def save_final_results_json(
         "total_mappings": total_mappings,
         "by_asset_class": {ac: by_asset_class_count[ac] for ac in sorted(by_asset_class_count)},
     }
-
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump({"aggregate": aggregate, "articles": final_output}, f, indent=2, ensure_ascii=False)
-    logger.info(f"Saved results for {len(final_output)} articles to {out_path}")
+    summary_path = out_path.with_suffix(".summary.json")
+    with open(summary_path, "w", encoding="utf-8") as f:
+        json.dump(aggregate, f, indent=2, ensure_ascii=False)
+    logger.info(f"Saved {n_written} articles to {out_path} (+ {summary_path.name})")
 
 
 # ---------------------------------------------------------------------------
@@ -300,13 +306,14 @@ def run_experiment(
     model_path: str,
     max_model_len: int,
     sample_dir: Path,
-    output_json: Path | None = None,
+    output_path: Path | None = None,
     tensor_parallel_size: int = 1,
     dataset: str = "gold",
     max_articles: int | None = None,
     start_date: str | None = None,
     end_date: str | None = None,
     random_seed: int | None = None,
+    input_file: Path | None = None,
 ) -> None:
     # Leave ~2K tokens headroom for the system prompt and generation budget.
     # djnw loader uses this to skip articles whose text alone would push the
@@ -323,6 +330,7 @@ def run_experiment(
         max_tokens=max_article_tokens,
         tokenizer_path=model_path,
         chars_per_token=chars_per_token,
+        input_file=input_file,
     )
 
     mapper = LLMMapper(
@@ -332,8 +340,8 @@ def run_experiment(
     )
 
     article_results = run_pipeline(mapper, articles)
-    if output_json:
-        save_final_results_json(articles, article_results, output_json)
+    if output_path:
+        save_results_jsonl(articles, article_results, output_path)
 
 
 def main():
@@ -341,53 +349,82 @@ def main():
         description="ArticleMapper: per-asset article-level LLM classification"
     )
     parser.add_argument(
-        "--model", type=str,
-        default=str(DEFAULT_MODEL),
+        "--mode", type=str, required=True, choices=["dev", "prod"],
+        help="dev: ad-hoc with sampling/date-range. prod: one shard file -> one JSONL.",
     )
+    parser.add_argument("--model", type=str, default=str(DEFAULT_MODEL))
     parser.add_argument("--max-model-len", type=int, default=8192)
-    parser.add_argument("--sample-dir", type=str, default=None,
-                        help="Data directory (default: auto based on --dataset)")
-    parser.add_argument("--output-json", type=str, default=None,
-                        help="Output JSON path (default: results/<dataset>_summary.json)")
     parser.add_argument(
         "--tensor-parallel-size", type=int, default=1,
         help="Number of GPUs for tensor parallelism (default: 1)",
     )
-    parser.add_argument(
-        "--dataset", type=str, default="gold",
-        choices=["gold", "sports", "wikigaming", "djnw"],
-        help="Dataset to run: 'gold', 'sports', 'wikigaming', or 'djnw' (default: gold)",
-    )
-    parser.add_argument(
-        "--max-articles", type=int, default=None,
-        help="Limit number of articles to process (useful for large datasets)",
-    )
-    parser.add_argument(
-        "--start-date", type=str, default=None,
-        help="Earliest monthly file to include (YYYY-MM, djnw only)",
-    )
-    parser.add_argument(
-        "--end-date", type=str, default=None,
-        help="Latest monthly file to include, inclusive (YYYY-MM, djnw only)",
-    )
-    parser.add_argument(
-        "--random-seed", type=int, default=None,
-        help="Seed for random sampling of djnw articles within the date range",
-    )
+
+    # DEV-only
+    parser.add_argument("--dataset", type=str, default=None,
+                        choices=["gold", "sports", "wikigaming", "djnw"],
+                        help="[dev] Dataset name")
+    parser.add_argument("--sample-dir", type=str, default=None,
+                        help="[dev] Data directory (default: auto based on --dataset)")
+    parser.add_argument("--max-articles", type=int, default=None,
+                        help="[dev] Limit number of articles")
+    parser.add_argument("--start-date", type=str, default=None,
+                        help="[dev] Earliest monthly file (YYYY-MM, djnw only)")
+    parser.add_argument("--end-date", type=str, default=None,
+                        help="[dev] Latest monthly file inclusive (YYYY-MM, djnw only)")
+    parser.add_argument("--random-seed", type=int, default=None,
+                        help="[dev] Seed for random sampling within date range")
+    parser.add_argument("--output-file", type=str, default=None,
+                        help="[dev] Output JSONL path")
+
+    # PROD-only
+    parser.add_argument("--input-file", type=str, default=None,
+                        help="[prod] Single *_clean.jsonl shard to process")
+    parser.add_argument("--output-dir", type=str, default=None,
+                        help="[prod] Output directory; filename derived from input basename")
+
     args = parser.parse_args()
 
-    # Default sample-dir and output-json based on dataset
-    if args.sample_dir is None:
-        if args.dataset == "gold":
-            args.sample_dir = "data/articles_sample"
-        elif args.dataset == "sports":
-            args.sample_dir = "data/sports_news_1994_2000"
-        elif args.dataset == "wikigaming":
-            args.sample_dir = "data/WikiGaming.jsonl"
-        elif args.dataset == "djnw":
-            args.sample_dir = "/nfs/roberts/project/pi_btk22/rc2573/output/cleaned/v2/articles"
-    if args.output_json is None:
-        args.output_json = f"results/{args.dataset}_summary.json"
+    dev_args = (args.dataset, args.sample_dir, args.max_articles,
+                args.start_date, args.end_date, args.random_seed, args.output_file)
+    prod_args = (args.input_file, args.output_dir)
+
+    if args.mode == "dev":
+        if any(a is not None for a in prod_args):
+            parser.error("--input-file/--output-dir are prod-only")
+        if args.dataset is None:
+            parser.error("--mode dev requires --dataset")
+        if args.output_file is None:
+            args.output_file = f"results/{args.dataset}.jsonl"
+        if args.sample_dir is None:
+            if args.dataset == "gold":
+                args.sample_dir = "data/articles_sample"
+            elif args.dataset == "sports":
+                args.sample_dir = "data/sports_news_1994_2000"
+            elif args.dataset == "wikigaming":
+                args.sample_dir = "data/WikiGaming.jsonl"
+            elif args.dataset == "djnw":
+                args.sample_dir = "/nfs/roberts/project/pi_btk22/rc2573/output/cleaned/v2/articles"
+        sample_dir = Path(args.sample_dir)
+        output_path = Path(args.output_file)
+        input_file = None
+        dataset = args.dataset
+    else:  # prod
+        if any(a is not None for a in dev_args):
+            parser.error("dev-only args (--dataset, --sample-dir, --max-articles, "
+                         "--start-date, --end-date, --random-seed, --output-file) "
+                         "cannot be combined with --mode prod")
+        if args.input_file is None or args.output_dir is None:
+            parser.error("--mode prod requires --input-file and --output-dir")
+        input_file = Path(args.input_file)
+        # Strip _clean.jsonl -> .jsonl  (e.g., 2015-06a_clean.jsonl -> 2015-06a.jsonl)
+        basename = input_file.name
+        if basename.endswith("_clean.jsonl"):
+            out_name = basename[: -len("_clean.jsonl")] + ".jsonl"
+        else:
+            out_name = input_file.stem + ".jsonl"
+        output_path = Path(args.output_dir) / out_name
+        sample_dir = input_file.parent
+        dataset = "djnw"
 
     logging.basicConfig(
         level=logging.INFO,
@@ -397,14 +434,15 @@ def main():
     run_experiment(
         model_path=args.model,
         max_model_len=args.max_model_len,
-        sample_dir=Path(args.sample_dir),
-        output_json=Path(args.output_json) if args.output_json else None,
+        sample_dir=sample_dir,
+        output_path=output_path,
         tensor_parallel_size=args.tensor_parallel_size,
-        dataset=args.dataset,
+        dataset=dataset,
         max_articles=args.max_articles,
         start_date=args.start_date,
         end_date=args.end_date,
         random_seed=args.random_seed,
+        input_file=input_file,
     )
 
 

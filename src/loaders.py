@@ -246,6 +246,7 @@ def load_djnw_articles(
     max_tokens: int | None = None,
     tokenizer_path: str | None = None,
     chars_per_token: float = 2.0,
+    input_file: Path | None = None,
 ) -> list[dict]:
     """Load DJNW articles from monthly JSONL files, converting to standard schema.
 
@@ -271,14 +272,18 @@ def load_djnw_articles(
         HuggingFace model path (dir or repo id) used to load the tokenizer for
         ``max_tokens``. Required if ``max_tokens`` is set.
     """
-    files = sorted(data_dir.glob("*_clean.jsonl"))
-    if not files:
-        raise FileNotFoundError(f"No *_clean.jsonl files in {data_dir}")
-
-    if start_date:
-        files = [f for f in files if f.name[:7] >= start_date]
-    if end_date:
-        files = [f for f in files if f.name[:7] <= end_date]
+    if input_file is not None:
+        if not input_file.exists():
+            raise FileNotFoundError(f"input_file does not exist: {input_file}")
+        files = [input_file]
+    else:
+        files = sorted(data_dir.glob("*_clean.jsonl"))
+        if not files:
+            raise FileNotFoundError(f"No *_clean.jsonl files in {data_dir}")
+        if start_date:
+            files = [f for f in files if f.name[:7] >= start_date]
+        if end_date:
+            files = [f for f in files if f.name[:7] <= end_date]
 
     # When random sampling, disable the streaming early-break so we see every article.
     streaming_cap = max_articles if random_seed is None else None
