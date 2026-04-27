@@ -372,9 +372,12 @@ def load_djnw_articles(
     #                           template rows (N/ISD, N/144, N/ISS, N/ISB)
     #   - lifestyle_nonmacro:   16 non-macro subject codes (sports, arts,
     #                           entertainment, lifestyle, food, holidays)
+    #   - procedural_template:  N/NPL — annual-report URL/phone notices and
+    #                           DJ PIR Profile auto-cards (zero macro narrative)
     _TABULAR_SUBJECTS = {"N/TAB", "N/DTA"}
     _SEEKING_ALPHA_SUBJECTS = {"N/SAT"}
     _INSIDER_SUBJECTS = {"N/ISD", "N/144", "N/ISS", "N/ISB"}
+    _PROCEDURAL_TEMPLATE_SUBJECTS = {"N/NPL"}
     # 16 lifestyle codes. N/TVL (Travel), N/RLG (Religion), N/OBT (Obituaries)
     # were removed after audit: TVL catches hurricanes/geopolitics, RLG is
     # mostly international political news, and OBT catches deaths of materially
@@ -452,6 +455,8 @@ def load_djnw_articles(
             reasons.append("insider_filing")
         if _LIFESTYLE_SUBJECTS & subs:
             reasons.append("lifestyle_nonmacro")
+        if _PROCEDURAL_TEMPLATE_SUBJECTS & subs:
+            reasons.append("procedural_template")
         a["filtered_reasons"] = reasons
         for r in reasons:
             reason_counts[r] = reason_counts.get(r, 0) + 1
