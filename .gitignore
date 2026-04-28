@@ -55,3 +55,6 @@ ARCHITECTURE.md
 design/
 slides/
 audits/
+
+# Local-only ad-hoc scripts (one-off audits, scratch work)
+scripts/misc/

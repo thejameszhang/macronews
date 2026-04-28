@@ -49,6 +49,8 @@ else
     fi
 fi
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 # Resolve tag codes to descriptions from docs CSVs
 echo "" >&2
 echo "=== Tag Descriptions ===" >&2
@@ -109,4 +111,29 @@ for field in ["company", "isin"]:
         else:
             code = str(item)
         print(f"    {code}", file=sys.stderr)
+PYEOF
+
+# Show the article body split by the same paragraph splitter the pipeline
+# feeds the LLM (src.loaders.split_into_paragraphs), with [i] indices.
+echo "" >&2
+echo "=== Paragraphs (as fed to LLM) ===" >&2
+
+python3 - "$CACHE_FILE" "$REPO_ROOT" <<'PYEOF'
+import json, sys
+from pathlib import Path
+
+cache_file = sys.argv[1]
+repo_root = Path(sys.argv[2])
+sys.path.insert(0, str(repo_root))
+
+from src.loaders import split_into_paragraphs
+
+with open(cache_file) as f:
+    article = json.load(f)
+
+text = article.get("text", "")
+paragraphs = split_into_paragraphs(text)
+
+for i, p in enumerate(paragraphs):
+    print(f"[{i}] {p}\n", file=sys.stderr)
 PYEOF

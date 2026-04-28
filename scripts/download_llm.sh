@@ -1,13 +1,13 @@
 #!/bin/bash
-#SBATCH --job-name=download_gemma4
+#SBATCH --job-name=download_llm
 #SBATCH --partition=day
 #SBATCH --account=pi_btk22
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
 #SBATCH --time=4:00:00
-#SBATCH --output=logs/download_gemma4_%j.out
-#SBATCH --error=logs/download_gemma4_%j.err
+#SBATCH --output=logs/download_llm_%j.out
+#SBATCH --error=logs/download_llm_%j.err
 
 set -euo pipefail
 
@@ -22,7 +22,7 @@ else
     exit 1
 fi
 
-# Override via env: MODEL_REPO=... LOCAL_DIR=... sbatch scripts/download_gemma4.sh
+# Override via env: MODEL_REPO=... LOCAL_DIR=... sbatch scripts/download_llm.sh
 MODEL_REPO="${MODEL_REPO:-google/gemma-4-26B-A4B-it}"
 LOCAL_DIR="${LOCAL_DIR:-/nfs/roberts/scratch/pi_btk22/jyz32/gemma-4-26b-a4b-it}"
 
