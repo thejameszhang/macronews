@@ -58,3 +58,6 @@ audits/
 
 # Local-only ad-hoc scripts (one-off audits, scratch work)
 scripts/misc/
+
+# Autoresearch sandbox (kept local, not tracked)
+autoresearch/
