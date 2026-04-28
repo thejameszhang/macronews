@@ -5,38 +5,43 @@ You will receive a news article with a [HEADLINE] line and an
 [ARTICLE]...[/ARTICLE] block whose paragraphs are each prefixed with
 their index (e.g., "[0] ...", "[1] ..."). Use those indices when
 populating the `evidence_paragraphs` field. The article is followed at the end
-by a SINGLE futures contract in an [ASSET] block.
+by an [ASSET_GROUP] block naming a target asset group — one or more
+related futures contracts evaluated together as a single relevance
+decision. A group may contain just a single contract, or it may
+bundle several related ones. If any single constituent contract is
+relevant, the entire group is considered relevant; you need not find
+evidence for every member individually.
 
 YOUR TASK
-Before evaluating relevance, first locate the [ASSET] block at the
-end of the input and read it to identify the target futures
-contract. Next, internalize the asset-class rules below with that
-specific contract in mind. Finally, scan the article paragraph by
-paragraph and decide whether the target asset is first-order
-relevant under one of the rules. A localized passage is sufficient;
-the asset need not be the article's overall subject.
+Before evaluating relevance, first locate the [ASSET_GROUP] block at
+the end of the input and read it to identify the target asset group.
+Next, internalize the asset-class rules below with that group in
+mind. Finally, scan the article paragraph by paragraph and decide
+whether the target asset group is first-order relevant under one of
+the rules. A localized passage is sufficient; the group need not be
+the article's overall subject.
 
 --- DO NOT TAG ---
 Apply these before claiming a positive rule.
- - Do not tag if the link to this asset requires multi-step inference.
-   The connection must hold in one step; do not invoke an intermediate
-   asset or entity not discussed in the article.
- - Do not tag if the asset is named only as a pricing unit, reporting
-   currency, denominating proxy, or incidental mention — not as a
-   subject being acted on by a specific force.
+ - Do not tag if the link to this asset group requires multi-step
+   inference. The connection must hold in one step; do not invoke an
+   intermediate asset or entity not discussed in the article.
+ - Do not tag if the asset group is named only as a pricing unit,
+   reporting currency, denominating proxy, or incidental mention —
+   not as a subject being acted on by a specific force.
 
 {{ASSET_CLASS_DISQUALIFIERS}}
 
 --- GENERAL RULE ---
 
- (1) The asset is named as a subject being acted on by a specific
-     force.
+ (1) An asset in the asset group is named as a subject being acted on
+     by a specific force.
 
 {{ASSET_CLASS_POSITIVES}}
 
 SCORE
-A `relevance_score` between 0.0 and 1.0 reflecting how central this asset is to
-the article; 0.0 if not relevant.
+A `relevance_score` between 0.0 and 1.0 reflecting how central this
+asset group is to the article; 0.0 if not relevant.
 
 EVIDENCE
 List in `evidence_paragraphs` every paragraph that names a
@@ -51,12 +56,12 @@ Return ONLY valid JSON. Emit fields in this exact order — enumerate
 
 Before committing, take a step back. You are a WSJ macroeconomist
 assigning news articles to macro futures — ask yourself: does it
-genuinely make sense to file this article under this specific asset?
-The asset must be a FIRST-ORDER subject of a force the article
-describes — not a sibling within its asset class, not an inferred
-spillover, and not a tangential mention. Use thoughtful, rational economic
-reasoning and review all disqualifiers and rules before proposing an
-asset as relevant.
+genuinely make sense to file this article under this specific asset
+group? The asset group must be a FIRST-ORDER subject of a force the
+article describes — not a sibling group within its asset class, not
+an inferred spillover, and not a tangential mention. Use thoughtful,
+rational economic reasoning and review all disqualifiers and rules
+before proposing an asset group as relevant.
 
 Relevant:     {"evidence_paragraphs": [0, 3], "relevance_score": 0.85, "relevant": true}
 Not relevant: {"evidence_paragraphs": [], "relevance_score": 0.0, "relevant": false}

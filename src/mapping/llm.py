@@ -14,16 +14,18 @@ logger = logging.getLogger(__name__)
 # used at runtime. Kept as a kwarg default for backwards compatibility.
 DEFAULT_SYSTEM_PROMPT = ""
 
-# Map each asset_class value in asset_universe.yaml to its prompt file under
+# Map each asset_class value in group_universe.yaml to its prompt file under
 # PROMPTS_DIR/asset_class/. Unknown classes raise at mapper init time.
+# Note: "rates" is a unified class collapsing the prior "government bond"
+# and "short-term interest rate" classes — the group structure puts both
+# under one curve per issuer.
 ASSET_CLASS_PROMPT_FILES = {
-    "currency":                 "currency.txt",
-    "short-term interest rate": "rates.txt",
-    "government bond":          "bonds.txt",
-    "commodity":                "commodities.txt",
-    "US equity sector":         "equity_sectors.txt",
-    "equity index":             "equity_indices.txt",
-    "volatility":               "volatility_indices.txt",
+    "currency":         "currency.txt",
+    "rates":            "rates.txt",
+    "commodity":        "commodities.txt",
+    "US equity sector": "equity_sectors.txt",
+    "equity index":     "equity_indices.txt",
+    "volatility":       "volatility_indices.txt",
 }
 
 ASSET_CLASS_DISQUALIFIERS_PLACEHOLDER = "{{ASSET_CLASS_DISQUALIFIERS}}"
@@ -53,10 +55,9 @@ class LLMMapper(BaseMapper):
     def _load_asset_class_rules(self) -> dict[str, tuple[str, str]]:
         """Load asset-class-specific rule files split into (disqualifiers,
         positives) sections on the ``_CLASS_SECTION_SPLIT`` marker. Verify
-        every class in the asset universe has a registered prompt file and
+        every class in the group universe has a registered prompt file and
         that each file has exactly one split marker."""
-        from utils.config import load_asset_universe
-        from config.paths import ASSET_UNIVERSE_YAML
+        from utils.groups import load_group_universe
 
         asset_class_dir = PROMPTS_DIR / "asset_class"
         rules: dict[str, tuple[str, str]] = {}
@@ -76,20 +77,18 @@ class LLMMapper(BaseMapper):
             disqualifiers, positives = (p.strip("\n") for p in parts)
             rules[ac] = (disqualifiers, positives)
 
-        universe_classes = {
-            info["asset_class"] for info in load_asset_universe(ASSET_UNIVERSE_YAML).values()
-        }
-        missing_in_prompts = universe_classes - rules.keys()
-        unused_prompts = rules.keys() - universe_classes
+        group_classes = {gv["asset_class"] for gv in load_group_universe().values()}
+        missing_in_prompts = group_classes - rules.keys()
+        unused_prompts = rules.keys() - group_classes
         if missing_in_prompts:
             raise ValueError(
-                f"asset_universe.yaml contains asset classes with no class-specific "
+                f"group_universe.yaml contains asset classes with no class-specific "
                 f"prompt: {sorted(missing_in_prompts)}"
             )
         if unused_prompts:
             raise ValueError(
                 f"ASSET_CLASS_PROMPT_FILES declares prompts for classes not in "
-                f"asset_universe.yaml: {sorted(unused_prompts)}"
+                f"group_universe.yaml: {sorted(unused_prompts)}"
             )
         return rules
 

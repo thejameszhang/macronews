@@ -4,10 +4,10 @@
  - Do not tag inflation or monetary-policy discussion unless the
    commodity is named as a primary subject.
  - Do not tag the refined/downstream product based only on a raw/
-   upstream-commodity article. A crude-oil article does not extend to
-   Heating Oil, RBOB Gasoline, or Gas Oil; a soybean article does not
-   extend to Soybean Oil or Soybean Meal. The downstream product or a
-   force specifically acting on its market must be named.
+   upstream-commodity article. A crude-oil article does not extend
+   to Heating Oil, RBOB Gasoline, or Gas Oil — these belong to a
+   separate Refined Petroleum group. The downstream group, or a
+   force specifically acting on one of its members, must be named.
  - Do not tag if the commodity or the force acting on it appears only
    in a parenthetical, footnote, or one-clause aside ("the report
    predates the Iran conflict, which has sent energy prices sharply
@@ -20,24 +20,13 @@
 
 ===POSITIVE RULES===
 
-A commodity is relevant when one of the following positive rules holds
+A commodity group is relevant when the following positive rule holds
 AND none of the disqualifiers above apply:
 
 (2) The article's primary or co-equal subject is the commodity this
-    contract trades, or a specific force acting on it — a supply or
+    group represents, or a specific force acting on it — a supply or
     demand event, producing region or facility, geopolitical or
     regulatory action, weather event, sanctions, or industry
-    organization decision (OPEC, IEA, USDA). When the article names a
-    generic label covering multiple graded contracts (e.g., "oil"),
-    all primary vehicles for that label qualify; when it names a
-    specific grade, only that grade qualifies.
-
-(3) The article names a commodity or commodity-specific event as a
-    primary or co-equal subject, and this contract is a different
-    grade, delivery location, or origin of the same physical
-    commodity (e.g., WTI and Brent are horizontal grades of crude
-    oil; LME Copper and COMEX Copper are horizontal delivery
-    locations for copper). The substitution applies only when the
-    force described would act on this contract through the same
-    mechanism. Distinct commodities in the same category do not
-    qualify.
+    organization decision (OPEC, IEA, USDA). The article may name the
+    commodity generically (e.g., "oil", "wheat") or via any of the
+    group's specific contracts.

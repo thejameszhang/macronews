@@ -9,16 +9,16 @@
 
 ===POSITIVE RULES===
 
-A currency is relevant when one of the following positive rules holds
-AND none of the disqualifiers above apply:
+A currency group is relevant when one of the following positive rules
+holds AND none of the disqualifiers above apply:
 
 (2) The article substantively discusses the central bank or monetary
-    authority issuing this currency — its decisions, statements,
-    actions, intervention, leadership, or the market reaction to
-    them.
+    authority issuing a currency in this group — its decisions,
+    statements, actions, intervention, leadership, or the market
+    reaction to them.
 
 (3) The article names a country-specific force — tariffs on the
     country, trade-balance or current-account shift, capital-flow
     event, FX intervention, sovereign-debt event, or country-specific
-    fiscal action — and this currency is the primary FX instrument
-    through which that country is traded.
+    fiscal action — and a currency in this group is the primary FX
+    instrument through which that country is traded.

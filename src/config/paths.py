@@ -32,7 +32,7 @@ SECRETS_DIR = ROOT / "secrets"
 # Source config
 CONFIG_DIR = ROOT / "src" / "config"
 ASSET_UNIVERSE_YAML = CONFIG_DIR / "asset_universe.yaml"
-ASSET_UNIVERSE_REPR_YAML = CONFIG_DIR / "asset_universe_repr.yaml"
+GROUP_UNIVERSE_YAML = CONFIG_DIR / "group_universe.yaml"
 
 # Prompts
 PROMPTS_DIR = ROOT / "src" / "mapping" / "prompts"

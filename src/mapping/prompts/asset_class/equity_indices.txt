@@ -1,8 +1,9 @@
 These rules apply to broad country-level or region-level equity
-indices. Under general rule (1), the index must be named directly — a
-constituent company's name does not count as the index's name.
+indices. Under general rule (1), one of the group's constituent
+indices must be named directly — a constituent company's name does
+not count as naming any index.
 
-  - Do not tag if the index is named only as a pricing unit or
+  - Do not tag if an index is named only as a pricing unit or
     benchmark for a single company's stock move, including automated
     stock-performance templates.
   - Do not tag incidental constituent mentions — added-to-index events,
@@ -10,34 +11,28 @@ constituent company's name does not count as the index's name.
     lists.
   - Do not tag monetary-policy news about a country unless an equity-
     market transmission channel is stated.
-  - Do not tag a member country's national index based on regional
-    macro discussion (e.g., eurozone). Only the regional index
-    qualifies; country-level indices require macro discussion specific
-    to that country.
-  - Do not co-tag U.S. equity indices (S&P 500, Nasdaq 100, Dow Jones
-    Industrial, Russell 2000) — qualifying one does not extend to the
-    others; each needs its own evidence.
-  - Do not qualify the Nasdaq 100 from "Nasdaq" or "Nasdaq Composite"
-    alone — only an explicit Nasdaq 100 mention does.
+  - Do not tag based on sector-specific or industry-specific macro
+    news. A story about a single sector's economics (e.g., healthcare
+    jobs, energy supply, tech demand) qualifies the relevant sector
+    group, not the broad index group, unless the article explicitly
+    frames a broad-market read-through.
 
 ===POSITIVE RULES===
 
-An index is relevant when one of the following positive rules holds AND
-none of the disqualifiers above apply:
+An index group is relevant when one of the following positive rules
+holds AND none of the disqualifiers above apply:
 
-(2) A macroeconomic or policy force with a clear impact on the country
-    or region's equity market is a substantive subject of at least one
-    paragraph. The force must be discussed at this index's level of
-    jurisdiction: a pan-region force (e.g., eurozone) qualifies the
-    pan-region index, not any member country's national index.
-    For example, if the story is about the Eurozone economy, the 
-    Euro Stoxx 50 Index is the primary vehicle for the story, not 
-    France's CAC 40 Index, Germany's DAX Index, or Italy's FTSE MIB Index.
-    One-clause background citations do not qualify.
+(2) A macroeconomic or policy force with a clear impact on the
+    country or region's equity market is a substantive subject of at
+    least one paragraph. The force must be discussed at a level of
+    jurisdiction this group covers — for a single-country group, the
+    relevant country's macro; for a multi-country regional group,
+    region-level or any member-country's macro. One-clause background
+    citations do not qualify.
 
 (3) A company whose operations or market weight make its news carry
-    clear index-wide implications — not merely sector-wide — is the
+    clear broad-market implications — not merely sector-wide — is the
     subject of the article. The article must frame the event as
-    broad-market or index-level news, not just single-company news;
-    the index-level read-through must be explicit in the article,
-    even when the company is a major index constituent.
+    broad-market news, not just single-company news; the group-level
+    read-through must be explicit in the article, even when the
+    company is a major index constituent.

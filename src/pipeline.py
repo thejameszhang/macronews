@@ -1,9 +1,10 @@
 """
-Macronews ArticleMapper pipeline for article-to-asset tagging.
+Macronews ArticleMapper pipeline for article-to-group tagging.
 
-Per-asset article-level mapping: one LLM call per (article, asset) pair
-returns per-asset relevance, evidence paragraphs, signal strength, and
-score. Asset-class-specific rules are injected into the prompt per class.
+Per-group article-level mapping: one LLM call per (article, group) pair.
+Each group's verdict (relevance, evidence_paragraphs, score) fans out to
+its member assets in the output JSONL. Asset-class-specific rules are
+injected into the prompt per group asset_class.
 """
 
 import argparse
@@ -21,7 +22,7 @@ from mapping.llm import (
     LLMMapper,
 )
 from mapping.schemas import SingleAssetResult
-from utils.config import load_asset_universe
+from utils.groups import load_group_universe, group_keys
 
 logger = logging.getLogger(__name__)
 
@@ -31,19 +32,19 @@ logger = logging.getLogger(__name__)
 
 ARTICLE_PROMPT = (PROMPTS_DIR / "mapper.txt").read_text()
 
-# Asset symbol → human-readable name
-_ASSET_UNIVERSE = load_asset_universe()
-ASSET_NAMES = {sym: info.get("name", sym) for sym, info in _ASSET_UNIVERSE.items()}
-ALL_ASSETS = sorted(_ASSET_UNIVERSE.keys())
+# Group universe loaded at import time. Each group has a name,
+# asset_class, and a list of members (each {name, ticker_symbol}). The
+# mapper iterates groups (not individual assets) and the output fans out
+# to per-member entries.
+_GROUP_UNIVERSE = load_group_universe()
+ALL_GROUPS = group_keys(_GROUP_UNIVERSE)
 
 
-def _asset_label(sym: str) -> str:
-    """Build a human-readable asset label for the LLM (no ticker symbol)."""
-    info = _ASSET_UNIVERSE[sym]  # KeyError = bug, fix the universe
-    name = info["name"]
-    ac = info["asset_class"]
-    exchange = info["exchange_name"]
-    return f"{name} | {ac} | {exchange}"
+def _group_label(group_key: str) -> str:
+    """Build a human-readable group label for the LLM (no exchange — group
+    members may span exchanges; asset_class is the routing-relevant hint)."""
+    g = _GROUP_UNIVERSE[group_key]
+    return f"{g['name']} | {g['asset_class']}"
 
 
 # ---------------------------------------------------------------------------
@@ -111,16 +112,17 @@ def load_articles(
 # Per-asset-class batching helper
 # ---------------------------------------------------------------------------
 
-def _run_per_asset_class(
+def _run_per_class(
     mapper: LLMMapper,
     prompt_template: str,
-    syms: list[str],
+    keys: list[str],
     texts: list[str],
     call,
 ) -> list:
-    """Group (sym, text) pairs by the asset's class, substitute class-specific
-    rules into ``prompt_template``, and invoke ``call(mapper, batch_texts)``
-    once per class. Returns results in the original input order.
+    """Group (key, text) pairs by the group's asset_class, substitute
+    class-specific rules into ``prompt_template``, and invoke
+    ``call(mapper, batch_texts)`` once per class. Returns results in the
+    original input order. ``keys`` are group_keys from group_universe.yaml.
 
     ``call`` is a callable taking (mapper, batch_texts) and returning a list
     of results parallel to batch_texts.
@@ -135,12 +137,12 @@ def _run_per_asset_class(
             raise ValueError(
                 f"Prompt template is missing {placeholder} placeholder"
             )
-    if len(syms) != len(texts):
-        raise ValueError(f"syms/texts length mismatch: {len(syms)} vs {len(texts)}")
+    if len(keys) != len(texts):
+        raise ValueError(f"keys/texts length mismatch: {len(keys)} vs {len(texts)}")
 
     by_class: dict[str, list[int]] = defaultdict(list)
-    for idx, sym in enumerate(syms):
-        ac = _ASSET_UNIVERSE[sym]["asset_class"]
+    for idx, gk in enumerate(keys):
+        ac = _GROUP_UNIVERSE[gk]["asset_class"]
         by_class[ac].append(idx)
 
     results: list = [None] * len(texts)
@@ -160,17 +162,18 @@ def _run_per_asset_class(
 
 
 # ---------------------------------------------------------------------------
-# ArticleMapper pipeline (one call per article × asset)
+# ArticleMapper pipeline (one call per article × group)
 # ---------------------------------------------------------------------------
 
 def run_pipeline(
     mapper: LLMMapper,
     articles: list[dict],
 ) -> list[dict[str, SingleAssetResult]]:
-    """Per-asset article-level mapping.
+    """Per-group article-level mapping.
 
-    Returns list (one per article) of {asset_sym: SingleAssetResult} for
-    relevant assets only.
+    Returns list (one per article) of {group_key: SingleAssetResult} for
+    relevant groups only. Output fan-out to per-member assets happens in
+    save_results_jsonl.
     """
     tasks: list[tuple[int, str]] = []
     texts: list[str] = []
@@ -186,31 +189,32 @@ def run_pipeline(
             + "\n\n".join(f"[{i}] {p}" for i, p in enumerate(a["paragraphs"]))
             + "\n[/ARTICLE]"
         )
-        for sym in ALL_ASSETS:
-            # Asset-last layout so sys_prompt + article body form a shared
+        for gk in ALL_GROUPS:
+            # Group-last layout so sys_prompt + article body form a shared
             # prefix across siblings in a class batch (prefix-cache reuse).
-            # mapper.txt YOUR TASK block now instructs the model to read
-            # [ASSET] first despite its physical position at the end.
-            text = f"{article_text}\n\n[ASSET] {_asset_label(sym)}"
-            tasks.append((art_idx, sym))
+            # mapper.txt YOUR TASK block instructs the model to read the
+            # [ASSET_GROUP] block first despite its physical position at
+            # the end.
+            text = f"{article_text}\n\n[ASSET_GROUP] {_group_label(gk)}"
+            tasks.append((art_idx, gk))
             texts.append(text)
 
-    logger.info("=== ArticleMapper: %d calls ===", len(texts))
-    results = _run_per_asset_class(
+    logger.info("=== ArticleMapper: %d calls (groups) ===", len(texts))
+    results = _run_per_class(
         mapper,
         ARTICLE_PROMPT,
-        syms=[sym for _, sym in tasks],
+        keys=[gk for _, gk in tasks],
         texts=texts,
         call=lambda m, ts: m.map_single_asset(ts, max_tokens=512),
     )
 
     by_article: list[dict[str, SingleAssetResult]] = [{} for _ in articles]
-    for (art_idx, sym), sar in zip(tasks, results):
+    for (art_idx, gk), sar in zip(tasks, results):
         if sar.relevant:
-            by_article[art_idx][sym] = sar
+            by_article[art_idx][gk] = sar
 
     for art_idx, a in enumerate(articles):
-        logger.info("  %s: %d assets flagged by ArticleMapper", a["id"], len(by_article[art_idx]))
+        logger.info("  %s: %d groups flagged by ArticleMapper", a["id"], len(by_article[art_idx]))
 
     return by_article
 
@@ -219,22 +223,29 @@ def run_pipeline(
 # Output
 # ---------------------------------------------------------------------------
 
-def _asset_display_name(sym: str) -> str:
-    """Human-readable asset name for JSON output."""
-    return ASSET_NAMES.get(sym, sym)
-
-
 def save_results_jsonl(
     articles: list[dict],
     article_results: list[dict[str, SingleAssetResult]],
     out_path: Path,
 ) -> None:
-    """Write one JSONL record per article and a sidecar `<basename>.summary.json`
-    with per-shard aggregates. summarize.py rolls these up across shards."""
+    """Write one JSONL record per article + a sidecar `<basename>.summary.json`.
+
+    Each `mappings` entry corresponds to one LLM group decision: it carries
+    the group name, its asset_class, the relevance_score, and the
+    evidence_paragraphs. Per-asset details are not duplicated into mappings
+    — consumers can join group_name -> members via group_universe.yaml, or
+    use the top-level `assets` field which lists every member of every
+    fired group as `{name, ticker_symbol}` pairs.
+
+    Counts in the summary sidecar are per-group-decision (not per-member);
+    `by_asset_class` counts group decisions per class. summarize.py rolls
+    these up across shards.
+    """
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     total_mappings = 0
     by_asset_class_count: dict[str, int] = {}
+    by_group_count: dict[str, int] = {}
     reason_counts: dict[str, int] = {}
     n_filtered = 0
     n_written = 0
@@ -243,19 +254,30 @@ def save_results_jsonl(
         for art_idx, art in enumerate(articles):
             am_map = article_results[art_idx]
             mappings = []
+            assets = []
             referenced_paras: set[int] = set()
-            for sym in sorted(am_map.keys()):
-                sar = am_map[sym]
+            # Stable ordering: group_key alphabetical; within a group, member
+            # order is YAML insertion order (preserved by safe_load).
+            for gk in sorted(am_map.keys()):
+                sar = am_map[gk]
                 evidence = list(sar.evidence_paragraphs)
-                ac = _ASSET_UNIVERSE.get(sym, {}).get("asset_class", "unknown")
+                gv = _GROUP_UNIVERSE[gk]
+                ac = gv["asset_class"]
+                gname = gv["name"]
                 mappings.append({
-                    "asset": _asset_display_name(sym),
+                    "group": gname,
                     "asset_class": ac,
                     "relevance_score": sar.relevance_score,
                     "evidence_paragraphs": evidence,
                 })
+                for member in gv["members"]:
+                    assets.append({
+                        "name": member["name"],
+                        "ticker_symbol": member["ticker_symbol"],
+                    })
                 referenced_paras.update(evidence)
                 by_asset_class_count[ac] = by_asset_class_count.get(ac, 0) + 1
+                by_group_count[gname] = by_group_count.get(gname, 0) + 1
             total_mappings += len(mappings)
 
             reasons = art.get("filtered_reasons") or []
@@ -275,7 +297,8 @@ def save_results_jsonl(
                 "article_id": art["id"],
                 "headline": art["headline"],
                 "filtered_reasons": reasons,
-                "assets": [e["asset"] for e in mappings],
+                "groups": [m["group"] for m in mappings],
+                "assets": assets,
                 "paragraphs": para_dict,
                 "mappings": mappings,
             }
@@ -291,6 +314,7 @@ def save_results_jsonl(
         "filtered_by_reason": reason_counts,
         "total_mappings": total_mappings,
         "by_asset_class": {ac: by_asset_class_count[ac] for ac in sorted(by_asset_class_count)},
+        "by_group": {g: by_group_count[g] for g in sorted(by_group_count)},
     }
     summary_path = out_path.with_suffix(".summary.json")
     with open(summary_path, "w", encoding="utf-8") as f:

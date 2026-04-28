@@ -1,18 +1,29 @@
- - Do not tag if a foreign central bank is the subject — cross-country
-   rate spillover does not transfer to this contract.
- - Do not tag if a different reference rate for the same economy is
-   named (e.g., "Fed funds futures" does not name SOFR).
+ - Do not tag if a foreign central bank or a foreign sovereign's rates
+   are the subject — cross-country rate spillover does not transfer to
+   this curve.
+ - Do not tag on inferential framings ("driver of bond-market pricing,"
+   "affects rate expectations") without a named rate-market or bond-
+   market phenomenon.
  - Do not tag one-clause background citations of the central bank, or
    central-bank language cited only to contextualize another asset's
    move rather than as the article's primary/co-equal subject.
 
 ===POSITIVE RULES===
 
-A rate contract is relevant when the following positive rule holds AND
-none of the disqualifiers above apply:
+A rates curve is relevant when one of the following positive rules
+holds AND none of the disqualifiers above apply:
 
 (2) The article substantively discusses the central bank or monetary
-    authority that prices this contract — decisions, statements,
+    authority that issues or prices this curve — decisions, statements,
     actions, leadership, forward-calendar entries, or market-reaction
     moves in the expected path of policy. The central bank must be a
     primary or co-equal subject.
+
+(3) The article discusses a fiscal or debt-related force specific to
+    the country or currency-zone that issues this curve AND states a
+    bond-market or rate-market implication. A fiscal event named only
+    as a driver of another asset's move does not qualify.
+
+(4) The article directly discusses the government-bond or short-rate
+    market for the country/zone that issues this curve, with a named
+    force on supply, demand, or yields.

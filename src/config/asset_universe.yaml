@@ -58,20 +58,20 @@ ZW:
     - tier: b
       url: "https://hedgepointglobal.com/en/blog/how-is-the-price-of-wheat-formed"
       source: "Hedgepoint Global"
-# KE:
-#   exchange_name: Kansas City Board of Trade
-#   calcseriesname: KCBT-HRW WHEAT COMP CONTINUOUS
-#   name: Kansas Wheat
-#   asset_class: commodity
-#   curcdd: USD
-#   ric: KW
-#   primers:
-#     - tier: a
-#       url: "https://www.ers.usda.gov/topics/crops/wheat/wheat-sector-at-a-glance/"
-#       source: "USDA Economic Research Service"
-#     - tier: b
-#       url: "https://www.cmegroup.com/education/courses/introduction-to-grains-and-oilseeds/wheat-production-use-and-transportation.html"
-#       source: "CME Group"
+KE:
+  exchange_name: Kansas City Board of Trade
+  calcseriesname: KCBT-HRW WHEAT COMP CONTINUOUS
+  name: Kansas Wheat
+  asset_class: commodity
+  curcdd: USD
+  ric: KW
+  primers:
+    - tier: a
+      url: "https://www.ers.usda.gov/topics/crops/wheat/wheat-sector-at-a-glance/"
+      source: "USDA Economic Research Service"
+    - tier: b
+      url: "https://www.cmegroup.com/education/courses/introduction-to-grains-and-oilseeds/wheat-production-use-and-transportation.html"
+      source: "CME Group"
 ZC:
   exchange_name: Chicago Board of Trade (CBOT)
   calcseriesname: CBT-CORN COMP. CONTINUOUS
@@ -186,20 +186,20 @@ LE:
     - tier: b
       url: "https://www.ers.usda.gov/topics/animal-products/cattle-beef/market-outlook/"
       source: "USDA Economic Research Service"
-# GF:
-#   exchange_name: Chicago Mercantile Exchange (CME)
-#   calcseriesname: CME-FEEDER CATTLE COMP. CONTINUOUS
-#   name: Feeder Cattle
-#   asset_class: commodity
-#   curcdd: USD
-#   ric: FC
-#   primers:
-#     - tier: a
-#       url: "https://www.ers.usda.gov/topics/animal-products/cattle-beef/sector-at-a-glance/"
-#       source: "USDA Economic Research Service"
-#     - tier: b
-#       url: "https://www.ers.usda.gov/topics/animal-products/cattle-beef/market-outlook/"
-#       source: "USDA Economic Research Service"
+GF:
+  exchange_name: Chicago Mercantile Exchange (CME)
+  calcseriesname: CME-FEEDER CATTLE COMP. CONTINUOUS
+  name: Feeder Cattle
+  asset_class: commodity
+  curcdd: USD
+  ric: FC
+  primers:
+    - tier: a
+      url: "https://www.ers.usda.gov/topics/animal-products/cattle-beef/sector-at-a-glance/"
+      source: "USDA Economic Research Service"
+    - tier: b
+      url: "https://www.ers.usda.gov/topics/animal-products/cattle-beef/market-outlook/"
+      source: "USDA Economic Research Service"
 CL:
   exchange_name: New York Mercantile Exchange
   calcseriesname: NYM-LIGHT CRUDE OIL CONTINUOUS
@@ -459,36 +459,6 @@ ZN:
       # url: "https://www.stlouisfed.org/education/the-yield-curve"  # BLOCKED (timeout)
       url: "https://www.investopedia.com/terms/y/yieldcurve.asp"
       source: "Investopedia"
-# TN:
-#   exchange_name: eCBOT
-#   calcseriesname: CBT-ULTRA 10-YEAR US T-NOTE CONT
-#   name: Ultra 10 Year US Government Note
-#   asset_class: government bond
-#   curcdd: USD
-#   ric: TN
-#   primers:
-#     - tier: a
-#       url: "https://www.treasurydirect.gov/marketable-securities/treasury-notes/"
-#       source: "U.S. Treasury — TreasuryDirect"
-#     - tier: b
-#       # url: "https://www.stlouisfed.org/education/the-yield-curve"  # BLOCKED (timeout)
-#       url: "https://www.investopedia.com/terms/y/yieldcurve.asp"
-#       source: "Investopedia"
-# UB:
-#   exchange_name: Chicago Board of Trade (CBOT)
-#   calcseriesname: CBOT-ULTRA T-BOND COMP. CONT.
-#   name: Ultra T-Bond
-#   asset_class: government bond
-#   curcdd: USD
-#   ric: AUL
-#   primers:
-#     - tier: a
-#       url: "https://www.treasurydirect.gov/marketable-securities/treasury-bonds/"
-#       source: "U.S. Treasury — TreasuryDirect"
-#     - tier: b
-#       # url: "https://www.stlouisfed.org/education/the-yield-curve"  # BLOCKED (timeout)
-#       url: "https://www.investopedia.com/terms/y/yieldcurve.asp"
-#       source: "Investopedia"
 FGBS:
   exchange_name: EUREX
   calcseriesname: EUREX-EURO SCHATZ CONTINUOUS
@@ -843,21 +813,21 @@ RTY:
     - tier: b
       url: "https://www.federalreserve.gov/monetarypolicy.htm"
       source: "U.S. Federal Reserve"
-# EMD:
-#   exchange_name: Chicago Mercantile Exchange (CME)
-#   calcseriesname: CME-EMINI S&P 400 MIDCAP CONTINUOU
-#   name: S&P 400 Midcap Index
-#   asset_class: equity index
-#   curcdd: USD
-#   ric: DM
-#   primers:
-#     - tier: a
-#       # url: "https://www.spglobal.com/spdji/en/indices/equity/sp-400/#overview"  # BLOCKED (403)
-#       url: "https://www.investopedia.com/terms/s/sp-midcap-400-index.asp"
-#       source: "Investopedia"
-#     - tier: b
-#       url: "https://www.federalreserve.gov/monetarypolicy.htm"
-#       source: "U.S. Federal Reserve"
+EMD:
+  exchange_name: Chicago Mercantile Exchange (CME)
+  calcseriesname: CME-EMINI S&P 400 MIDCAP CONTINUOU
+  name: S&P 400 Midcap Index
+  asset_class: equity index
+  curcdd: USD
+  ric: DM
+  primers:
+    - tier: a
+      # url: "https://www.spglobal.com/spdji/en/indices/equity/sp-400/#overview"  # BLOCKED (403)
+      url: "https://www.investopedia.com/terms/s/sp-midcap-400-index.asp"
+      source: "Investopedia"
+    - tier: b
+      url: "https://www.federalreserve.gov/monetarypolicy.htm"
+      source: "U.S. Federal Reserve"
 YM:
   exchange_name: Chicago Board of Trade (CBOT)
   calcseriesname: CBT-MINI DOW JONES CONTINUOUS
@@ -949,7 +919,7 @@ FCE:
 FDAX:
   exchange_name: EUREX
   calcseriesname: EUREX-DAX INDEX CONTINUOUS
-  name: DAX Index (Germany)
+  name: DAX 40 Index (Germany)
   asset_class: equity index
   curcdd: EUR
   ric: FDX
@@ -1032,21 +1002,6 @@ HSI:
     - tier: b
       url: "https://www.boj.or.jp/en/mopo/outline/index.htm"
       source: "Bank of Japan"
-# MFS:
-#   exchange_name: ICE Futures U.S.
-#   calcseriesname: NYL-MSCI EAFE MINI CONTINUOUS
-#   name: MSCI EAFE Index
-#   asset_class: equity index
-#   curcdd: USD
-#   ric: MFS
-#   primers:
-#     - tier: a
-#       url: "https://www.msci.com/indexes/index/990300"
-#       source: "MSCI"
-#     - tier: b
-#       # url: "https://www.imf.org/en/Publications/WEO"  # BLOCKED (403)
-#       url: "https://www.investopedia.com/terms/e/eafe_index.asp"
-#       source: "Investopedia"
 FTI:
   exchange_name: Euronext Amsterdam
   calcseriesname: AEX-AEX INDEX CONTINUOUS

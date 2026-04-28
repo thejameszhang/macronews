@@ -1,19 +1,20 @@
-These rules apply only to equity-volatility indices tracking the
-implied volatility of a specific underlying equity benchmark.
+These rules apply to equity-volatility index groups, each tracking the
+implied volatility of one or more underlying equity benchmarks.
 
  - Do not tag commodity, currency, or bond volatility — only equity
    volatility qualifies.
- - Do not tag if the underlying equity index is discussed without
+ - Do not tag if an underlying equity index is discussed without
    volatility-specific language.
  - Do not tag stock-price moves, selloffs, or generic "uncertainty"
    language without volatility-specific terminology.
 
 ===POSITIVE RULES===
 
-A volatility index is relevant when the following positive rule holds
-AND none of the disqualifiers above apply:
+A volatility index group is relevant when the following positive rule
+holds AND none of the disqualifiers above apply:
 
-(2) The article explicitly discusses the volatility of the underlying
-    equity benchmark using volatility-specific terminology —
-    "volatility," "vol," "implied vol," "realized vol," "vol
-    premium," "hedging demand," or a direct vol-index reference.
+(2) The article explicitly discusses the volatility of an underlying
+    equity benchmark this group tracks, using volatility-specific
+    terminology — "volatility," "vol," "implied vol," "realized
+    vol," "vol premium," "hedging demand," or a direct vol-index
+    reference.
