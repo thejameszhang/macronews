@@ -1,11 +1,17 @@
- - Do not tag if the currency is named only as a reporting, functional,
-   pricing-unit, or category-example mention, with no force acting on
-   it specifically.
- - Do not tag calendar-style name-drops or peer-list inclusions ("Bank
-   X, Bank Y, and Bank Z will announce decisions this week"). Rule (2)
-   requires substantive discussion.
+ - Do not tag if the central bank or country only appears as one
+   entry in a list of unrelated items, with no narrative developing
+   it as a subject. This includes calendars of scheduled events
+   ("Bank X, Bank Y, Bank Z will announce decisions this week"),
+   news-brief recaps stringing together unrelated stories, and
+   roundups of headlines. Rules (2) and (3) require substantive
+   discussion of the central bank or country itself.
  - Do not tag commodity or safe-haven flows inferred from the article's
    topic without the FX link stated in the text.
+ - Do not tag this currency group if a currency in the group is named
+   only as the unit of an amount or transaction value ("Cdn.$2.65 per
+   share", "350 million euros loan", "GBP 2.3 billion bid", "GBP17M
+   EBITDA"). Rules (2) and (3) require an FX-market force on the
+   currency itself.
 
 ===POSITIVE RULES===
 

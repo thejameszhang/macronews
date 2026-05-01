@@ -28,7 +28,7 @@ mkdir -p logs results
 
 MODE="${MODE:-gold}"
 MODEL_PATH="${MODEL_PATH:-/nfs/roberts/scratch/pi_btk22/jyz32/qwq-32b}"
-MAX_MODEL_LEN="${MAX_MODEL_LEN:-16384}"
+MAX_MODEL_LEN="${MAX_MODEL_LEN:-40960}"
 MAX_TOKENS="${MAX_TOKENS:-1024}"
 PARTITION="${PARTITION:-priority_gpu}"
 ACCOUNT="${ACCOUNT:-prio_btk22}"
@@ -78,6 +78,11 @@ if [ ! -f "$MAPPER_OUTPUT" ]; then
     exit 1
 fi
 
+EXCLUDE_FLAG=""
+if [ -n "${EXCLUDE_NODES:-}" ]; then
+    EXCLUDE_FLAG="--exclude=${EXCLUDE_NODES}"
+fi
+
 jobid=$(sbatch --parsable \
     --job-name="grader" \
     --output="logs/grader_%j.out" \
@@ -89,13 +94,15 @@ jobid=$(sbatch --parsable \
     --partition=${PARTITION} \
     --account=${ACCOUNT} \
     --gres=${GRES} \
+    ${EXCLUDE_FLAG} \
     --wrap="
         module load Python/3.12.3-GCCcore-13.3.0 2>/dev/null || true
         cd /nfs/roberts/project/pi_btk22/jyz32/macronews
         source .venv/bin/activate
         export VLLM_BATCH_INVARIANT=1
-        # Attention backend is pinned to FLASH_ATTN inside LLMGrader._init_llm
-        # (vLLM 0.19.0 + VLLM_BATCH_INVARIANT=1 rejects None on Qwen2-arch).
+        # Attention backend is pinned to TRITON_ATTN inside LLMGrader._init_llm
+        # (vLLM 0.19.0 + VLLM_BATCH_INVARIANT=1 rejects None on Qwen2-arch;
+        # FA2's PTX is sm_90-only so it crashes on B200).
         PYTHONPATH=src python src/grading/runner.py \
             --mapper-output ${MAPPER_OUTPUT} \
             --output ${OUTPUT_FILE} \

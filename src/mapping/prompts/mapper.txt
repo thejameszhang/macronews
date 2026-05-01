@@ -26,9 +26,12 @@ Apply these before claiming a positive rule.
  - Do not tag if the link to this asset group requires multi-step
    inference. The connection must hold in one step; do not invoke an
    intermediate asset or entity not discussed in the article.
- - Do not tag if the asset group is named only as a pricing unit,
-   reporting currency, denominating proxy, or incidental mention —
-   not as a subject being acted on by a specific force.
+ - Do not tag if the asset is named only as a unit or label (e.g., a
+   deal amount, a per-share price). Denomination alone is not a force
+   on the asset.
+ - Do not tag if the asset appears only in a table or tabular figure
+   (e.g., a price column, futures-quote row) — evidence must come from
+   narrative prose.
 
 {{ASSET_CLASS_DISQUALIFIERS}}
 

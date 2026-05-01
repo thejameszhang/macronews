@@ -1,0 +1,287 @@
+"""Grader runner — joins mapper output to source articles, batches grader
+calls, writes sidecar JSONL.
+
+CLI mirrors src/pipeline.py for the gold/dev/prod modes:
+
+  python src/grading/runner.py \\
+    --mapper-output results/groups-v2/gold.jsonl \\
+    --dataset gold \\
+    --sample-dir data/articles_sample \\
+    --output results/groups-v2-grader/gold.jsonl \\
+    --model /nfs/roberts/scratch/pi_btk22/jyz32/qwq-32b
+
+  python src/grading/runner.py \\
+    --mapper-output results/prod/groups-v2/2014-05c.jsonl \\
+    --dataset djnw \\
+    --input-file <path>/2014-05c_clean.jsonl \\
+    --output results/prod/groups-v2-grader/2014-05c.jsonl \\
+    --model /nfs/roberts/scratch/pi_btk22/jyz32/qwq-32b
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import logging
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO / "src"))
+
+from grading.llm import GraderInput, LLMGrader  # noqa: E402
+from grading.schemas import GraderResult, is_self_inconsistent  # noqa: E402
+from pipeline import load_articles  # noqa: E402  — reuses gold/djnw loaders
+from utils.groups import load_group_universe  # noqa: E402
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+logger = logging.getLogger(__name__)
+
+
+SKIP_GROUP_NOT_IN_UNIVERSE = "group_not_in_universe"
+SKIP_ARTICLE_NOT_IN_SOURCE = "article_not_in_source"
+
+
+def build_tasks(
+    mapper_rows: list[dict],
+    source_by_id: dict[str, dict],
+    group_by_name: dict[str, dict],
+) -> tuple[list[GraderInput], list[dict], list[dict]]:
+    """Join mapper output to source articles.
+
+    Returns three parallel lists:
+      - ``inputs``: ``GraderInput`` objects for mappings that will be graded.
+      - ``meta``: per-mapping metadata (article_id, group_name, asset_class,
+        mapper_score, mapper_evidence_paragraphs) parallel to ``inputs``.
+      - ``skipped``: rows for mappings that could NOT be graded (source
+        article missing, or group renamed/removed in group_universe.yaml).
+        Each carries a ``skip_reason`` and the available metadata so the
+        sidecar surfaces these rather than silently dropping them.
+
+    Each skip is also logged at WARN level with article_id + group so it
+    appears in SLURM logs.
+    """
+    inputs: list[GraderInput] = []
+    meta: list[dict] = []
+    skipped: list[dict] = []
+
+    for row in mapper_rows:
+        aid = row["article_id"]
+        src = source_by_id.get(aid)
+        if src is None:
+            for m in row.get("mappings", []):
+                skipped.append(
+                    {
+                        "article_id": aid,
+                        "group_name": m.get("group", ""),
+                        "asset_class": m.get("asset_class", ""),
+                        "mapper_score": m.get("relevance_score"),
+                        "mapper_evidence_paragraphs": list(m.get("evidence_paragraphs", [])),
+                        "skip_reason": SKIP_ARTICLE_NOT_IN_SOURCE,
+                    }
+                )
+                logger.warning(
+                    "SKIP article=%s group=%r reason=%s",
+                    aid, m.get("group", ""), SKIP_ARTICLE_NOT_IN_SOURCE,
+                )
+            continue
+        headline = row.get("headline") or src.get("headline", "")
+        paragraphs = src["paragraphs"]
+        for m in row.get("mappings", []):
+            gname = m["group"]
+            gv = group_by_name.get(gname)
+            if gv is None:
+                skipped.append(
+                    {
+                        "article_id": aid,
+                        "group_name": gname,
+                        "asset_class": m.get("asset_class", ""),
+                        "mapper_score": m.get("relevance_score"),
+                        "mapper_evidence_paragraphs": list(m.get("evidence_paragraphs", [])),
+                        "skip_reason": SKIP_GROUP_NOT_IN_UNIVERSE,
+                    }
+                )
+                logger.warning(
+                    "SKIP article=%s group=%r reason=%s",
+                    aid, gname, SKIP_GROUP_NOT_IN_UNIVERSE,
+                )
+                continue
+            inputs.append(
+                GraderInput(
+                    article_id=aid,
+                    headline=headline,
+                    paragraphs=paragraphs,
+                    group_name=gname,
+                    asset_class=m["asset_class"],
+                    member_names=[mem["name"] for mem in gv["members"]],
+                    mapper_score=m["relevance_score"],
+                    mapper_evidence_paragraphs=list(m.get("evidence_paragraphs", [])),
+                )
+            )
+            meta.append(
+                {
+                    "article_id": aid,
+                    "group_name": gname,
+                    "asset_class": m["asset_class"],
+                    "mapper_score": m["relevance_score"],
+                    "mapper_evidence_paragraphs": list(m.get("evidence_paragraphs", [])),
+                }
+            )
+
+    return inputs, meta, skipped
+
+
+def write_sidecar(
+    out_path: Path,
+    meta: list[dict],
+    results: list[GraderResult],
+    skipped: list[dict] | None = None,
+) -> dict:
+    """Write the sidecar JSONL and return a small summary dict.
+
+    Graded rows have ``grader_verdict`` ∈ {correct, borderline, incorrect}
+    and ``skip_reason`` = null. Skipped rows have ``grader_verdict`` =
+    "skipped", null grader scores/evidence, and a non-null
+    ``skip_reason`` naming the cause. This keeps the sidecar
+    self-describing — any consumer can group by ``skip_reason`` to
+    audit grading coverage without a separate file.
+    """
+    if len(meta) != len(results):
+        raise ValueError(
+            f"meta/results length mismatch: {len(meta)} vs {len(results)}"
+        )
+    skipped = skipped or []
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    n_correct = n_incorrect = n_inconsistent = 0
+    skip_reasons: dict[str, int] = {}
+
+    with open(out_path, "w", encoding="utf-8") as f:
+        for m, r in zip(meta, results):
+            flag = is_self_inconsistent(
+                m["mapper_score"], r.relevance_score, r.verdict
+            )
+            row = {
+                "article_id": m["article_id"],
+                "group_name": m["group_name"],
+                "asset_class": m["asset_class"],
+                "mapper_score": m["mapper_score"],
+                "mapper_evidence_paragraphs": m["mapper_evidence_paragraphs"],
+                "grader_evidence_paragraphs": list(r.evidence_paragraphs),
+                "grader_score": r.relevance_score,
+                "grader_verdict": r.verdict,
+                "self_consistency_flag": flag,
+                "skip_reason": None,
+            }
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+            if r.verdict == "correct":
+                n_correct += 1
+            else:
+                n_incorrect += 1
+            if flag:
+                n_inconsistent += 1
+        for s in skipped:
+            row = {
+                "article_id": s["article_id"],
+                "group_name": s["group_name"],
+                "asset_class": s.get("asset_class", ""),
+                "mapper_score": s.get("mapper_score"),
+                "mapper_evidence_paragraphs": s.get("mapper_evidence_paragraphs", []),
+                "grader_evidence_paragraphs": [],
+                "grader_score": None,
+                "grader_verdict": "skipped",
+                "self_consistency_flag": False,
+                "skip_reason": s["skip_reason"],
+            }
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+            skip_reasons[s["skip_reason"]] = skip_reasons.get(s["skip_reason"], 0) + 1
+
+    n_graded = len(meta)
+    n_skipped = len(skipped)
+    summary = {
+        "total_mappings": n_graded + n_skipped,
+        "graded": n_graded,
+        "correct": n_correct,
+        "incorrect": n_incorrect,
+        "self_inconsistent": n_inconsistent,
+        "skipped": n_skipped,
+        "skip_reasons": skip_reasons,
+    }
+    summary_path = out_path.with_suffix(".summary.json")
+    with open(summary_path, "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2)
+    logger.info(
+        "Wrote %d graded + %d skipped rows to %s (+ %s); skip_reasons=%s",
+        n_graded, n_skipped, out_path, summary_path.name, skip_reasons,
+    )
+    return summary
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("--mapper-output", required=True, type=Path,
+                   help="JSONL emitted by src/pipeline.py (one row per article)")
+    p.add_argument("--output", required=True, type=Path,
+                   help="Sidecar JSONL to write")
+    p.add_argument("--model", required=True, type=str,
+                   help="Path to QwQ-32B (or compatible) model directory")
+    p.add_argument("--dataset", choices=["gold", "djnw"], required=True)
+    p.add_argument("--sample-dir", type=Path, default=None,
+                   help="For --dataset gold: directory containing gold_*.json")
+    p.add_argument("--input-file", type=Path, default=None,
+                   help="For --dataset djnw: path to *_clean.jsonl shard")
+    p.add_argument("--max-model-len", type=int, default=8192)
+    p.add_argument("--tensor-parallel-size", type=int, default=1)
+    p.add_argument("--max-tokens", type=int, default=1024)
+    args = p.parse_args()
+
+    # 1. Load source articles (rebuilds full paragraph lists deterministically).
+    if args.dataset == "gold":
+        if args.sample_dir is None:
+            p.error("--dataset gold requires --sample-dir")
+        articles = load_articles(dataset="gold", sample_dir=args.sample_dir)
+    else:  # djnw
+        if args.input_file is None:
+            p.error("--dataset djnw requires --input-file")
+        # Mirror src/pipeline.py:345 — pre-filter articles whose body alone
+        # would push the rendered conversation past max_model_len. Buffer is
+        # 3000 tokens (vs the mapper's 2000) because the grader's generation
+        # budget is 1024 tokens (mapper: 512), so the system-prompt + output
+        # overhead is ~500 tokens larger.
+        max_article_tokens = max(1024, args.max_model_len - 3000)
+        articles = load_articles(
+            dataset="djnw",
+            sample_dir=args.input_file.parent,
+            input_file=args.input_file,
+            max_tokens=max_article_tokens,
+            tokenizer_path=args.model,
+        )
+    source_by_id = {a["id"]: a for a in articles}
+    logger.info("Loaded %d source articles", len(source_by_id))
+
+    # 2. Load mapper output.
+    with open(args.mapper_output, encoding="utf-8") as f:
+        mapper_rows = [json.loads(line) for line in f if line.strip()]
+    logger.info("Loaded %d mapper rows from %s", len(mapper_rows), args.mapper_output)
+
+    # 3. Build inputs.
+    group_universe = load_group_universe()
+    group_by_name = {gv["name"]: gv for gv in group_universe.values()}
+    inputs, meta, skipped = build_tasks(mapper_rows, source_by_id, group_by_name)
+    logger.info("Built %d grader inputs (%d skipped — see WARN logs)",
+                len(inputs), len(skipped))
+
+    # 4. Run grader.
+    grader = LLMGrader(
+        model_path=args.model,
+        max_model_len=args.max_model_len,
+        tensor_parallel_size=args.tensor_parallel_size,
+    )
+    results = grader.grade_batch(inputs, max_tokens=args.max_tokens)
+
+    # 5. Write sidecar.
+    summary = write_sidecar(args.output, meta, results, skipped=skipped)
+    logger.info("Done. Summary: %s", summary)
+
+
+if __name__ == "__main__":
+    main()

@@ -41,10 +41,14 @@ ALL_GROUPS = group_keys(_GROUP_UNIVERSE)
 
 
 def _group_label(group_key: str) -> str:
-    """Build a human-readable group label for the LLM (no exchange — group
-    members may span exchanges; asset_class is the routing-relevant hint)."""
+    """Build a human-readable group label for the LLM, listing constituents
+    so the model anchors on the actual underlying contracts rather than
+    free-associating from the group name (e.g. so "Asia Pacific Equities"
+    is not mistaken for Latin American markets, and "Eurozone Rates" is
+    not confused with Eurodollar/SOFR which lives under US Rates)."""
     g = _GROUP_UNIVERSE[group_key]
-    return f"{g['name']} | {g['asset_class']}"
+    members = ", ".join(m["name"] for m in g["members"])
+    return f"{g['name']} | {g['asset_class']} — constituents: {members}"
 
 
 # ---------------------------------------------------------------------------
