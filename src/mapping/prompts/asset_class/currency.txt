@@ -7,11 +7,25 @@
    discussion of the central bank or country itself.
  - Do not tag commodity or safe-haven flows inferred from the article's
    topic without the FX link stated in the text.
- - Do not tag this currency group if a currency in the group is named
-   only as the unit of an amount or transaction value ("Cdn.$2.65 per
-   share", "350 million euros loan", "GBP 2.3 billion bid", "GBP17M
-   EBITDA"). Rules (2) and (3) require an FX-market force on the
-   currency itself.
+ - Do not tag this currency group if a currency in the group appears
+   only as the unit of measurement on a non-FX figure. The currency
+   code or symbol IS in the article, but the article is not about the
+   currency. Common shapes that all qualify as denomination-only:
+     * earnings or revenue reported in local currency ("1Q pretax
+       profit of SEK2.680 billion", "operating profit doubles to
+       NOK148M", "GBP17M EBITDA")
+     * dividends, share buybacks, or board fees ("dividend of SEK
+       17.00 per share", "C$10 million senior unsecured notes")
+     * analyst price targets or share-price quotes ("price objective
+       to NOK660", "shares down CHF0.35 to CHF72.30")
+     * M&A bid valuations or stake sizes ("3.4 billion euros bid",
+       "valued at A$1.009 billion", "Cdn.$2.65 per share")
+     * FX hedge or debt-issuance amounts inside corporate financials
+       ("foreign exchange contracts to purchase U.S.$2,000 for
+       CA$2,400", "350 million euros loan")
+   Rules (2) and (3) require an FX-market force on the currency
+   itself, not the currency appearing as a price tag on something
+   else.
 
 ===POSITIVE RULES===
 

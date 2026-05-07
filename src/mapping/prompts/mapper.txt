@@ -18,8 +18,9 @@ the end of the input and read it to identify the target asset group.
 Next, internalize the asset-class rules below with that group in
 mind. Finally, scan the article paragraph by paragraph and decide
 whether the target asset group is first-order relevant under one of
-the rules. A localized passage is sufficient; the group need not be
-the article's overall subject.
+the rules. A localized passage is sufficient ONLY when it satisfies
+the BELOW asset-class rules (positives AND disqualifiers) on its own
+merits.
 
 --- DO NOT TAG ---
 Apply these before claiming a positive rule.
