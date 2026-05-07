@@ -154,6 +154,17 @@ def write_sidecar(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     n_correct = n_incorrect = n_inconsistent = 0
     skip_reasons: dict[str, int] = {}
+    by_class: dict[str, dict[str, int]] = {}
+    by_group: dict[str, dict[str, int]] = {}
+
+    def _bump(d: dict[str, dict[str, int]], key: str, verdict: str, flag: bool) -> None:
+        bucket = d.setdefault(
+            key, {"total": 0, "correct": 0, "incorrect": 0, "self_inconsistent": 0}
+        )
+        bucket["total"] += 1
+        bucket[verdict] += 1
+        if flag:
+            bucket["self_inconsistent"] += 1
 
     with open(out_path, "w", encoding="utf-8") as f:
         for m, r in zip(meta, results):
@@ -179,6 +190,8 @@ def write_sidecar(
                 n_incorrect += 1
             if flag:
                 n_inconsistent += 1
+            _bump(by_class, m["asset_class"], r.verdict, flag)
+            _bump(by_group, m["group_name"], r.verdict, flag)
         for s in skipped:
             row = {
                 "article_id": s["article_id"],
@@ -197,6 +210,14 @@ def write_sidecar(
 
     n_graded = len(meta)
     n_skipped = len(skipped)
+
+    def _with_pct(bucket: dict[str, int]) -> dict[str, float | int]:
+        total = bucket["total"]
+        return {
+            **bucket,
+            "correct_pct": round(100 * bucket["correct"] / total, 2) if total else 0.0,
+        }
+
     summary = {
         "total_mappings": n_graded + n_skipped,
         "graded": n_graded,
@@ -205,6 +226,8 @@ def write_sidecar(
         "self_inconsistent": n_inconsistent,
         "skipped": n_skipped,
         "skip_reasons": skip_reasons,
+        "by_asset_class": {k: _with_pct(v) for k, v in sorted(by_class.items())},
+        "by_group": {k: _with_pct(v) for k, v in sorted(by_group.items())},
     }
     summary_path = out_path.with_suffix(".summary.json")
     with open(summary_path, "w", encoding="utf-8") as f:

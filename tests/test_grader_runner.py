@@ -208,6 +208,22 @@ def test_write_sidecar_roundtrip(tmp_path):
         "self_inconsistent": 0,
         "skipped": 0,
         "skip_reasons": {},
+        "by_asset_class": {
+            "commodity": {
+                "total": 2, "correct": 1, "incorrect": 1,
+                "self_inconsistent": 0, "correct_pct": 50.0,
+            },
+        },
+        "by_group": {
+            "Crude Oil": {
+                "total": 1, "correct": 1, "incorrect": 0,
+                "self_inconsistent": 0, "correct_pct": 100.0,
+            },
+            "Natural Gas": {
+                "total": 1, "correct": 0, "incorrect": 1,
+                "self_inconsistent": 0, "correct_pct": 0.0,
+            },
+        },
     }
     summary_file = json.loads((out.with_suffix(".summary.json")).read_text())
     assert summary_file == summary
@@ -246,4 +262,47 @@ def test_write_sidecar_correct_with_large_gap_flags(tmp_path):
     summary = write_sidecar(out, meta, results)
     row = json.loads(out.read_text())
     assert row["self_consistency_flag"] is True
+    assert summary["self_inconsistent"] == 1
+
+
+def test_write_sidecar_by_class_and_by_group_breakdown(tmp_path):
+    # Two asset classes (commodity, rates) split across three groups, with
+    # one self-inconsistent row to verify the overlay accounting per bucket.
+    meta = [
+        {"article_id": "A1", "group_name": "Crude Oil", "asset_class": "commodity",
+         "mapper_score": 0.9, "mapper_evidence_paragraphs": [0]},
+        {"article_id": "A1", "group_name": "Crude Oil", "asset_class": "commodity",
+         "mapper_score": 0.4, "mapper_evidence_paragraphs": []},
+        {"article_id": "A2", "group_name": "Natural Gas", "asset_class": "commodity",
+         "mapper_score": 0.7, "mapper_evidence_paragraphs": [2]},
+        {"article_id": "A2", "group_name": "US Rates", "asset_class": "rates",
+         # self-inconsistent: verdict=correct but |gap|=0.65
+         "mapper_score": 0.85, "mapper_evidence_paragraphs": [3]},
+    ]
+    results = [
+        GraderResult(evidence_paragraphs=[0], relevance_score=0.85, verdict="correct"),
+        GraderResult(evidence_paragraphs=[], relevance_score=0.05, verdict="incorrect"),
+        GraderResult(evidence_paragraphs=[2], relevance_score=0.6, verdict="correct"),
+        GraderResult(evidence_paragraphs=[3], relevance_score=0.20, verdict="correct"),
+    ]
+    out = tmp_path / "sidecar.jsonl"
+    summary = write_sidecar(out, meta, results)
+    assert summary["by_asset_class"] == {
+        "commodity": {"total": 3, "correct": 2, "incorrect": 1,
+                      "self_inconsistent": 0, "correct_pct": 66.67},
+        "rates": {"total": 1, "correct": 1, "incorrect": 0,
+                  "self_inconsistent": 1, "correct_pct": 100.0},
+    }
+    assert summary["by_group"] == {
+        "Crude Oil": {"total": 2, "correct": 1, "incorrect": 1,
+                      "self_inconsistent": 0, "correct_pct": 50.0},
+        "Natural Gas": {"total": 1, "correct": 1, "incorrect": 0,
+                        "self_inconsistent": 0, "correct_pct": 100.0},
+        "US Rates": {"total": 1, "correct": 1, "incorrect": 0,
+                     "self_inconsistent": 1, "correct_pct": 100.0},
+    }
+    # Skipped rows should NOT show up in by_class/by_group
+    assert summary["graded"] == 4
+    assert summary["correct"] == 3
+    assert summary["incorrect"] == 1
     assert summary["self_inconsistent"] == 1
