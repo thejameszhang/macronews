@@ -1,64 +1,71 @@
 # MacroNews
 
-NLP pipeline for global macro futures return prediction. Maps news articles to relevant futures contracts (equity indices, FX, commodities, government bonds, short-term interest rates) using LLM-based classification, then feeds relevance-weighted text into ridge regression for return forecasting.
+NLP pipeline for predicting global macro futures returns from financial news.
 
-This is the first systematic text-as-data study targeting macro futures rather than equities. The key challenge is the **mapping problem**: unlike stocks, macro futures have no ticker mentions in news text, so relevance must be inferred through economic reasoning.
+Most text-as-data finance research targets equities, where company names anchor every article to a ticker. **Macro futures have no such anchors.** This project solves that mapping problem with LLMs, then feeds the asset-attributed text into downstream return regressions.
 
-## Pipeline
+## How it works
 
-**ArticleMapper** — one LLM call per (article, asset) pair. For each pair the model returns:
-  - `relevant`: yes/no
-  - `evidence_paragraphs`: indices of paragraphs where a rule-triggering force appears
-  - `reasoning`: rule citation + quoted phrase from the article
-  - `signal`: `"strong"` if the asset is named in the text, else `"weak"`
-  - `relevance_score`: 0.0--1.0
+```
+  DJNW articles
+       │
+       ▼
+  ┌──────────┐
+  │  Filters │   drop tables, press releases, insider filings,
+  └─────┬────┘   lifestyle pieces, procedural templates, etc.
+        ▼
+  ┌──────────┐
+  │  Mapper  │   Gemma 4 26B-A4B: one call per (article, asset-group).
+  └─────┬────┘   Outputs evidence paragraphs + relevance score per group.
+        ▼
+  asset-group-attributed text  →  downstream return regression
+```
 
-The system prompt is `src/mapping/prompts/mapper.txt` with asset-class-specific disqualifiers and positive rules from `src/mapping/prompts/asset_class/{currency,rates,bonds,commodities,equity_sectors,equity_indices,volatility_indices}.txt` injected per batch.
+Asset universe: ~50 groups spanning global equities, FX, rates, commodities, and US equity sectors. Defined in [`src/config/group_universe.yaml`](src/config/group_universe.yaml).
 
-Downstream ridge regression on relevance-weighted article aggregates is a separate stage outside this repo.
+## Running
+
+```bash
+# Activate the env (do NOT use `uv run` — see Setup)
+source .venv/bin/activate
+
+# Single DJNW shard, production mode
+MODE=prod \
+  INPUT_FILE=/nfs/roberts/project/pi_btk22/rc2573/output/cleaned/v2/articles/2014-05c_clean.jsonl \
+  OUTPUT_DIR=results/prod/v1 \
+  bash scripts/run_pipeline.sh
+
+# Many shards in parallel via SLURM array
+OUT_DIR=results/prod/v1 PATTERN='2014-*' \
+  bash scripts/run_pipeline_array.sh
+```
+
+Outputs are JSONL (one record per article) with sidecar `.summary.json` aggregates.
 
 ## Setup
 
-Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
+Requires Python 3.12, [uv](https://docs.astral.sh/uv/), and a Hopper-or-newer GPU (B200 or H200).
 
 ```bash
-# 1. Install base dependencies
+# 1. Install project dependencies
 uv sync
 
-# 2. Install pip into the venv (uv venvs don't include it by default)
-.venv/bin/python -m ensurepip
-
-# 3. Override vLLM with 0.19.0 (PyPI only has 0.11.0, which lacks Gemma 4 support)
-.venv/bin/python -m pip install vllm --force-reinstall --extra-index-url https://wheels.vllm.ai/nightly
-
-# 4. Override transformers to 5.x (vLLM pins <5, but Gemma 4 config needs 5.x)
-.venv/bin/python -m pip install --upgrade transformers
-
-# 5. Verify
-.venv/bin/python -c "from vllm.model_executor.models.registry import _VLLM_MODELS; assert 'Gemma4ForCausalLM' in _VLLM_MODELS, 'Missing Gemma4'"
+# 2. Install vLLM nightly + transformers 5.x for Gemma 4 support.
+#    Adapted from the vLLM Gemma 4 recipe:
+#      https://docs.vllm.ai/projects/recipes/en/latest/Google/Gemma4.html
+source .venv/bin/activate
+uv pip install -U vllm --pre \
+  --extra-index-url https://wheels.vllm.ai/nightly/cu129 \
+  --extra-index-url https://download.pytorch.org/whl/cu129 \
+  --index-strategy unsafe-best-match
+uv pip install 'transformers==5.5.0'
 ```
 
-> **Note:** `uv sync` alone is insufficient -- the pip overrides in steps 3-4 are required for Gemma 4 model support. Run scripts with `source .venv/bin/activate && python ...`, not `uv run`.
-
-## Running the pipeline
-
-```bash
-# Set model path (defaults to gemma-4-31b-it if unset)
-export MODEL_PATH=$HOME/models/gemma-4-26b-a4b-it
-
-# Gold sample (20 labeled articles) — default
-bash scripts/run_pipeline.sh
-
-# DJNW March 2022, 1000-article seeded sample
-DATASET=djnw MAX_ARTICLES=1000 \
-  START_DATE=2022-03 END_DATE=2022-03 RANDOM_SEED=42 \
-  bash scripts/run_pipeline.sh
-```
-
-Results land in `results/<dataset>_summary.json`. See `scripts/run_pipeline.sh` for all env knobs.
+> Do not use `uv run` — it re-syncs the env and breaks the fragile vLLM / transformers pin.
 
 ## Data
 
-- **Articles**: DJNW cleaned JSONL at `/nfs/roberts/project/pi_btk22/rc2573/output/cleaned/v2/articles/YYYY-MM*_clean.jsonl`. Gold labeled samples for regression checks at `data/articles_sample/gold_*.json`. Sports news and WikiGaming loaders also wired up via `--dataset`.
-- **Returns**: `datasets/sync_daily.csv` (1996--2025, 95 assets)
-- **Asset universe**: `src/config/asset_universe.yaml` (95 active contracts)
+- **Articles**: Dow Jones Newswires (1996–2025), cleaned JSONL shards at `/nfs/roberts/.../v2/articles/`.
+- **Returns**: `datasets/sync_daily.csv` (95 macro futures).
+- **Asset universe**: [`universe.xlsx`](universe.xlsx) — canonical Tier 1 / Tier 2 / Groups reference (human-readable).
+- **Group config**: [`src/config/group_universe.yaml`](src/config/group_universe.yaml) — the live configuration the mapper reads at runtime.
