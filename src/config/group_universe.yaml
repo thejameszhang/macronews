@@ -205,12 +205,17 @@ japanese_equities:
     - name: TOPIX Index (Japan)
       ticker_symbol: '160120006'
 
-asia_pacific_equities:
-  name: Asia Pacific Equities
+china_hk_equities:
+  name: China / Hong Kong Equities
   asset_class: equity index
   members:
     - name: Hang Seng Index (China / Hong Kong)
       ticker_symbol: 'HSI'
+
+asia_pacific_equities:
+  name: Asia Pacific Equities
+  asset_class: equity index
+  members:
     - name: Kospi 200 Index (South Korea)
       ticker_symbol: 'A01'
     - name: MSCI Singapore Index
