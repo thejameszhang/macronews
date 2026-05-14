@@ -36,6 +36,13 @@ if [ -f "$OUT_DIR/${SHARD}.jsonl" ] && [ -f "$OUT_DIR/${SHARD}.summary.json" ]; 
 fi
 
 echo "[task ${SLURM_ARRAY_TASK_ID}] $SHARD: $INPUT_FILE -> $OUT_DIR"
+echo "[task ${SLURM_ARRAY_TASK_ID}] $SHARD start: $(date -Iseconds)"
+START_EPOCH=$(date +%s)
+
+# Print start/end/elapsed even if pipeline.py exits non-zero — `set -e`
+# would otherwise skip the elapsed line on failure, hiding wall-clock
+# data for failed shards (which we still want for capacity planning).
+trap '_end=$(date +%s); echo "[task ${SLURM_ARRAY_TASK_ID}] $SHARD end:   $(date -Iseconds)"; echo "[task ${SLURM_ARRAY_TASK_ID}] $SHARD elapsed: $((_end - START_EPOCH))s ($(( (_end - START_EPOCH) / 60 ))m $(( (_end - START_EPOCH) % 60 ))s)"' EXIT
 
 # Deterministic vLLM output: ~0.09% tag drift on DJNW 1000 articles
 # vs ~29% without the flag. Requires compute capability >= 9.0.
