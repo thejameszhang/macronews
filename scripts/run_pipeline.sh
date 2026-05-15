@@ -34,6 +34,10 @@ MAX_MODEL_LEN="${MAX_MODEL_LEN:-65536}"
 PARTITION="${PARTITION:-priority_gpu}"
 ACCOUNT="${ACCOUNT:-prio_btk22}"
 GRES="${GRES:-gpu:b200:1}"
+# a1117u29n01 is ~3.4x slower than peer B200 nodes (observed on 2014 prod run:
+# 6h35m / 6h48m on this node vs ~2h on others). Override with EXCLUDE_NODES=
+# (empty) to allow it back in if Yale fixes it.
+EXCLUDE_NODES="${EXCLUDE_NODES-a1117u29n01}"
 EXTRA_ARGS="${*}"
 
 # DEV defaults (only used when MODE=dev)
@@ -82,6 +86,11 @@ else
     exit 1
 fi
 
+EXCLUDE_FLAG=""
+if [ -n "$EXCLUDE_NODES" ]; then
+    EXCLUDE_FLAG="--exclude=${EXCLUDE_NODES}"
+fi
+
 jobid=$(sbatch --parsable \
     --job-name="pipeline" \
     --output="logs/pipeline_%j.out" \
@@ -93,6 +102,7 @@ jobid=$(sbatch --parsable \
     --partition=${PARTITION} \
     --account=${ACCOUNT} \
     --gres=${GRES} \
+    ${EXCLUDE_FLAG} \
     --wrap="
         module load Python/3.12.3-GCCcore-13.3.0 2>/dev/null || true
         cd /nfs/roberts/project/pi_btk22/jyz32/macronews

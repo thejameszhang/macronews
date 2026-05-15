@@ -78,8 +78,12 @@ if [ ! -f "$MAPPER_OUTPUT" ]; then
     exit 1
 fi
 
+# a1117u29n01 is ~3.4x slower than peer B200 nodes (observed on 2014 prod run:
+# 6h35m / 6h48m on this node vs ~2h on others). Override with EXCLUDE_NODES=
+# (empty) to allow it back in if Yale fixes it.
+EXCLUDE_NODES="${EXCLUDE_NODES-a1117u29n01}"
 EXCLUDE_FLAG=""
-if [ -n "${EXCLUDE_NODES:-}" ]; then
+if [ -n "$EXCLUDE_NODES" ]; then
     EXCLUDE_FLAG="--exclude=${EXCLUDE_NODES}"
 fi
 
