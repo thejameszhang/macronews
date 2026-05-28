@@ -23,7 +23,9 @@
 #   PARTITION, ACCOUNT, GRES, WALLTIME
 
 set -euo pipefail
-cd /nfs/roberts/project/pi_btk22/jyz32/macronews
+# Resolve repo root from script location so the launcher works regardless
+# of which clone or which user runs it.
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mkdir -p logs results
 
 MODE="${MODE:-gold}"
@@ -101,7 +103,7 @@ jobid=$(sbatch --parsable \
     ${EXCLUDE_FLAG} \
     --wrap="
         module load Python/3.12.3-GCCcore-13.3.0 2>/dev/null || true
-        cd /nfs/roberts/project/pi_btk22/jyz32/macronews
+        cd \$SLURM_SUBMIT_DIR
         source .venv/bin/activate
         export VLLM_BATCH_INVARIANT=1
         # Attention backend is pinned to TRITON_ATTN inside LLMGrader._init_llm

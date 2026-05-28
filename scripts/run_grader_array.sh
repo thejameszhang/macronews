@@ -39,7 +39,9 @@
 # timing logs stay separate from dev/gamma noise.
 
 set -euo pipefail
-cd /nfs/roberts/project/pi_btk22/jyz32/macronews
+# Resolve repo root from script location so the launcher works regardless
+# of which clone or which user runs it.
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 MAPPER_DIR="${MAPPER_DIR:-results/mapper/prod/v1}"
 INPUT_DIR="${INPUT_DIR:-/nfs/roberts/project/pi_btk22/rc2573/output/cleaned/v2/articles}"

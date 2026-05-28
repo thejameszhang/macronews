@@ -4,7 +4,9 @@
 # and runs src/pipeline.py on the corresponding *_clean.jsonl.
 
 set -euo pipefail
-cd /nfs/roberts/project/pi_btk22/jyz32/macronews
+# SLURM_SUBMIT_DIR is the cwd at sbatch time; the parent launcher cd's to
+# the repo root before submitting, so this lands in the repo root.
+cd "${SLURM_SUBMIT_DIR:?must be invoked via sbatch}"
 module load Python/3.12.3-GCCcore-13.3.0 >/dev/null 2>&1 || true
 source .venv/bin/activate
 

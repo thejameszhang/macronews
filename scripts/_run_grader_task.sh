@@ -5,7 +5,9 @@
 # INPUT_DIR/{shard}_clean.jsonl, writing OUT_DIR/{shard}.jsonl.
 
 set -euo pipefail
-cd /nfs/roberts/project/pi_btk22/jyz32/macronews
+# SLURM_SUBMIT_DIR is the cwd at sbatch time; the parent launcher cd's to
+# the repo root before submitting, so this lands in the repo root.
+cd "${SLURM_SUBMIT_DIR:?must be invoked via sbatch}"
 # Module load brings libpython3.12.so.1.0 onto LD_LIBRARY_PATH. We do NOT
 # `source .venv/bin/activate` — on this cluster, module load re-prepends
 # its bin/ to PATH, so plain `python` resolves to the system interpreter

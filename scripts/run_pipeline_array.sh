@@ -37,7 +37,9 @@
 # task's start/end/elapsed timing in its .out file.
 
 set -euo pipefail
-cd /nfs/roberts/project/pi_btk22/jyz32/macronews
+# Resolve repo root from script location so the launcher works regardless
+# of which clone or which user runs it.
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 INPUT_DIR="${INPUT_DIR:-/nfs/roberts/project/pi_btk22/rc2573/output/cleaned/v2/articles}"
 : "${OUT_DIR:?OUT_DIR must be set, e.g. OUT_DIR=results/prod/v1 (no default; prevents accidental writes to the wrong run)}"

@@ -6,10 +6,17 @@
 
 set -euo pipefail
 
+# Resolve repo root from script location so this works regardless of which
+# clone or which user runs it. Then cd so relative paths (article_cache,
+# docs/) resolve to the repo, not the caller's cwd.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
 ID="${1:?Usage: bash scripts/peek_article.sh <accession_number>}"
 CACHE_DIR="article_cache"
-DATA_DIR="/nfs/roberts/project/pi_btk22/rc2573/output/cleaned/v2/articles"
-DOCS_DIR="/nfs/roberts/project/pi_btk22/jyz32/macronews/docs"
+# Lab-wide DJNW cleaned shards (override via env if your install differs).
+DATA_DIR="${DATA_DIR:-/nfs/roberts/project/pi_btk22/rc2573/output/cleaned/v2/articles}"
+DOCS_DIR="${DOCS_DIR:-$REPO_ROOT/docs}"
 CACHE_FILE="${CACHE_DIR}/${ID}.json"
 
 mkdir -p "$CACHE_DIR"
@@ -48,8 +55,6 @@ else
         exit 1
     fi
 fi
-
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Resolve tag codes to descriptions from docs CSVs
 echo "" >&2

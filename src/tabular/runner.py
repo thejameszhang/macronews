@@ -4,7 +4,7 @@ to a sidecar JSONL.
 CLI mirrors src/grading/runner.py:
 
   python src/tabular/runner.py \\
-      --nml-file /nfs/roberts/project/pi_btk22/rc2573/DJN/2002-09.nml \\
+      --nml-file /path/to/DJN/2002-09.nml \\
       --output results/tabular/2002-09.jsonl
 
 Each input line in the sidecar is a TabularResult.model_dump_json() row

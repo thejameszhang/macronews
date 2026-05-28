@@ -4,7 +4,10 @@
 # the tabular runner on it.
 
 set -euo pipefail
-cd /nfs/roberts/project/pi_btk22/jyz32/macronews
+# SLURM_SUBMIT_DIR is the cwd at sbatch time. The parent launcher (which
+# resolves and cd's to the repo root before submitting) makes this the
+# repo root. Direct invocation outside sbatch is unsupported.
+cd "${SLURM_SUBMIT_DIR:?must be invoked via sbatch}"
 module load Python/3.12.3-GCCcore-13.3.0 >/dev/null 2>&1 || true
 
 NML_DIR="/nfs/roberts/project/pi_btk22/rc2573/DJN"

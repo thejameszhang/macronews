@@ -13,7 +13,9 @@
 #
 
 set -euo pipefail
-cd /nfs/roberts/project/pi_btk22/jyz32/macronews
+# Resolve repo root from script location so the launcher works regardless
+# of which clone or which user runs it.
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="${OUT_DIR:-results/tabular}"
 MIN_MONTH="${MIN_MONTH:-1996-01}"
 mkdir -p logs "$OUT_DIR"

@@ -8,14 +8,14 @@ CLI mirrors src/pipeline.py for the gold/dev/prod modes:
     --dataset gold \\
     --sample-dir data/articles_sample \\
     --output results/groups-v2-grader/gold.jsonl \\
-    --model /nfs/roberts/scratch/pi_btk22/jyz32/qwq-32b
+    --model /path/to/qwq-32b
 
   python src/grading/runner.py \\
     --mapper-output results/prod/groups-v2/2014-05c.jsonl \\
     --dataset djnw \\
     --input-file <path>/2014-05c_clean.jsonl \\
     --output results/prod/groups-v2-grader/2014-05c.jsonl \\
-    --model /nfs/roberts/scratch/pi_btk22/jyz32/qwq-32b
+    --model /path/to/qwq-32b
 """
 
 from __future__ import annotations

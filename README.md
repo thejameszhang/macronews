@@ -63,6 +63,13 @@ uv pip install 'transformers==5.5.0'
 
 > Do not use `uv run` — it re-syncs the env and breaks the fragile vLLM / transformers pin.
 
+Then create a `.env` for credentials:
+
+```bash
+cp .env.example .env
+# Edit .env to fill in HF_TOKEN (needed by scripts/download_llm.sh to pull model weights).
+```
+
 ## Data
 
 - **Articles**: Dow Jones Newswires (1996–2025), cleaned JSONL shards at `/nfs/roberts/.../v2/articles/`.
