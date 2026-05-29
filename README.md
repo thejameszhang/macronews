@@ -76,3 +76,7 @@ cp .env.example .env
 - **Returns**: `datasets/sync_daily.csv` (95 macro futures).
 - **Asset universe**: [`universe.xlsx`](universe.xlsx) — canonical Tier 1 / Tier 2 / Groups reference (human-readable).
 - **Group config**: [`src/config/group_universe.yaml`](src/config/group_universe.yaml) — the live configuration the mapper reads at runtime.
+
+## Knowledge Graph
+
+A parallel pipeline ([`src/kg/`](src/kg/)) extracts a **macroeconomic knowledge graph** from the same news corpus: an LLM turns each article into structured *(subject → relationship → object)* facts over a fixed vocabulary of macro entity and relationship types, name variants of an entity are merged across articles, and the facts are aggregated into a directed graph with per-edge provenance (which articles asserted each relationship). [`src/kg/visualize.py`](src/kg/visualize.py) renders the result as a single self-contained, interactive HTML page — GPU force-directed layout, search, type/edge filtering, click-to-focus a node, and source-article inspection. See [`scripts/run_kg.sh`](scripts/run_kg.sh) to run the extraction.

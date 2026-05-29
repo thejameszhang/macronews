@@ -37,5 +37,9 @@ GROUP_UNIVERSE_YAML = CONFIG_DIR / "group_universe.yaml"
 # Prompts
 PROMPTS_DIR = ROOT / "src" / "mapping" / "prompts"
 
+# KG (Phase 1) prompts. Kept separate from PROMPTS_DIR (which is mapper-scoped)
+# so iteration on KG taxonomies doesn't risk touching mapper prompt files.
+KG_PROMPTS_DIR = ROOT / "src" / "kg" / "prompts"
+
 # Default model
 DEFAULT_MODEL = Path.home() / "models" / "gemma-4-31b-it"
