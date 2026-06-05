@@ -350,21 +350,21 @@ def test_disambiguate_titlecases_lowercase_canonical(tmp_path, monkeypatch):
              # "middle east conflict" appears 2x (wins on frequency),
              # "Middle East Conflict" appears 1x.
              {"evidence_paragraphs": [0], "subject": "middle east conflict",
-              "subject_type": "EVENT", "relation": "POSITIVE_IMPACT_ON",
+              "subject_type": "EVENT", "relation": "CAUSES_RISE_IN",
               "object": "Crude Oil", "object_type": "COMMODITY"},
          ],
          "paragraphs": {"0": "p"}},
         {"article_id": "a2", "date": "2026-01-02", "headline": "h",
          "facts": [
              {"evidence_paragraphs": [0], "subject": "middle east conflict",
-              "subject_type": "EVENT", "relation": "POSITIVE_IMPACT_ON",
+              "subject_type": "EVENT", "relation": "CAUSES_RISE_IN",
               "object": "Crude Oil", "object_type": "COMMODITY"},
          ],
          "paragraphs": {"0": "p"}},
         {"article_id": "a3", "date": "2026-01-03", "headline": "h",
          "facts": [
              {"evidence_paragraphs": [0], "subject": "Middle East Conflict",
-              "subject_type": "EVENT", "relation": "POSITIVE_IMPACT_ON",
+              "subject_type": "EVENT", "relation": "CAUSES_RISE_IN",
               "object": "Crude Oil", "object_type": "COMMODITY"},
          ],
          "paragraphs": {"0": "p"}},
@@ -405,7 +405,7 @@ def test_disambiguate_preserves_acronyms_in_canonical(tmp_path, monkeypatch):
         {"article_id": "a1", "date": "2026-01-01", "headline": "h",
          "facts": [
              {"evidence_paragraphs": [0], "subject": "U.S. CPI Inflation",
-              "subject_type": "ECON_INDICATOR", "relation": "POSITIVE_IMPACT_ON",
+              "subject_type": "ECON_INDICATOR", "relation": "CAUSES_RISE_IN",
               "object": "Gold", "object_type": "COMMODITY"},
          ],
          "paragraphs": {"0": "p"}},

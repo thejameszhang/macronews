@@ -22,8 +22,8 @@ EXAMPLE
 
 {"facts": [
   {"evidence_paragraphs": [0], "subject": "Federal Reserve", "subject_type": "CENTRAL_BANK", "relation": "RAISES", "object": "U.S. Federal Funds Rate", "object_type": "INTEREST_RATE"},
-  {"evidence_paragraphs": [0], "subject": "U.S. Federal Funds Rate", "subject_type": "INTEREST_RATE", "relation": "POSITIVE_IMPACT_ON", "object": "U.S. Dollar", "object_type": "CURRENCY"},
-  {"evidence_paragraphs": [0], "subject": "U.S. Federal Funds Rate", "subject_type": "INTEREST_RATE", "relation": "NEGATIVE_IMPACT_ON", "object": "S&P 500", "object_type": "INDEX"}
+  {"evidence_paragraphs": [0], "subject": "U.S. Federal Funds Rate", "subject_type": "INTEREST_RATE", "relation": "CAUSES_RISE_IN", "object": "U.S. Dollar", "object_type": "CURRENCY"},
+  {"evidence_paragraphs": [0], "subject": "U.S. Federal Funds Rate", "subject_type": "INTEREST_RATE", "relation": "CAUSES_FALL_IN", "object": "S&P 500", "object_type": "INDEX"}
 ]}
 
 Now apply this to the following article.

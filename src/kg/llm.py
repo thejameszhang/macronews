@@ -71,7 +71,7 @@ class LLMExtractor:
     def __init__(
         self,
         model_path: str,
-        max_model_len: int = 8192,
+        max_model_len: int = 65536,  # production context (matches the runner default)
         tensor_parallel_size: int = 1,
     ):
         self.model_path = model_path

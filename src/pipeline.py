@@ -92,7 +92,13 @@ def load_articles(
     if dataset == "gold":
         return load_gold_articles(sample_dir)
     elif dataset == "sports":
-        return load_sports_articles(sample_dir, max_articles=max_articles)
+        return load_sports_articles(
+            sample_dir,
+            max_articles=max_articles,
+            max_tokens=max_tokens,
+            tokenizer_path=tokenizer_path,
+            chars_per_token=chars_per_token,
+        )
     elif dataset == "wikigaming":
         return load_wikigaming_articles(sample_dir, max_articles=max_articles)
     elif dataset == "djnw":

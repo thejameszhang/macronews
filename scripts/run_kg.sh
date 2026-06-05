@@ -37,7 +37,13 @@ cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mkdir -p logs results/kg/dev
 
 MODE="${MODE:-gold}"
-MODEL_PATH="${MODEL_PATH:-/nfs/roberts/scratch/pi_btk22/jyz32/gemma-4-26b-a4b-it}"
+# KG uses the DENSE Gemma-4 31B, NOT the mapper's 26B-A4B MoE. The KG extractor
+# makes ONE pass per article and must find+type every entity and relation at once
+# (high per-call reasoning load), where the dense model is materially cleaner. A/B
+# 2026-06-04 (March-2022 dev, same prompts, grader fixed): macro-relevance 3x better,
+# typing halved, fewer hallucinations, ~flat fabrication; ~2x slower (acceptable).
+# The mapper's narrow one-asset-group-per-call passes keep the faster A4B.
+MODEL_PATH="${MODEL_PATH:-/nfs/roberts/scratch/pi_btk22/jyz32/gemma-4-31b-it}"
 # Match mapper's default — keeps both pipelines on the same context window
 # so the token-length filter at load time produces the same article pool.
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-65536}"

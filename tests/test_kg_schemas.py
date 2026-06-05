@@ -55,16 +55,17 @@ def test_specific_relations_present():
                 "ANNOUNCES", "REPORTS", "PRODUCES", "ACQUIRES", "INVESTS_IN",
                 "CONTROLS", "REGULATES", "IMPOSES",
                 "RAISES", "DECREASES",
-                "POSITIVE_IMPACT_ON", "NEGATIVE_IMPACT_ON", "IMPACT",
+                "CAUSES_RISE_IN", "CAUSES_FALL_IN", "IMPACT",
                 "RELATED_TO"):
         assert rel in RELATION_TYPES_TUPLE
 
 
 def test_v1_relations_removed():
-    """v1 had CAUSES, ISSUED_BY, AFFILIATED_WITH, PARTICIPATES_IN — gone."""
+    """v1 had CAUSES, ISSUED_BY, AFFILIATED_WITH, PARTICIPATES_IN — gone.
+    Scheme B renamed POSITIVE/NEGATIVE_IMPACT_ON -> CAUSES_RISE_IN/CAUSES_FALL_IN."""
     for old in ("CAUSES", "ISSUED_BY", "AFFILIATED_WITH", "PARTICIPATES_IN",
-                "LOWERS"):  # LOWERS replaced by DECREASES + NEGATIVE_IMPACT_ON
-        assert old not in RELATION_TYPES_TUPLE, f"v1 relation {old!r} still present"
+                "LOWERS", "POSITIVE_IMPACT_ON", "NEGATIVE_IMPACT_ON"):
+        assert old not in RELATION_TYPES_TUPLE, f"removed relation {old!r} still present"
 
 
 def test_kg_fact_field_order_is_cot():

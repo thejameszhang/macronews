@@ -21,9 +21,9 @@ def _f(s, s_t, r, o, o_t, ev):
 
 def test_dedup_merges_triples_unions_evidence():
     facts = [
-        _f("Fed", "CENTRAL_BANK", "POSITIVE_IMPACT_ON", "Inflation", "CONCEPT", [18]),
-        _f("Fed", "CENTRAL_BANK", "POSITIVE_IMPACT_ON", "Inflation", "CONCEPT", [19]),
-        _f("Fed", "CENTRAL_BANK", "POSITIVE_IMPACT_ON", "Inflation", "CONCEPT", [22]),
+        _f("Fed", "CENTRAL_BANK", "CAUSES_RISE_IN", "Inflation", "CONCEPT", [18]),
+        _f("Fed", "CENTRAL_BANK", "CAUSES_RISE_IN", "Inflation", "CONCEPT", [19]),
+        _f("Fed", "CENTRAL_BANK", "CAUSES_RISE_IN", "Inflation", "CONCEPT", [22]),
     ]
     out = _postprocess_facts(facts)
     assert len(out) == 1
@@ -32,8 +32,8 @@ def test_dedup_merges_triples_unions_evidence():
 
 def test_dedup_preserves_distinct_triples():
     facts = [
-        _f("Fed", "CENTRAL_BANK", "POSITIVE_IMPACT_ON", "Inflation", "CONCEPT", [1]),
-        _f("Fed", "CENTRAL_BANK", "POSITIVE_IMPACT_ON", "U.S. Dollar", "CURRENCY", [2]),
+        _f("Fed", "CENTRAL_BANK", "CAUSES_RISE_IN", "Inflation", "CONCEPT", [1]),
+        _f("Fed", "CENTRAL_BANK", "CAUSES_RISE_IN", "U.S. Dollar", "CURRENCY", [2]),
         _f("ECB", "CENTRAL_BANK", "CONTROLS", "Eurozone Inflation", "CONCEPT", [3]),
     ]
     out = _postprocess_facts(facts)
@@ -42,8 +42,8 @@ def test_dedup_preserves_distinct_triples():
 
 def test_dedup_unions_overlapping_evidence_without_dupes():
     facts = [
-        _f("Trump", "PERSON", "POSITIVE_IMPACT_ON", "Fed", "CENTRAL_BANK", [10, 18]),
-        _f("Trump", "PERSON", "POSITIVE_IMPACT_ON", "Fed", "CENTRAL_BANK", [18, 19]),
+        _f("Trump", "PERSON", "CAUSES_RISE_IN", "Fed", "CENTRAL_BANK", [10, 18]),
+        _f("Trump", "PERSON", "CAUSES_RISE_IN", "Fed", "CENTRAL_BANK", [18, 19]),
     ]
     out = _postprocess_facts(facts)
     assert len(out) == 1
@@ -79,9 +79,9 @@ def test_strip_leak_with_type_name_as_object():
 
 def test_strip_leak_with_type_name_as_subject():
     facts = [
-        _f("COMMODITY", "COMMODITY", "POSITIVE_IMPACT_ON",
+        _f("COMMODITY", "COMMODITY", "CAUSES_RISE_IN",
            "South Africa", "SOVEREIGN", [10]),                       # leak
-        _f("Crude Oil", "COMMODITY", "POSITIVE_IMPACT_ON",
+        _f("Crude Oil", "COMMODITY", "CAUSES_RISE_IN",
            "U.S. CPI Inflation", "ECON_INDICATOR", [6]),
     ]
     out = _postprocess_facts(facts)
@@ -96,7 +96,7 @@ def test_leak_strip_covers_all_entity_codes():
     for code in ENTITY_TYPES_TUPLE:
         # subject_type and object_type chosen arbitrarily; only the
         # subject/object string matters for the leak check.
-        facts = [_f(code, "PERSON", "POSITIVE_IMPACT_ON",
+        facts = [_f(code, "PERSON", "CAUSES_RISE_IN",
                     "Gold", "COMMODITY", [1])]
         assert _postprocess_facts(facts) == [], \
             f"leak slipped through: {code}"
@@ -105,7 +105,7 @@ def test_leak_strip_covers_all_entity_codes():
 def test_postprocess_preserves_first_occurrence_order():
     facts = [
         _f("A", "PERSON", "OWNS", "B", "COMPANY", [1]),
-        _f("C", "PERSON", "POSITIVE_IMPACT_ON", "D", "INDEX", [2]),
+        _f("C", "PERSON", "CAUSES_RISE_IN", "D", "INDEX", [2]),
         _f("A", "PERSON", "OWNS", "B", "COMPANY", [3]),  # dup of first
     ]
     out = _postprocess_facts(facts)

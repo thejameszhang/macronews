@@ -12,7 +12,7 @@ COMMODITY:       Commodity (e.g., "Crude Oil")
 INTEREST_RATE:   Interest rate (e.g., "U.S. Federal Funds Rate", NOT a value like "3.5%")
 INDEX:           Equity index (e.g., "S&P 500")
 GOV_BOND:        Government bond (e.g., "U.S. Treasury Bonds", "German Bund")
-FIN_INSTRUMENT:  Financial instrument (e.g., "Corporate Bonds", "Mortgage-Backed Securities")
+FIN_INSTRUMENT:  Any tradable or issued financial security or derivative, such as "Mortgage-Backed Securities" or "Credit Default Swaps" (illustrative, not exhaustive); NOT a private legal or employment contract. Use the most specific applicable type instead when one fits: government debt is GOV_BOND, a commodity (including its futures) is COMMODITY, a currency is CURRENCY, an equity index is INDEX. FIN_INSTRUMENT is the residual — only for instruments with no more-specific listed type.
 ECON_INDICATOR:  Economic indicator (e.g., "U.S. CPI Inflation", NOT a value like "2.4%")
 CONCEPT:         Concept (e.g., "Recession")
 EVENT:           Event (e.g., "Russia-Ukraine War", "Covid-19")

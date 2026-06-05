@@ -102,8 +102,8 @@ def test_prompt_has_one_macro_example():
     assert "Federal Reserve" in rendered
     assert "CENTRAL_BANK" in rendered
     assert "RAISES" in rendered
-    assert "POSITIVE_IMPACT_ON" in rendered
-    assert "NEGATIVE_IMPACT_ON" in rendered
+    assert "CAUSES_RISE_IN" in rendered
+    assert "CAUSES_FALL_IN" in rendered
 
 
 def test_prompt_total_size_is_lean():

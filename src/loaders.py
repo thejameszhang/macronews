@@ -189,6 +189,9 @@ def load_sports_articles(
     data_dir: Path,
     max_articles: int | None = None,
     year: int | None = None,
+    max_tokens: int | None = None,
+    tokenizer_path: str | None = None,
+    chars_per_token: float = 2.0,
 ) -> list[dict]:
     """Load sports news articles, converting to the standard schema.
 
@@ -200,6 +203,13 @@ def load_sports_articles(
         Limit number of articles loaded.
     year : int, optional
         Load only articles from a specific year subdirectory.
+    max_tokens : int, optional
+        Skip articles whose text exceeds this token count (same filter as the
+        djnw loader, so an over-long article can't blow the model context).
+    tokenizer_path : str, optional
+        Model path for the ``max_tokens`` filter's tokenizer.
+    chars_per_token : float, optional
+        Conservative lower bound on chars-per-token for the fast-path filter.
     """
     if year is not None:
         year_dir = data_dir / str(year)
@@ -218,12 +228,30 @@ def load_sports_articles(
     if max_articles is not None:
         files = files[:max_articles]
 
+    # Lazy tokenizer for the optional length filter (mirrors load_djnw_articles).
+    tokenizer = None
+    fast_path_limit_chars = int(max_tokens * chars_per_token) if max_tokens else None
+    skipped_long = 0
+
     articles = []
     for f in files:
         with open(f) as fh:
             raw = json.load(fh)
 
         text = clean_web_text(raw["text"])
+
+        # Token-length filter. Fast path: text under chars_per_token*max_tokens
+        # chars cannot exceed max_tokens. Slow path: tokenize and check exactly.
+        if max_tokens is not None and len(text) > fast_path_limit_chars:
+            if tokenizer is None:
+                from transformers import AutoTokenizer
+                if tokenizer_path is None:
+                    raise ValueError("tokenizer_path required when max_tokens is set")
+                tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+            if len(tokenizer.encode(text, add_special_tokens=False)) > max_tokens:
+                skipped_long += 1
+                continue
+
         paragraphs = split_into_paragraphs(text)
         if not paragraphs:
             logger.warning("Skipping %s — empty text", f.name)
@@ -245,6 +273,8 @@ def load_sports_articles(
         len(articles), data_dir,
         f" (year={year})" if year else "",
     )
+    if skipped_long:
+        logger.info("Skipped %d sports articles exceeding %d tokens", skipped_long, max_tokens)
     return articles
 
 

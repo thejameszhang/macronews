@@ -175,9 +175,11 @@ def write_sidecar(
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--dataset", choices=["gold", "djnw"], required=True)
+    p.add_argument("--dataset", choices=["gold", "djnw", "sports"], required=True)
     p.add_argument("--sample-dir", type=Path, default=None,
                    help="For --dataset gold: directory containing gold_*.json")
+    p.add_argument("--sports-dir", type=Path, default=None,
+                   help="For --dataset sports: root of data/sports_news_1994_2000")
     p.add_argument("--input-file", type=Path, default=None,
                    help="For --dataset djnw: path to a single *_clean.jsonl shard. "
                         "Mutually exclusive with --data-dir / --start-date / --end-date.")
@@ -190,8 +192,9 @@ def main():
     p.add_argument("--end-date", type=str, default=None,
                    help="For --dataset djnw + --data-dir: YYYY-MM upper bound (inclusive).")
     p.add_argument("--max-articles", type=int, default=None,
-                   help="For --dataset djnw + --data-dir: cap on number of articles loaded. "
-                        "Combine with --random-seed for deterministic sub-sampling.")
+                   help="Cap on number of articles loaded. For --dataset djnw + "
+                        "--data-dir, combine with --random-seed for deterministic "
+                        "sub-sampling; also caps --dataset sports.")
     p.add_argument("--random-seed", type=int, default=None,
                    help="For --dataset djnw + --data-dir: random seed for sub-sampling. "
                         "If set, loads ALL matching articles then samples --max-articles.")
@@ -199,7 +202,10 @@ def main():
                    help="Sidecar JSONL to write")
     p.add_argument("--model", required=True, type=str,
                    help="Path to Gemma 4 31B (or compatible) model directory")
-    p.add_argument("--max-model-len", type=int, default=8192)
+    # Production context window (same as the mapper and run_kg.sh's djnw mode).
+    # Keeps the loader's length cap (max_model_len - 2000) generous so articles
+    # are rarely dropped for length on direct runner calls (djnw or sports).
+    p.add_argument("--max-model-len", type=int, default=65536)
     p.add_argument("--tensor-parallel-size", type=int, default=1)
     p.add_argument(
         "--max-tokens", type=int, default=2048,
@@ -215,6 +221,17 @@ def main():
         if args.sample_dir is None:
             p.error("--dataset gold requires --sample-dir")
         articles = load_articles(dataset="gold", sample_dir=args.sample_dir)
+    elif args.dataset == "sports":
+        if args.sports_dir is None:
+            p.error("--dataset sports requires --sports-dir")
+        # Same token budget as the djnw path so a long sports article can't
+        # blow the model context (max_model_len - 2000, matching the mapper).
+        articles = load_articles(
+            dataset="sports", sample_dir=args.sports_dir,
+            max_articles=args.max_articles,
+            max_tokens=max(1024, args.max_model_len - 2000),
+            tokenizer_path=args.model,
+        )
     else:  # djnw
         # Two sub-modes, mutually exclusive:
         #   (A) --input-file: process a single *_clean.jsonl shard end-to-end
