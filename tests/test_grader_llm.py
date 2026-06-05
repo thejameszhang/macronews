@@ -1,4 +1,4 @@
-"""Tests for src/grading/llm.py — prompt construction only (no model)."""
+"""Tests for src/mapping/grading/llm.py — prompt construction only (no model)."""
 
 import sys
 from pathlib import Path
@@ -6,7 +6,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
 
-from grading.llm import GraderInput, LLMGrader  # noqa: E402
+from mapping.grading.llm import GraderInput, LLMGrader  # noqa: E402
 
 
 def make_input(**overrides):

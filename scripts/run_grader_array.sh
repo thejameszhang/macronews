@@ -3,7 +3,7 @@
 # SLURM array launcher for the macronews grader across multiple shards.
 # One array task per shard listed in MAPPER_DIR. Each task joins
 # MAPPER_DIR/{shard}.jsonl with INPUT_DIR/{shard}_clean.jsonl, calls
-# QwQ-32B (or compatible) via src/grading/runner.py, and writes
+# QwQ-32B (or compatible) via src/mapping/grading/runner.py, and writes
 # OUT_DIR/{shard}.jsonl + .summary.json.
 #
 # Idempotent: at submit time, shards where OUT_DIR/{shard}.jsonl AND

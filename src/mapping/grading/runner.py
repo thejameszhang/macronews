@@ -3,14 +3,14 @@ calls, writes sidecar JSONL.
 
 CLI mirrors src/pipeline.py for the gold/dev/prod modes:
 
-  python src/grading/runner.py \\
+  python src/mapping/grading/runner.py \\
     --mapper-output results/groups-v2/gold.jsonl \\
     --dataset gold \\
     --sample-dir data/articles_sample \\
     --output results/groups-v2-grader/gold.jsonl \\
     --model /path/to/qwq-32b
 
-  python src/grading/runner.py \\
+  python src/mapping/grading/runner.py \\
     --mapper-output results/prod/groups-v2/2014-05c.jsonl \\
     --dataset djnw \\
     --input-file <path>/2014-05c_clean.jsonl \\
@@ -26,11 +26,11 @@ import logging
 import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[2]
+REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "src"))
 
-from grading.llm import GraderInput, LLMGrader  # noqa: E402
-from grading.schemas import GraderResult, is_self_inconsistent  # noqa: E402
+from mapping.grading.llm import GraderInput, LLMGrader  # noqa: E402
+from mapping.grading.schemas import GraderResult, is_self_inconsistent  # noqa: E402
 from pipeline import load_articles  # noqa: E402  — reuses gold/djnw loaders
 from utils.groups import load_group_universe  # noqa: E402
 

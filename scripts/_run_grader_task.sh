@@ -1,7 +1,7 @@
 #!/bin/bash
 # Worker invoked by scripts/run_grader_array.sh as a SLURM array task.
 # Reads SHARD basename from the SLURM_ARRAY_TASK_ID-th line of MANIFEST_FILE
-# and runs src/grading/runner.py joining MAPPER_DIR/{shard}.jsonl with
+# and runs src/mapping/grading/runner.py joining MAPPER_DIR/{shard}.jsonl with
 # INPUT_DIR/{shard}_clean.jsonl, writing OUT_DIR/{shard}.jsonl.
 
 set -euo pipefail
@@ -65,7 +65,7 @@ trap '_end=$(date +%s); echo "[task ${SLURM_ARRAY_TASK_ID}] $SHARD end:   $(date
 # FA2's PTX is sm_90-only so it crashes on B200).
 export VLLM_BATCH_INVARIANT=1
 
-PYTHONPATH=src .venv/bin/python src/grading/runner.py \
+PYTHONPATH=src .venv/bin/python src/mapping/grading/runner.py \
     --mapper-output "$MAPPER_OUTPUT" \
     --output "$OUTPUT_FILE" \
     --model "$MODEL_PATH" \

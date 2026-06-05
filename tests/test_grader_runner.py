@@ -1,4 +1,4 @@
-"""Tests for src/grading/runner.py — build_tasks + write_sidecar (no model)."""
+"""Tests for src/mapping/grading/runner.py — build_tasks + write_sidecar (no model)."""
 
 import json
 import sys
@@ -7,8 +7,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
 
-from grading.runner import build_tasks, write_sidecar  # noqa: E402
-from grading.schemas import GraderResult  # noqa: E402
+from mapping.grading.runner import build_tasks, write_sidecar  # noqa: E402
+from mapping.grading.schemas import GraderResult  # noqa: E402
 
 
 def _source_article(aid="A1"):

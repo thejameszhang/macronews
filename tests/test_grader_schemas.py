@@ -1,4 +1,4 @@
-"""Tests for src/grading/schemas.py."""
+"""Tests for src/mapping/grading/schemas.py."""
 
 import json
 import sys
@@ -9,7 +9,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
 
-from grading.schemas import GraderResult, is_self_inconsistent  # noqa: E402
+from mapping.grading.schemas import GraderResult, is_self_inconsistent  # noqa: E402
 
 
 def test_default_construction():

@@ -109,7 +109,7 @@ jobid=$(sbatch --parsable \
         # Attention backend is pinned to TRITON_ATTN inside LLMGrader._init_llm
         # (vLLM 0.19.0 + VLLM_BATCH_INVARIANT=1 rejects None on Qwen2-arch;
         # FA2's PTX is sm_90-only so it crashes on B200).
-        PYTHONPATH=src python src/grading/runner.py \
+        PYTHONPATH=src python src/mapping/grading/runner.py \
             --mapper-output ${MAPPER_OUTPUT} \
             --output ${OUTPUT_FILE} \
             --model ${MODEL_PATH} \

@@ -1,7 +1,7 @@
 """Runner: streams a raw .nml file → writes one TabularResult per article
 to a sidecar JSONL.
 
-CLI mirrors src/grading/runner.py:
+CLI mirrors src/mapping/grading/runner.py:
 
   python src/tabular/runner.py \\
       --nml-file /path/to/DJN/2002-09.nml \\

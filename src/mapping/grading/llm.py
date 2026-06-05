@@ -15,11 +15,11 @@ from pathlib import Path
 import compat  # noqa: F401  — transformers / vLLM compat shim
 
 from config.paths import ROOT
-from grading.schemas import GraderResult
+from mapping.grading.schemas import GraderResult
 
 logger = logging.getLogger(__name__)
 
-GRADER_PROMPT_PATH = ROOT / "src" / "grading" / "prompts" / "grader.txt"
+GRADER_PROMPT_PATH = ROOT / "src" / "mapping" / "grading" / "prompts" / "grader.txt"
 
 
 @dataclass

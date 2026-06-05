@@ -1,7 +1,7 @@
 """KG fact-extraction runner.
 
 Loads articles via pipeline.load_articles, runs LLMExtractor, writes
-sidecar JSONL + summary. CLI mirrors src/grading/runner.py.
+sidecar JSONL + summary. CLI mirrors src/mapping/grading/runner.py.
 
 Gold usage:
   python src/kg/runner.py \\
