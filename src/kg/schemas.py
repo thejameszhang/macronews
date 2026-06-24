@@ -14,45 +14,53 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-# 18 entity codes. SCREAMING_SNAKE_CASE per FINDKG convention; short
+# 19 entity codes. SCREAMING_SNAKE_CASE per FINDKG convention; short
 # codes (GPE, ORG, GOV_BODY, REG_BODY) for the types whose long names
 # add no information.
 ENTITY_TYPES_TUPLE = (
     "PERSON", "SOVEREIGN", "GPE",
     "CENTRAL_BANK", "GOV_BODY", "REG_BODY",
-    "COMPANY", "ORG", "SECTOR",
-    "CURRENCY", "COMMODITY", "INTEREST_RATE", "INDEX",
+    "COMPANY", "ORG", "US_GICS_SECTOR",
+    "CURRENCY", "COMMODITY", "INTEREST_RATE", "EQUITY_INDEX",
     "GOV_BOND", "FIN_INSTRUMENT",
-    "ECON_INDICATOR", "CONCEPT", "EVENT",
+    "ECON_INDICATOR", "ASSET_METRIC", "CONCEPT", "EVENT",
 )
 ENTITY_TYPES = Literal[
     "PERSON", "SOVEREIGN", "GPE",
     "CENTRAL_BANK", "GOV_BODY", "REG_BODY",
-    "COMPANY", "ORG", "SECTOR",
-    "CURRENCY", "COMMODITY", "INTEREST_RATE", "INDEX",
+    "COMPANY", "ORG", "US_GICS_SECTOR",
+    "CURRENCY", "COMMODITY", "INTEREST_RATE", "EQUITY_INDEX",
     "GOV_BOND", "FIN_INSTRUMENT",
-    "ECON_INDICATOR", "CONCEPT", "EVENT",
+    "ECON_INDICATOR", "ASSET_METRIC", "CONCEPT", "EVENT",
 ]
 
-# 18 relations. RAISES/DECREASES = actor-with-authority action on a
-# variable they control. CAUSES_RISE_IN/CAUSES_FALL_IN/IMPACT =
-# downstream causal effects observed in the article.
+# 15 relations. RAISES/DECREASES/LEAVES_UNCHANGED = actor-with-authority
+# action on a variable they control (up / down / held). CAUSES_RISE_IN/
+# CAUSES_FALL_IN/IMPACT = downstream causal effects observed in the article.
+# FORECASTS = a forward-looking view (predicts / expects / projects).
 RELATION_TYPES_TUPLE = (
-    "OWNS", "HOLDS_POSITION", "IS_MEMBER_OF", "OPERATES_IN",
-    "ANNOUNCES", "REPORTS", "PRODUCES", "ACQUIRES", "INVESTS_IN",
+    "IS_MEMBER_OF", "OPERATES_IN",
+    "ANNOUNCES", "REPORTS", "FORECASTS", "PRODUCES",
     "CONTROLS", "REGULATES", "IMPOSES",
-    "RAISES", "DECREASES",
+    "RAISES", "DECREASES", "LEAVES_UNCHANGED",
     "CAUSES_RISE_IN", "CAUSES_FALL_IN", "IMPACT",
-    "RELATED_TO",
 )
 RELATION_TYPES = Literal[
-    "OWNS", "HOLDS_POSITION", "IS_MEMBER_OF", "OPERATES_IN",
-    "ANNOUNCES", "REPORTS", "PRODUCES", "ACQUIRES", "INVESTS_IN",
+    "IS_MEMBER_OF", "OPERATES_IN",
+    "ANNOUNCES", "REPORTS", "FORECASTS", "PRODUCES",
     "CONTROLS", "REGULATES", "IMPOSES",
-    "RAISES", "DECREASES",
+    "RAISES", "DECREASES", "LEAVES_UNCHANGED",
     "CAUSES_RISE_IN", "CAUSES_FALL_IN", "IMPACT",
-    "RELATED_TO",
 ]
+
+# Synthetic node type for asset-group anchors, materialized by build_graph from the
+# resolution layer. NOT an extractor entity type — deliberately kept out of
+# ENTITY_TYPES/ENTITY_TYPES_TUPLE (the extractor never emits it). The viz palette
+# appends it so existing type->color assignments don't shift.
+ASSET_GROUP_NODE_TYPE = "ASSET_GROUP"
+# Synthetic membership relation; NOT in RELATION_TYPES_TUPLE (structural, not a news
+# claim) so it is excluded from the grader fact set.
+ASSET_GROUP_RELATION = "RELATED_TO_ASSET_GROUP"
 
 
 class KGFact(BaseModel):

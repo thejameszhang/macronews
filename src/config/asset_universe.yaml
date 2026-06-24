@@ -51,13 +51,6 @@ ZW:
   asset_class: commodity
   curcdd: USD
   ric: W
-  primers:
-    - tier: a
-      url: "https://www.ers.usda.gov/topics/crops/wheat/wheat-sector-at-a-glance/"
-      source: "USDA Economic Research Service"
-    - tier: b
-      url: "https://hedgepointglobal.com/en/blog/how-is-the-price-of-wheat-formed"
-      source: "Hedgepoint Global"
 KE:
   exchange_name: Kansas City Board of Trade
   calcseriesname: KCBT-HRW WHEAT COMP CONTINUOUS
@@ -65,13 +58,6 @@ KE:
   asset_class: commodity
   curcdd: USD
   ric: KW
-  primers:
-    - tier: a
-      url: "https://www.ers.usda.gov/topics/crops/wheat/wheat-sector-at-a-glance/"
-      source: "USDA Economic Research Service"
-    - tier: b
-      url: "https://www.cmegroup.com/education/courses/introduction-to-grains-and-oilseeds/wheat-production-use-and-transportation.html"
-      source: "CME Group"
 ZC:
   exchange_name: Chicago Board of Trade (CBOT)
   calcseriesname: CBT-CORN COMP. CONTINUOUS
@@ -79,13 +65,6 @@ ZC:
   asset_class: commodity
   curcdd: USD
   ric: C
-  primers:
-    - tier: a
-      url: "https://www.ers.usda.gov/topics/crops/corn-and-other-feed-grains/feed-grains-sector-at-a-glance/"
-      source: "USDA Economic Research Service"
-    - tier: b
-      url: "https://agoptimus.com/factors-that-drive-corn-futures-prices/"
-      source: "AgOptimus"
 ZS:
   exchange_name: eCBOT
   calcseriesname: CBT-SOYBEANS COMP. CONT.
@@ -93,13 +72,6 @@ ZS:
   asset_class: commodity
   curcdd: USD
   ric: S
-  primers:
-    - tier: a
-      url: "https://www.ers.usda.gov/topics/crops/soybeans-and-oil-crops/oil-crops-sector-at-a-glance/"
-      source: "USDA Economic Research Service"
-    - tier: b
-      url: "https://www.andersonintl.com/soybean-trading-101-understanding-the-basics-of-trading-soybean-futures/"
-      source: "Anderson International"
 KC:
   exchange_name: New York Board of Trade (NYBOT)
   calcseriesname: CSCE-COFFEE 'C' CONTINUOUS
@@ -107,15 +79,6 @@ KC:
   asset_class: commodity
   curcdd: USD
   ric: KC
-  primers:
-    - tier: a
-      # url: "https://www.fas.usda.gov/data/coffee-world-markets-and-trade"  # BLOCKED (timeout)
-      # url: "https://www.investopedia.com/articles/optioninvestor/07/soft_market.asp"
-      url: "https://www.ico.org/documents/cy2025-26/cmr-0126-e.pdf"
-      source: "International Coffee Organization"
-    - tier: b
-      url: "https://www.craigs.coffee/blog/understanding-the-coffee-c-market-and-its-impact-on-green-coffee-prices"
-      source: "Craig's Coffee"
 SB:
   exchange_name: New York Board of Trade (NYBOT)
   calcseriesname: "CSCE-SUGAR #11 CONTINUOUS"
@@ -123,13 +86,6 @@ SB:
   asset_class: commodity
   curcdd: USD
   ric: SB
-  primers:
-    - tier: a
-      url: "https://www.ers.usda.gov/topics/crops/sugar-and-sweeteners/background/"
-      source: "USDA Economic Research Service"
-    - tier: b
-      url: "https://www.teqsgroup.com/post/the-economics-of-sugar-understanding-the-key-factors-driving-sugar-prices"
-      source: "TEQS Group"
 CC:
   exchange_name: New York Board of Trade (NYBOT)
   calcseriesname: CSCE-COCOA CONTINUOUS
@@ -137,13 +93,6 @@ CC:
   asset_class: commodity
   curcdd: USD
   ric: CC
-  primers:
-    - tier: a
-      url: "https://www.icco.org/about-us/who-we-are/"
-      source: "International Cocoa Organization"
-    - tier: b
-      url: "https://www.icco.org/processing-cocoa/"
-      source: "International Cocoa Organization"
 CT:
   exchange_name: New York Board of Trade (NYBOT)
   calcseriesname: "CSCE-COTTON #2 CONTINUOUS"
@@ -151,13 +100,6 @@ CT:
   asset_class: commodity
   curcdd: USD
   ric: CT
-  primers:
-    - tier: a
-      url: "https://www.ers.usda.gov/topics/crops/cotton-and-wool/cotton-sector-at-a-glance/"
-      source: "USDA Economic Research Service"
-    - tier: b
-      url: "https://www.cotton.org/issues/2005/upload/worldcottonmarket.pdf"
-      source: "The National Cotton Council"
 HE:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-LEAN HOGS COMP. CONTINUOUS
@@ -165,13 +107,6 @@ HE:
   asset_class: commodity
   curcdd: USD
   ric: LH
-  primers:
-    - tier: a
-      url: "https://www.ers.usda.gov/topics/animal-products/hogs-pork/sector-at-a-glance/"
-      source: "USDA Economic Research Service"
-    - tier: b
-      url: "https://www.ers.usda.gov/topics/animal-products/hogs-pork/market-outlook/"
-      source: "USDA Economic Research Service"
 LE:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-LIVE CATTLE COMP. CONTINUOUS
@@ -179,13 +114,6 @@ LE:
   asset_class: commodity
   curcdd: USD
   ric: LC
-  primers:
-    - tier: a
-      url: "https://www.ers.usda.gov/topics/animal-products/cattle-beef/sector-at-a-glance/"
-      source: "USDA Economic Research Service"
-    - tier: b
-      url: "https://www.ers.usda.gov/topics/animal-products/cattle-beef/market-outlook/"
-      source: "USDA Economic Research Service"
 GF:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-FEEDER CATTLE COMP. CONTINUOUS
@@ -193,13 +121,6 @@ GF:
   asset_class: commodity
   curcdd: USD
   ric: FC
-  primers:
-    - tier: a
-      url: "https://www.ers.usda.gov/topics/animal-products/cattle-beef/sector-at-a-glance/"
-      source: "USDA Economic Research Service"
-    - tier: b
-      url: "https://www.ers.usda.gov/topics/animal-products/cattle-beef/market-outlook/"
-      source: "USDA Economic Research Service"
 CL:
   exchange_name: New York Mercantile Exchange
   calcseriesname: NYM-LIGHT CRUDE OIL CONTINUOUS
@@ -207,13 +128,6 @@ CL:
   asset_class: commodity
   curcdd: USD
   ric: CL
-  primers:
-    - tier: a
-      url: "https://www.eia.gov/energyexplained/oil-and-petroleum-products/prices-and-outlook.php"
-      source: "U.S. Energy Information Administration"
-    - tier: b
-      url: "https://www.eia.gov/finance/markets/crudeoil/"
-      source: "U.S. Energy Information Administration"
 HO:
   exchange_name: New York Mercantile Exchange
   calcseriesname: NYM-NY HARBOR ULSD CONTINUOUS
@@ -221,13 +135,6 @@ HO:
   asset_class: commodity
   curcdd: USD
   ric: HO
-  primers:
-    - tier: a
-      url: "https://www.eia.gov/energyexplained/heating-oil/"
-      source: "U.S. Energy Information Administration"
-    - tier: b
-      url: "https://www.eia.gov/energyexplained/heating-oil/factors-affecting-heating-oil-prices.php"
-      source: "U.S. Energy Information Administration"
 RB:
   exchange_name: New York Mercantile Exchange
   calcseriesname: NYMEX-RBOB GASOLINE CONTINUOUS
@@ -235,13 +142,6 @@ RB:
   asset_class: commodity
   curcdd: USD
   ric: RB
-  primers:
-    - tier: a
-      url: "https://www.eia.gov/energyexplained/gasoline/"
-      source: "U.S. Energy Information Administration"
-    - tier: b
-      url: "https://www.eia.gov/energyexplained/gasoline/factors-affecting-gasoline-prices.php"
-      source: "U.S. Energy Information Administration"
 G:
   exchange_name: ICE Futures Europe
   calcseriesname: ICE-GAS OIL CONTINUOUS
@@ -249,13 +149,6 @@ G:
   asset_class: commodity
   curcdd: USD
   ric: LGO
-  primers:
-    - tier: a
-      url: "https://www.eia.gov/energyexplained/diesel-fuel/"
-      source: "U.S. Energy Information Administration"
-    - tier: b
-      url: "https://www.eia.gov/energyexplained/heating-oil/factors-affecting-heating-oil-prices.php"
-      source: "U.S. Energy Information Administration"
 BRN:
   exchange_name: ICE Futures Europe
   calcseriesname: ICE-BRENT CRUDE OIL CONTINUOUS
@@ -263,13 +156,6 @@ BRN:
   asset_class: commodity
   curcdd: USD
   ric: LCO
-  primers:
-    - tier: a
-      url: "https://www.eia.gov/energyexplained/oil-and-petroleum-products/prices-and-outlook.php"
-      source: "U.S. Energy Information Administration"
-    - tier: b
-      url: "https://www.eia.gov/finance/markets/crudeoil/"
-      source: "U.S. Energy Information Administration"
 NG:
   exchange_name: New York Mercantile Exchange
   calcseriesname: NYM-NATURAL GAS CONTINUOUS
@@ -277,13 +163,6 @@ NG:
   asset_class: commodity
   curcdd: USD
   ric: NG
-  primers:
-    - tier: a
-      url: "https://www.eia.gov/energyexplained/natural-gas/"
-      source: "U.S. Energy Information Administration"
-    - tier: b
-      url: "https://www.eia.gov/energyexplained/natural-gas/factors-affecting-natural-gas-prices.php"
-      source: "U.S. Energy Information Administration"
 AHD:
   exchange_name: London Metal Exchange
   calcseriesname: LME-ALUMINIUM CONTINUOUS
@@ -291,13 +170,6 @@ AHD:
   asset_class: commodity
   curcdd: USD
   ric: CMAL
-  primers:
-    - tier: a
-      url: "https://www.usgs.gov/centers/national-minerals-information-center/aluminum-statistics-and-information"
-      source: "U.S. Geological Survey"
-    - tier: b
-      url: "https://www.kloecknermetals.com/blog/factors-affecting-aluminum-pricing/"
-      source: "Kloeckner Metals"
 CAD:
   exchange_name: London Metal Exchange
   calcseriesname: LME-COPPER CONTINUOUS
@@ -305,13 +177,6 @@ CAD:
   asset_class: commodity
   curcdd: USD
   ric: CMCU
-  primers:
-    - tier: a
-      url: "https://www.usgs.gov/centers/national-minerals-information-center/copper-statistics-and-information"
-      source: "U.S. Geological Survey"
-    - tier: b
-      url: "https://internationalcopper.org/sustainable-copper/about-copper/cu-demand-long-term-availability/"
-      source: "International Copper Association"
 NID:
   exchange_name: London Metal Exchange
   calcseriesname: LME-NICKEL CONTINUOUS
@@ -319,13 +184,6 @@ NID:
   asset_class: commodity
   curcdd: USD
   ric: CMNI
-  primers:
-    - tier: a
-      url: "https://www.usgs.gov/centers/national-minerals-information-center/nickel-statistics-and-information"
-      source: "U.S. Geological Survey"
-    - tier: b
-      url: "https://nickelinstitute.org/en/nickel-applications/"
-      source: "Nickel Institute"
 PBD:
   exchange_name: London Metal Exchange
   calcseriesname: LME-LEAD CONTINUOUS
@@ -333,14 +191,6 @@ PBD:
   asset_class: commodity
   curcdd: USD
   ric: CMPB
-  primers:
-    - tier: a
-      url: "https://www.usgs.gov/centers/national-minerals-information-center/lead-statistics-and-information"
-      source: "U.S. Geological Survey"
-    - tier: b
-      # url: "https://ila-lead.org/about-lead/"  # BLOCKED/THIN
-      url: "https://www.investopedia.com/terms/b/base-metals.asp"
-      source: "Investopedia"
 ZSD:
   exchange_name: London Metal Exchange
   calcseriesname: LME-ZINC CONTINUOUS
@@ -348,14 +198,6 @@ ZSD:
   asset_class: commodity
   curcdd: USD
   ric: CMZN
-  primers:
-    - tier: a
-      url: "https://www.usgs.gov/centers/national-minerals-information-center/zinc-statistics-and-information"
-      source: "U.S. Geological Survey"
-    - tier: b
-      # url: "https://www.zinc.org/zinc-uses/"  # BLOCKED/THIN
-      url: "https://www.investopedia.com/terms/b/base-metals.asp"
-      source: "Investopedia"
 GC:
   exchange_name: Commodities Exchange Center
   calcseriesname: CMX-GOLD 100 OZ CONTINUOUS
@@ -363,13 +205,6 @@ GC:
   asset_class: commodity
   curcdd: USD
   ric: GC
-  primers:
-    - tier: a
-      url: "https://www.gold.org/about-gold/"
-      source: "World Gold Council"
-    - tier: b
-      url: "https://www.gold.org/goldhub/research/relevance-of-gold-as-a-strategic-asset"
-      source: "World Gold Council"
 SI:
   exchange_name: Commodities Exchange Center
   calcseriesname: CMX-SILVER 5000 OZ CONT.TRADITIONAL
@@ -377,13 +212,6 @@ SI:
   asset_class: commodity
   curcdd: USD
   ric: SI
-  primers:
-    - tier: a
-      url: "https://www.silverinstitute.org/silver-supply-demand/"
-      source: "Silver Institute"
-    - tier: b
-      url: "https://www.silverinstitute.org/silver-in-industry/"
-      source: "Silver Institute"
 HG:
   exchange_name: Commodities Exchange Center
   calcseriesname: CMX-HIGH GRADE COPPER CONT.TRAD
@@ -391,13 +219,6 @@ HG:
   asset_class: commodity
   curcdd: USD
   ric: HG
-  primers:
-    - tier: a
-      url: "https://www.usgs.gov/centers/national-minerals-information-center/copper-statistics-and-information"
-      source: "U.S. Geological Survey"
-    - tier: b
-      url: "https://internationalcopper.org/sustainable-copper/about-copper/cu-demand-long-term-availability/"
-      source: "International Copper Association"
 ### BONDS FUTURES ###
 ZB:
   exchange_name: Chicago Board of Trade (CBOT)
@@ -406,14 +227,6 @@ ZB:
   asset_class: government bond
   curcdd: USD
   ric: US
-  primers:
-    - tier: a
-      url: "https://www.treasurydirect.gov/marketable-securities/treasury-bonds/"
-      source: "U.S. Treasury — TreasuryDirect"
-    - tier: b
-      # url: "https://www.stlouisfed.org/education/the-yield-curve"  # BLOCKED (timeout)
-      url: "https://www.investopedia.com/terms/y/yieldcurve.asp"
-      source: "Investopedia"
 ZT:
   exchange_name: Chicago Board of Trade (CBOT)
   calcseriesname: CBT-2 YEAR US T-NOTE COMP. CONTINUOUS
@@ -421,14 +234,6 @@ ZT:
   asset_class: government bond
   curcdd: USD
   ric: TU
-  primers:
-    - tier: a
-      url: "https://www.treasurydirect.gov/marketable-securities/treasury-notes/"
-      source: "U.S. Treasury — TreasuryDirect"
-    - tier: b
-      # url: "https://www.stlouisfed.org/education/the-yield-curve"  # BLOCKED (timeout)
-      url: "https://www.investopedia.com/terms/y/yieldcurve.asp"
-      source: "Investopedia"
 ZF:
   exchange_name: Chicago Board of Trade (CBOT)
   calcseriesname: CBT-5 YEAR US T-NOTE COMP. CONT.
@@ -436,14 +241,6 @@ ZF:
   asset_class: government bond
   curcdd: USD
   ric: FV
-  primers:
-    - tier: a
-      url: "https://www.treasurydirect.gov/marketable-securities/treasury-notes/"
-      source: "U.S. Treasury — TreasuryDirect"
-    - tier: b
-      # url: "https://www.stlouisfed.org/education/the-yield-curve"  # BLOCKED (timeout)
-      url: "https://www.investopedia.com/terms/y/yieldcurve.asp"
-      source: "Investopedia"
 ZN:
   exchange_name: Chicago Board of Trade (CBOT)
   calcseriesname: CBT-10 YRS US T-NOTE COMP. CONTINUOUS
@@ -451,14 +248,6 @@ ZN:
   asset_class: government bond
   curcdd: USD
   ric: TY
-  primers:
-    - tier: a
-      url: "https://www.treasurydirect.gov/marketable-securities/treasury-notes/"
-      source: "U.S. Treasury — TreasuryDirect"
-    - tier: b
-      # url: "https://www.stlouisfed.org/education/the-yield-curve"  # BLOCKED (timeout)
-      url: "https://www.investopedia.com/terms/y/yieldcurve.asp"
-      source: "Investopedia"
 FGBS:
   exchange_name: EUREX
   calcseriesname: EUREX-EURO SCHATZ CONTINUOUS
@@ -466,13 +255,6 @@ FGBS:
   asset_class: government bond
   curcdd: EUR
   ric: FGBS
-  primers:
-    - tier: a
-      url: "https://www.deutsche-finanzagentur.de/en/federal-securities/types-of-federal-securities/"
-      source: "Deutsche Finanzagentur"
-    - tier: b
-      url: "https://www.bundesbank.de/en/statistics/money-and-capital-markets/interest-rates-and-yields/term-structure-of-interest-rates"
-      source: "Deutsche Bundesbank"
 FGBM:
   exchange_name: EUREX
   calcseriesname: EUREX-EURO BOBL CONTINUOUS
@@ -480,13 +262,6 @@ FGBM:
   asset_class: government bond
   curcdd: EUR
   ric: FGBM
-  primers:
-    - tier: a
-      url: "https://www.deutsche-finanzagentur.de/en/federal-securities/types-of-federal-securities/"
-      source: "Deutsche Finanzagentur"
-    - tier: b
-      url: "https://www.bundesbank.de/en/statistics/money-and-capital-markets/interest-rates-and-yields/term-structure-of-interest-rates"
-      source: "Deutsche Bundesbank"
 FGBL:
   exchange_name: EUREX
   calcseriesname: EUREX-EURO BUND CONTINUOUS
@@ -494,13 +269,6 @@ FGBL:
   asset_class: government bond
   curcdd: EUR
   ric: FGBL
-  primers:
-    - tier: a
-      url: "https://www.deutsche-finanzagentur.de/en/federal-securities/types-of-federal-securities/"
-      source: "Deutsche Finanzagentur"
-    - tier: b
-      url: "https://www.bundesbank.de/en/statistics/money-and-capital-markets/interest-rates-and-yields/term-structure-of-interest-rates"
-      source: "Deutsche Bundesbank"
 FGBX:
   exchange_name: EUREX
   calcseriesname: EUREX-EURO BUXL CONTINUOUS
@@ -508,13 +276,6 @@ FGBX:
   asset_class: government bond
   curcdd: EUR
   ric: FGBX
-  primers:
-    - tier: a
-      url: "https://www.deutsche-finanzagentur.de/en/federal-securities/types-of-federal-securities/"
-      source: "Deutsche Finanzagentur"
-    - tier: b
-      url: "https://www.bundesbank.de/en/statistics/money-and-capital-markets/interest-rates-and-yields/term-structure-of-interest-rates"
-      source: "Deutsche Bundesbank"
 FOAT:
   exchange_name: EUREX
   calcseriesname: EUREX-LONG EURO OAT CONTINUOUS
@@ -522,14 +283,6 @@ FOAT:
   asset_class: government bond
   curcdd: EUR
   ric: FOAT
-  primers:
-    - tier: a
-      # url: "https://www.aft.gouv.fr/en/oats"  # BLOCKED (403)
-      url: "https://www.ecb.europa.eu/stats/financial_markets_and_interest_rates/euro_area_yield_curves/html/index.en.html"
-      source: "European Central Bank"
-    - tier: b
-      url: "https://www.ecb.europa.eu/mopo/intro/html/index.en.html"
-      source: "European Central Bank"
 FBTP:
   exchange_name: EUREX
   calcseriesname: EUREX-EURO BTP CONTINUOUS
@@ -537,14 +290,6 @@ FBTP:
   asset_class: government bond
   curcdd: EUR
   ric: FBTP
-  primers:
-    - tier: a
-      # url: "https://www.dt.mef.gov.it/en/debito_pubblico/titoli_di_stato/"  # BLOCKED/THIN
-      url: "https://www.investopedia.com/terms/g/government-bond.asp"
-      source: "Investopedia"
-    - tier: b
-      url: "https://www.ecb.europa.eu/mopo/intro/html/index.en.html"
-      source: "European Central Bank"
 CONF:
   exchange_name: EUREX
   calcseriesname: EUREX-SWISS CONF CONTINUOUS
@@ -552,14 +297,6 @@ CONF:
   asset_class: government bond
   curcdd: CHF
   ric: CONF
-  primers:
-    - tier: a
-      # url: "https://www.snb.ch/en/the-snb/mandates-goals/services-to-the-confederation/federal-bonds"  # BLOCKED/THIN
-      url: "https://www.investopedia.com/terms/c/chf.asp"
-      source: "Investopedia"
-    - tier: b
-      url: "https://www.snb.ch/en/the-snb/mandates-goals/monetary-policy"
-      source: "Swiss National Bank"
 R:
   exchange_name: Euronext.LIFFE London
   calcseriesname: LIFFE-LONG GILT CONTINUOUS
@@ -567,15 +304,6 @@ R:
   asset_class: government bond
   curcdd: GBP
   ric: FLG
-  primers:
-    - tier: a
-      # url: "https://www.dmo.gov.uk/responsibilities/gilt-market/about-gilts/"  # BLOCKED (bot detection)
-      url: "https://www.investopedia.com/terms/g/gilts.asp"
-      source: "Investopedia"
-    - tier: b
-      # url: "https://www.bankofengland.co.uk/monetary-policy"  # BLOCKED/THIN
-      url: "https://www.investopedia.com/terms/b/boe.asp"
-      source: "Investopedia"
 CGB:
   exchange_name: Montreal Exchange
   calcseriesname: ME-10Y CANADIAN GOVT BOND CONTINUOUS
@@ -583,14 +311,6 @@ CGB:
   asset_class: government bond
   curcdd: CAD
   ric: CGB
-  primers:
-    - tier: a
-      # url: "https://www.canada.ca/en/department-finance/programs/government-debt.html"  # BLOCKED (404)
-      url: "https://www.bankofcanada.ca/markets/government-securities-auctions/"
-      source: "Bank of Canada"
-    - tier: b
-      url: "https://www.bankofcanada.ca/core-functions/monetary-policy/"
-      source: "Bank of Canada"
 "160120001":
   exchange_name: Osaka Exchange
   calcseriesname: TSE-10 YEAR T-BOND CONTINUOUS
@@ -598,14 +318,6 @@ CGB:
   asset_class: government bond
   curcdd: JPY
   ric: JGB
-  primers:
-    - tier: a
-      # url: "https://www.mof.go.jp/english/jgbs/index.htm"  # BLOCKED (404)
-      url: "https://www.investopedia.com/terms/j/jgb.asp"
-      source: "Investopedia"
-    - tier: b
-      url: "https://www.boj.or.jp/en/mopo/outline/index.htm"
-      source: "Bank of Japan"
 YT:
   exchange_name: Sydney Futures Exchange
   calcseriesname: SFE-AUST 3 YEAR T-BOND CONT.
@@ -613,14 +325,6 @@ YT:
   asset_class: government bond
   curcdd: AUD
   ric: YTT
-  primers:
-    - tier: a
-      # url: "https://www.aofm.gov.au/ags/about-ags"  # BLOCKED (timeout)
-      url: "https://www.investopedia.com/terms/g/government-bond.asp"
-      source: "Investopedia"
-    - tier: b
-      url: "https://www.rba.gov.au/education/resources/explainers/bonds-and-the-yield-curve.html"
-      source: "Reserve Bank of Australia"
 XT:
   exchange_name: Sydney Futures Exchange
   calcseriesname: SFE-AUST 10 YEAR T-BOND CONT.
@@ -628,14 +332,6 @@ XT:
   asset_class: government bond
   curcdd: AUD
   ric: YTC
-  primers:
-    - tier: a
-      # url: "https://www.aofm.gov.au/ags/about-ags"  # BLOCKED (timeout)
-      url: "https://www.investopedia.com/terms/g/government-bond.asp"
-      source: "Investopedia"
-    - tier: b
-      url: "https://www.rba.gov.au/education/resources/explainers/bonds-and-the-yield-curve.html"
-      source: "Reserve Bank of Australia"
 ### CURRENCY FUTURES ###
 6A:
   exchange_name: Chicago Mercantile Exchange (CME)
@@ -644,13 +340,6 @@ XT:
   asset_class: currency
   curcdd: USD
   ric: AD
-  primers:
-    - tier: a
-      url: "https://www.rba.gov.au/education/resources/explainers/exchange-rates-and-the-australian-economy.html"
-      source: "Reserve Bank of Australia"
-    - tier: b
-      url: "https://www.rba.gov.au/monetary-policy/"
-      source: "Reserve Bank of Australia"
 6B:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-STERLING COMP. CONTINUOUS
@@ -659,14 +348,6 @@ XT:
   curcdd: USD
   libor: L
   ric: BP
-  primers:
-    - tier: a
-      # url: "https://www.bankofengland.co.uk/monetary-policy"  # BLOCKED/THIN
-      url: "https://www.investopedia.com/terms/b/boe.asp"
-      source: "Investopedia"
-    - tier: b
-      url: "https://www.bankofengland.co.uk/explainers/why-are-interest-rates-in-the-uk-going-up"
-      source: "Bank of England"
 6C:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-CANADIAN DOLLAR COMP. CONTINUOUS
@@ -674,13 +355,6 @@ XT:
   asset_class: currency
   curcdd: USD
   ric: CD
-  primers:
-    - tier: a
-      url: "https://www.bankofcanada.ca/core-functions/monetary-policy/"
-      source: "Bank of Canada"
-    - tier: b
-      url: "https://www.bankofcanada.ca/rates/exchange/daily-exchange-rates/"
-      source: "Bank of Canada"
 6E:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-EURO COMP. CONTINUOUS
@@ -688,13 +362,6 @@ XT:
   asset_class: currency
   curcdd: USD
   ric: URO
-  primers:
-    - tier: a
-      url: "https://www.ecb.europa.eu/mopo/intro/html/index.en.html"
-      source: "European Central Bank"
-    - tier: b
-      url: "https://www.ecb.europa.eu/mopo/strategy/html/index.en.html"
-      source: "European Central Bank"
 6J:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-JAPANESE YEN COMP. CONTINUOUS
@@ -702,13 +369,6 @@ XT:
   asset_class: currency
   curcdd: USD
   ric: JY
-  primers:
-    - tier: a
-      url: "https://www.boj.or.jp/en/mopo/outline/index.htm"
-      source: "Bank of Japan"
-    - tier: b
-      url: "https://www.boj.or.jp/en/mopo/measures/index.htm"
-      source: "Bank of Japan"
 6N:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-NEW ZEALAND $ COMP. CONTINUOUS
@@ -716,16 +376,6 @@ XT:
   asset_class: currency
   curcdd: USD
   ric: NE
-  primers:
-    - tier: a
-      # url: "https://www.rbnz.govt.nz/monetary-policy/about-monetary-policy"  # BLOCKED (403)
-      # url: "https://www.rbnz.govt.nz/monetary-policy"  # BLOCKED (403)
-      url: "https://www.investopedia.com/terms/o/overnightrate.asp"
-      source: "Investopedia"
-    - tier: b
-      # url: "https://www.rbnz.govt.nz/monetary-policy/monetary-policy-statement"  # BLOCKED (403)
-      url: "https://www.investopedia.com/terms/o/overnightrate.asp"
-      source: "Investopedia"
 6S:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-SWISS FRANC COMP. CONTINUOUS
@@ -733,13 +383,6 @@ XT:
   asset_class: currency
   curcdd: USD
   ric: SF
-  primers:
-    - tier: a
-      url: "https://www.snb.ch/en/the-snb/mandates-goals/monetary-policy"
-      source: "Swiss National Bank"
-    - tier: b
-      url: "https://www.snb.ch/en/the-snb/mandates-goals/monetary-policy/strategy"
-      source: "Swiss National Bank"
 NOK:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-NORWEGIAN KRONE CONTINUOUS
@@ -747,14 +390,6 @@ NOK:
   asset_class: currency
   curcdd: USD
   ric: NOKA
-  primers:
-    - tier: a
-      url: "https://www.norges-bank.no/en/topics/monetary-policy/"
-      source: "Norges Bank"
-    - tier: b
-      # url: "https://www.norges-bank.no/en/topics/monetary-policy/monetary-policy-report/"  # BLOCKED/THIN
-      url: "https://www.investopedia.com/terms/n/nok.asp"
-      source: "Investopedia"
 SEK:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-SWEDISH KRONA CONTINUOUS
@@ -762,13 +397,6 @@ SEK:
   asset_class: currency
   curcdd: USD
   ric: SEKA
-  primers:
-    - tier: a
-      url: "https://www.riksbank.se/en-gb/monetary-policy/"
-      source: "Sveriges Riksbank"
-    - tier: b
-      url: "https://www.riksbank.se/en-gb/monetary-policy/the-inflation-target/"
-      source: "Sveriges Riksbank"
 ### EQUITY MARKET INDEX FUTURES ###
 ES:
   exchange_name: Chicago Mercantile Exchange (CME)
@@ -777,14 +405,6 @@ ES:
   asset_class: equity index
   curcdd: USD
   ric: ES
-  primers:
-    - tier: a
-      # url: "https://www.spglobal.com/spdji/en/indices/equity/sp-500/#overview"  # BLOCKED (403)
-      url: "https://www.investopedia.com/terms/s/sp500.asp"
-      source: "Investopedia"
-    - tier: b
-      url: "https://www.federalreserve.gov/monetarypolicy.htm"
-      source: "U.S. Federal Reserve"
 NQ:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-E MINI NASDAQ 100 CONTINUOUS
@@ -792,13 +412,6 @@ NQ:
   asset_class: equity index
   curcdd: USD
   ric: NQ
-  primers:
-    - tier: a
-      url: "https://www.nasdaq.com/solutions/nasdaq-100-index"
-      source: "Nasdaq"
-    - tier: b
-      url: "https://www.federalreserve.gov/monetarypolicy.htm"
-      source: "U.S. Federal Reserve"
 RTY:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-E-MINI RUSSELL 2000 C CONT
@@ -806,13 +419,6 @@ RTY:
   asset_class: equity index
   curcdd: USD
   ric: RTY
-  primers:
-    - tier: a
-      url: "https://www.ftserussell.com/products/indices/russell-us"
-      source: "FTSE Russell"
-    - tier: b
-      url: "https://www.federalreserve.gov/monetarypolicy.htm"
-      source: "U.S. Federal Reserve"
 EMD:
   exchange_name: Chicago Mercantile Exchange (CME)
   calcseriesname: CME-EMINI S&P 400 MIDCAP CONTINUOU
@@ -820,14 +426,6 @@ EMD:
   asset_class: equity index
   curcdd: USD
   ric: DM
-  primers:
-    - tier: a
-      # url: "https://www.spglobal.com/spdji/en/indices/equity/sp-400/#overview"  # BLOCKED (403)
-      url: "https://www.investopedia.com/terms/s/sp-midcap-400-index.asp"
-      source: "Investopedia"
-    - tier: b
-      url: "https://www.federalreserve.gov/monetarypolicy.htm"
-      source: "U.S. Federal Reserve"
 YM:
   exchange_name: Chicago Board of Trade (CBOT)
   calcseriesname: CBT-MINI DOW JONES CONTINUOUS
@@ -835,14 +433,6 @@ YM:
   asset_class: equity index
   curcdd: USD
   ric: YM
-  primers:
-    - tier: a
-      # url: "https://www.spglobal.com/spdji/en/indices/equity/dow-jones-industrial-average/#overview"  # BLOCKED (403)
-      url: "https://www.investopedia.com/terms/d/djia.asp"
-      source: "Investopedia"
-    - tier: b
-      url: "https://www.federalreserve.gov/monetarypolicy.htm"
-      source: "U.S. Federal Reserve"
 AP:
   exchange_name: Sydney Futures Exchange
   calcseriesname: SFE-SPI 200 INDEX CONT. TRAD
@@ -850,14 +440,6 @@ AP:
   asset_class: equity index
   curcdd: AUD
   ric: YAP
-  primers:
-    - tier: a
-      # url: "https://www.spglobal.com/spdji/en/indices/equity/sp-asx-200/#overview"  # BLOCKED (403)
-      url: "https://www.investopedia.com/terms/a/asx.asp"
-      source: "Investopedia"
-    - tier: b
-      url: "https://www.rba.gov.au/monetary-policy/"
-      source: "Reserve Bank of Australia"
 Z:
   exchange_name: Euronext.LIFFE London
   calcseriesname: LIFFE-FTSE 100 INDEX CONTINUOUS
@@ -865,14 +447,6 @@ Z:
   asset_class: equity index
   curcdd: GBP
   ric: FFI
-  primers:
-    - tier: a
-      url: "https://www.ftserussell.com/products/indices/uk"
-      source: "FTSE Russell"
-    - tier: b
-      # url: "https://www.bankofengland.co.uk/monetary-policy"  # BLOCKED/THIN
-      url: "https://www.investopedia.com/terms/b/boe.asp"
-      source: "Investopedia"
 SXF:
   exchange_name: Montreal Stock Exchange
   calcseriesname: ME-S&P CANADA 60 INDEX CONT.
@@ -880,14 +454,6 @@ SXF:
   asset_class: equity index
   curcdd: CAD
   ric: SXF
-  primers:
-    - tier: a
-      # url: "https://www.spglobal.com/spdji/en/indices/equity/sp-tsx-60/#overview"  # BLOCKED (403)
-      url: "https://www.investopedia.com/terms/s/sp-tsx-composite-index.asp"
-      source: "Investopedia"
-    - tier: b
-      url: "https://www.bankofcanada.ca/core-functions/monetary-policy/"
-      source: "Bank of Canada"
 FESX:
   exchange_name: EUREX
   calcseriesname: EUREX-EURO STOXX 50 CONTINUOUS
@@ -895,13 +461,6 @@ FESX:
   asset_class: equity index
   curcdd: EUR
   ric: STXE
-  primers:
-    - tier: a
-      url: "https://www.stoxx.com/index-details?symbol=SX5E"
-      source: "STOXX (Qontigo)"
-    - tier: b
-      url: "https://www.ecb.europa.eu/mopo/intro/html/index.en.html"
-      source: "European Central Bank"
 FCE:
   exchange_name: Euronext Paris
   calcseriesname: MONEP-CAC 40 INDEX CONTINUOUS
@@ -909,13 +468,6 @@ FCE:
   asset_class: equity index
   curcdd: EUR
   ric: FCE
-  primers:
-    - tier: a
-      url: "https://live.euronext.com/en/product/indices/FR0003500008-XPAR"
-      source: "Euronext"
-    - tier: b
-      url: "https://www.banque-france.fr/en/monetary-strategy"
-      source: "Banque de France"
 FDAX:
   exchange_name: EUREX
   calcseriesname: EUREX-DAX INDEX CONTINUOUS
@@ -923,13 +475,6 @@ FDAX:
   asset_class: equity index
   curcdd: EUR
   ric: FDX
-  primers:
-    - tier: a
-      url: "https://www.dax-indices.com/index-details?isin=DE0008469008"
-      source: "Deutsche Börse (DAX Indices)"
-    - tier: b
-      url: "https://www.ecb.europa.eu/mopo/intro/html/index.en.html"
-      source: "European Central Bank"
 FIE:
   exchange_name: MEFF Renta Variable
   calcseriesname: MEFF-IBEX 35 PLUS INDEX CONT.
@@ -937,14 +482,6 @@ FIE:
   asset_class: equity index
   curcdd: EUR
   ric: MFXI
-  primers:
-    - tier: a
-      url: "https://www.bolsasymercados.es/bme-exchange/en/faqs/what-is-ibex-35"
-      source: "Bolsas y Mercados Españoles"
-    - tier: b
-      # url: "https://www.bde.es/wbe/en/areas-actuacion/politica-monetaria/"  # BLOCKED/THIN
-      url: "https://www.investopedia.com/terms/e/european-sovereign-debt-crisis.asp"
-      source: "Investopedia"
 FIB:
   exchange_name: Italian Derivatives Market
   calcseriesname: IDEM-FTSE MIB CONTINUOUS
@@ -952,13 +489,6 @@ FIB:
   asset_class: equity index
   curcdd: EUR
   ric: IFS
-  primers:
-    - tier: a
-      url: "https://live.euronext.com/en/product/index-futures/fib-dmil"
-      source: "Euronext Milan"
-    - tier: b
-      url: "https://www.ecb.europa.eu/mopo/intro/html/index.en.html"
-      source: "European Central Bank"
 HSI:
   exchange_name: Hong Kong Futures Exchange
   calcseriesname: HKFE-HANG SENG INDEX CONTINUOUS
@@ -966,14 +496,6 @@ HSI:
   asset_class: equity index
   curcdd: HKD
   ric: HSI
-  primers:
-    - tier: a
-      # url: "https://www.hsi.com.hk/eng/indexes/all-indexes/hsi"  # BLOCKED (no text extracted, JS-rendered)
-      url: "https://www.investopedia.com/terms/h/hangseng.asp"
-      source: "Investopedia"
-    - tier: b
-      url: "https://www.hkma.gov.hk/eng/key-functions/"
-      source: "HKMA"
 "160120006":
   exchange_name: Osaka Exchange
   calcseriesname: TSE-MINI-TOPIX CONTINUOUS
@@ -981,13 +503,6 @@ HSI:
   asset_class: equity index
   curcdd: JPY
   ric: JNI
-  primers:
-    - tier: a
-      url: "https://www.jpx.co.jp/english/markets/indices/topix/"
-      source: "Japan Exchange Group (JPX)"
-    - tier: b
-      url: "https://www.boj.or.jp/en/mopo/outline/index.htm"
-      source: "Bank of Japan"
 "164120019":
   exchange_name: Osaka Exchange
   calcseriesname: OSX-NIKKEI 225 INDEX CONTINUOUS
@@ -995,13 +510,6 @@ HSI:
   asset_class: equity index
   curcdd: JPY
   ric: JNI
-  primers:
-    - tier: a
-      url: "https://indexes.nikkei.co.jp/en/nkave/index/profile?idx=nk225"
-      source: "Nikkei Inc."
-    - tier: b
-      url: "https://www.boj.or.jp/en/mopo/outline/index.htm"
-      source: "Bank of Japan"
 FTI:
   exchange_name: Euronext Amsterdam
   calcseriesname: AEX-AEX INDEX CONTINUOUS
@@ -1009,14 +517,6 @@ FTI:
   asset_class: equity index
   curcdd: EUR
   ric: AEX
-  primers:
-    - tier: a
-      url: "https://live.euronext.com/en/product/indices/NL0000000107-XAMS"
-      source: "Euronext"
-    - tier: b
-      # url: "https://www.dnb.nl/en/general-news/economic-developments/"  # BLOCKED (403)
-      url: "https://www.investopedia.com/terms/a/aex.asp"
-      source: "Investopedia"
 FXS30:
   exchange_name: OM Nordic Exchange
   calcseriesname: OMX-OMXS30 INDEX CONTINUOUS
@@ -1024,13 +524,6 @@ FXS30:
   asset_class: equity index
   curcdd: SEK
   ric: OMXS30
-  primers:
-    - tier: a
-      url: "https://indexes.nasdaqomx.com/Index/Overview/OMXS30"
-      source: "Nasdaq OMX"
-    - tier: b
-      url: "https://www.riksbank.se/en-gb/monetary-policy/"
-      source: "Sveriges Riksbank"
 FSMI:
   exchange_name: EUREX
   calcseriesname: EUREX-SMI CONT.TRADITIONAL
@@ -1038,13 +531,6 @@ FSMI:
   asset_class: equity index
   curcdd: CHF
   ric: FSMI
-  primers:
-    - tier: a
-      url: "https://www.six-group.com/en/market-data/indices/switzerland/equity/smi.html"
-      source: "SIX Group"
-    - tier: b
-      url: "https://www.snb.ch/en/the-snb/mandates-goals/monetary-policy"
-      source: "Swiss National Bank"
 FATX:
   exchange_name: EUREX
   calcseriesname: EUREX-ATX INDEX CONT
@@ -1052,14 +538,6 @@ FATX:
   asset_class: equity index
   curcdd: EUR
   ric: FATXA
-  primers:
-    - tier: a
-      # url: "https://www.wienerborse.at/en/indices/"  # BLOCKED/THIN
-      url: "https://www.investopedia.com/terms/v/vienna-stock-exchange-vie-.vi.asp"
-      source: "Investopedia"
-    - tier: b
-      url: "https://www.ecb.europa.eu/mopo/intro/html/index.en.html"
-      source: "European Central Bank"
 SGP:
   exchange_name: Singapore Exchange - Derivatives Trading Division
   calcseriesname: SGX DT-MSCI SING. INDEX CONT. TRAD
@@ -1067,13 +545,6 @@ SGP:
   asset_class: equity index
   curcdd: SGD
   ric: SSG
-  primers:
-    - tier: a
-      url: "https://www.msci.com/our-solutions/indexes/developed-markets"
-      source: "MSCI"
-    - tier: b
-      url: "https://www.mas.gov.sg/monetary-policy"
-      source: "Monetary Authority of Singapore"
 A01:
   exchange_name: Korea Stock Exchange
   calcseriesname: KSE-KOSPI 200 INDEX CONTINUOUS
@@ -1081,14 +552,6 @@ A01:
   asset_class: equity index
   curcdd: KRW
   ric: KS
-  primers:
-    - tier: a
-      # url: "https://global.krx.co.kr/contents/GLB/02/0201/0201010000/GLB0201010000.jsp"  # BLOCKED (404)
-      url: "https://www.investopedia.com/terms/k/kospi.asp"
-      source: "Investopedia"
-    - tier: b
-      url: "https://www.bok.or.kr/eng/main/contents.do?menuNo=400016"
-      source: "Bank of Korea"
 ### VOLATILITY FUTURES ###
 VX:
   exchange_name: CBOE Futures Exchange
@@ -1097,13 +560,6 @@ VX:
   asset_class: volatility
   curcdd: USD
   ric: VX
-  primers:
-    - tier: a
-      url: "https://cdn.cboe.com/resources/vix/VIX_Methodology.pdf"
-      source: "CBOE Global Markets"
-    - tier: b
-      url: "https://www.cboe.com/tradable_products/vix/faqs/"
-      source: "CBOE Global Markets"
 FVS:
   exchange_name: EUREX
   calcseriesname: EUREX-MINI VSTOXX CONTINUOUS
@@ -1111,13 +567,6 @@ FVS:
   asset_class: volatility
   curcdd: EUR
   ric: FVS
-  primers:
-    - tier: a
-      url: "https://www.stoxx.com/index-details?symbol=V2TX"
-      source: "STOXX (Qontigo)"
-    - tier: b
-      url: "https://www.ecb.europa.eu/mopo/intro/html/index.en.html"
-      source: "European Central Bank"
 ### SHORT TERM INTEREST RATE FUTURES ###
 SR3:
   exchange_name: Chicago Mercantile Exchange (CME)
@@ -1126,16 +575,6 @@ SR3:
   asset_class: short-term interest rate
   curcdd: USD
   ric: SRA
-  primers:
-    - tier: a
-      url: "https://www.newyorkfed.org/markets/reference-rates/sofr"
-      source: "Federal Reserve Bank of New York"
-    - tier: b
-      url: "https://www.cmegroup.com/education/courses/introduction-to-sofr.html"
-      source: "CME Group"
-    - tier: c
-      url: "https://www.cmegroup.com/markets/interest-rates/stirs/three-month-sofr.html"
-      source: "CME Group"
 I:
   exchange_name: Euronext.LIFFE London
   calcseriesname: LIFFE-3 MTH EURIBOR CONT.TRADITIONAL
@@ -1143,16 +582,6 @@ I:
   asset_class: short-term interest rate
   curcdd: EUR
   ric: FEI
-  primers:
-    - tier: a
-      url: "https://www.emmi-benchmarks.eu/benchmarks/euribor/"
-      source: "European Money Markets Institute (EMMI)"
-    - tier: b
-      url: "https://www.ecb.europa.eu/mopo/intro/html/index.en.html"
-      source: "European Central Bank"
-    - tier: c
-      url: "https://www.ice.com/products/38527986/Three-Month-Euribor-Futures"
-      source: "ICE Futures Europe"
 "91":
   exchange_name: Osaka Exchange
   calcseriesname: OSX-3-MONTH TONA CONT
@@ -1160,16 +589,6 @@ I:
   asset_class: short-term interest rate
   curcdd: JPY
   ric: JTOA
-  primers:
-    - tier: a
-      url: "https://www.boj.or.jp/en/statistics/market/short/index.htm"
-      source: "Bank of Japan"
-    - tier: b
-      url: "https://www.boj.or.jp/en/mopo/outline/index.htm"
-      source: "Bank of Japan"
-    - tier: c
-      url: "https://www.jpx.co.jp/english/derivatives/products/interest-rate/3m-tona-futures/index.html"
-      source: "Japan Exchange Group"
 SO3:
   exchange_name: Euronext.LIFFE London
   calcseriesname: LIFFE-3MTH STERLING CONT.TRADITIONAL
@@ -1177,18 +596,6 @@ SO3:
   asset_class: short-term interest rate
   curcdd: GBP
   ric: SON3
-  primers:
-    - tier: a
-      url: "https://www.bankofengland.co.uk/markets/sonia-benchmark"
-      source: "Bank of England"
-    - tier: b
-      # url: "https://www.bankofengland.co.uk/monetary-policy"  # BLOCKED/THIN
-      url: "https://www.investopedia.com/terms/b/boe.asp"
-      source: "Investopedia"
-    - tier: c
-      # url: "https://www.ice.com/products/67391296/Three-Month-SONIA-Index-Futures"  # BLOCKED/THIN
-      url: "https://www.investopedia.com/terms/s/sonia.asp"
-      source: "Investopedia"
 IR:
   exchange_name: Sydney Futures Exchange
   calcseriesname: SFE-AUST 90 DAY BANK BILLS CONT.
@@ -1196,18 +603,6 @@ IR:
   asset_class: short-term interest rate
   curcdd: AUD
   ric: YBA
-  primers:
-    - tier: a
-      # url: "https://www.rba.gov.au/education/resources/explainers/cash-rate.html"  # BLOCKED (404)
-      url: "https://www.investopedia.com/terms/o/overnightrate.asp"
-      source: "Investopedia"
-    - tier: b
-      url: "https://www.rba.gov.au/monetary-policy/"
-      source: "Reserve Bank of Australia"
-    - tier: c
-      # url: "https://www2.asx.com.au/markets/trade-our-derivatives-market/overview/interest-rate-derivatives"  # BLOCKED/THIN
-      url: "https://www.investopedia.com/terms/a/asx.asp"
-      source: "Investopedia"
 BB:
   exchange_name: Sydney Futures Exchange
   calcseriesname: NZFE-90 DAY BANK BILLS CONT.
@@ -1215,20 +610,6 @@ BB:
   asset_class: short-term interest rate
   curcdd: NZD
   ric: NBB
-  primers:
-    - tier: a
-      # url: "https://www.rbnz.govt.nz/monetary-policy/about-monetary-policy"  # BLOCKED (403)
-      # url: "https://www.rbnz.govt.nz/monetary-policy"  # BLOCKED (403)
-      url: "https://www.investopedia.com/terms/o/overnightrate.asp"
-      source: "Investopedia"
-    - tier: b
-      # url: "https://www.rbnz.govt.nz/monetary-policy/monetary-policy-statement"  # BLOCKED (403)
-      url: "https://www.investopedia.com/terms/o/overnightrate.asp"
-      source: "Investopedia"
-    - tier: c
-      # url: "https://www2.asx.com.au/markets/trade-our-derivatives-market/overview/interest-rate-derivatives"  # BLOCKED/THIN
-      url: "https://www.investopedia.com/terms/a/asx.asp"
-      source: "Investopedia"
 SA3:
   exchange_name: Intercontinental Exchange - ICE Futures Limited
   calcseriesname: ICE-3MTH SARBON CONT
@@ -1236,14 +617,3 @@ SA3:
   asset_class: short-term interest rate
   curcdd: CHF
   ric: SARO3
-  primers:
-    - tier: a
-      url: "https://www.snb.ch/en/the-snb/mandates-goals/monetary-policy"
-      source: "Swiss National Bank"
-    - tier: b
-      url: "https://www.six-group.com/en/market-data/indices/switzerland/saron.html"
-      source: "SIX Group"
-    - tier: c
-      # url: "https://www.ice.com/products/72750988/Three-Month-SARON-Index-Futures"  # BLOCKED/THIN
-      url: "https://www.investopedia.com/secured-overnight-financing-rate-sofr-4683954"
-      source: "Investopedia"

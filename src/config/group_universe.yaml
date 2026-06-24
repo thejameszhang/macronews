@@ -19,6 +19,7 @@
 #     members:
 #       - name: <asset name matching `name:` in asset_universe.yaml>
 #         ticker_symbol: <stable trading ticker; primary stable identifier>
+#         short_name: <concise display name used in KG extraction prompts>
 
 ### ENERGY COMMODITIES ###
 
@@ -29,8 +30,10 @@ crude_oil:
   members:
     - name: WTI Crude Oil
       ticker_symbol: 'CL'
+      short_name: WTI Crude Oil
     - name: Brent Crude Oil
       ticker_symbol: 'BRN'
+      short_name: Brent Crude Oil
 
 refined_petroleum:
   name: Refined Petroleum
@@ -39,10 +42,13 @@ refined_petroleum:
   members:
     - name: Heating Oil
       ticker_symbol: 'HO'
+      short_name: Heating Oil
     - name: RBOB Gasoline (replaces NY Harbor Unleaded Gasoline, pre-2006)
       ticker_symbol: 'RB'
+      short_name: RBOB Gasoline
     - name: ICE Gas Oil
       ticker_symbol: 'G'
+      short_name: ICE Gas Oil
 
 natural_gas:
   name: Natural Gas
@@ -51,6 +57,7 @@ natural_gas:
   members:
     - name: Natural Gas
       ticker_symbol: 'NG'
+      short_name: Natural Gas
 
 ### METALS ###
 
@@ -61,8 +68,10 @@ precious_metals:
   members:
     - name: Gold
       ticker_symbol: 'GC'
+      short_name: Gold
     - name: Silver
       ticker_symbol: 'SI'
+      short_name: Silver
 
 dr_copper:
   name: Dr. Copper
@@ -71,8 +80,10 @@ dr_copper:
   members:
     - name: LME Copper
       ticker_symbol: 'CAD'
+      short_name: LME Copper
     - name: Copper (High Grade)
       ticker_symbol: 'HG'
+      short_name: COMEX Copper
 
 industrial_metals:
   name: Industrial Metals
@@ -81,12 +92,16 @@ industrial_metals:
   members:
     - name: LME Aluminium
       ticker_symbol: 'AHD'
+      short_name: Aluminium
     - name: LME Lead
       ticker_symbol: 'PBD'
+      short_name: Lead
     - name: LME Nickel
       ticker_symbol: 'NID'
+      short_name: Nickel
     - name: LME Zinc
       ticker_symbol: 'ZSD'
+      short_name: Zinc
 
 ### AGRICULTURE ###
 
@@ -97,8 +112,10 @@ wheat:
   members:
     - name: Chicago Wheat
       ticker_symbol: 'ZW'
+      short_name: Chicago Wheat
     - name: Kansas Wheat
       ticker_symbol: 'KE'
+      short_name: Kansas Wheat
 
 corn:
   name: Corn
@@ -107,6 +124,7 @@ corn:
   members:
     - name: Corn
       ticker_symbol: 'ZC'
+      short_name: Corn
 
 soybeans:
   name: Soybeans
@@ -115,6 +133,7 @@ soybeans:
   members:
     - name: Soybeans
       ticker_symbol: 'ZS'
+      short_name: Soybeans
 
 livestock:
   name: Livestock
@@ -123,10 +142,13 @@ livestock:
   members:
     - name: Lean Hogs
       ticker_symbol: 'HE'
+      short_name: Lean Hogs
     - name: Live Cattle
       ticker_symbol: 'LE'
+      short_name: Live Cattle
     - name: Feeder Cattle
       ticker_symbol: 'GF'
+      short_name: Feeder Cattle
 
 cocoa:
   name: Cocoa
@@ -135,6 +157,7 @@ cocoa:
   members:
     - name: Cocoa
       ticker_symbol: 'CC'
+      short_name: Cocoa
 
 coffee:
   name: Coffee
@@ -143,6 +166,7 @@ coffee:
   members:
     - name: Coffee
       ticker_symbol: 'KC'
+      short_name: Coffee
 
 cotton:
   name: Cotton
@@ -151,6 +175,7 @@ cotton:
   members:
     - name: Cotton
       ticker_symbol: 'CT'
+      short_name: Cotton
 
 sugar:
   name: Sugar
@@ -159,6 +184,7 @@ sugar:
   members:
     - name: Sugar
       ticker_symbol: 'SB'
+      short_name: Sugar
 
 ### EQUITY BROAD INDICES ###
 
@@ -169,14 +195,19 @@ us_equities:
   members:
     - name: S&P 500 Index
       ticker_symbol: 'ES'
+      short_name: S&P 500
     - name: S&P 400 Midcap Index
       ticker_symbol: 'EMD'
+      short_name: S&P 400 Midcap
     - name: Nasdaq 100 Index
       ticker_symbol: 'NQ'
+      short_name: Nasdaq 100
     - name: Dow Jones Industrial Index
       ticker_symbol: 'YM'
+      short_name: Dow Jones Industrial Average
     - name: Russell 2000 Index
       ticker_symbol: 'RTY'
+      short_name: Russell 2000
 
 eurozone_equities:
   name: Eurozone Equities
@@ -185,18 +216,25 @@ eurozone_equities:
   members:
     - name: AEX Index (Netherlands)
       ticker_symbol: 'FTI'
+      short_name: AEX
     - name: Austrian ATX Index
       ticker_symbol: 'FATX'
+      short_name: ATX
     - name: CAC 40 Index (France)
       ticker_symbol: 'FCE'
+      short_name: CAC 40
     - name: DAX 40 Index (Germany)
       ticker_symbol: 'FDAX'
+      short_name: DAX
     - name: FTSE MIB Index (Italy)
       ticker_symbol: 'FIB'
+      short_name: FTSE MIB
     - name: IBEX 35 Plus Index (Spain)
       ticker_symbol: 'FIE'
+      short_name: IBEX 35
     - name: Euro Stoxx 50 Index
       ticker_symbol: 'FESX'
+      short_name: Euro Stoxx 50
 
 uk_equities:
   name: UK Equities
@@ -205,6 +243,7 @@ uk_equities:
   members:
     - name: FTSE 100 Index
       ticker_symbol: 'Z'
+      short_name: FTSE 100
 
 swiss_equities:
   name: Swiss Equities
@@ -213,6 +252,7 @@ swiss_equities:
   members:
     - name: Swiss Market Index
       ticker_symbol: 'FSMI'
+      short_name: SMI
 
 nordic_equities:
   name: Nordic Equities
@@ -221,6 +261,7 @@ nordic_equities:
   members:
     - name: OMXS30 (Sweden) Index
       ticker_symbol: 'FXS30'
+      short_name: OMXS30
 
 japanese_equities:
   name: Japanese Equities
@@ -229,8 +270,10 @@ japanese_equities:
   members:
     - name: Nikkei 225 Index (Japan)
       ticker_symbol: '164120019'
+      short_name: Nikkei 225
     - name: TOPIX Index (Japan)
       ticker_symbol: '160120006'
+      short_name: TOPIX
 
 china_hk_equities:
   name: China / Hong Kong Equities
@@ -239,6 +282,7 @@ china_hk_equities:
   members:
     - name: Hang Seng Index (China / Hong Kong)
       ticker_symbol: 'HSI'
+      short_name: Hang Seng
 
 asia_pacific_equities:
   name: Asia Pacific Equities
@@ -247,8 +291,10 @@ asia_pacific_equities:
   members:
     - name: Kospi 200 Index (South Korea)
       ticker_symbol: 'A01'
+      short_name: KOSPI 200
     - name: MSCI Singapore Index
       ticker_symbol: 'SGP'
+      short_name: MSCI Singapore
 
 australian_equities:
   name: Australian Equities
@@ -257,6 +303,7 @@ australian_equities:
   members:
     - name: SPI 200 Index (Australia)
       ticker_symbol: 'AP'
+      short_name: ASX 200
 
 canadian_equities:
   name: Canadian Equities
@@ -265,6 +312,7 @@ canadian_equities:
   members:
     - name: S&P TSX Canada 60 Index
       ticker_symbol: 'SXF'
+      short_name: S&P/TSX 60
 
 ### US EQUITY SECTORS (GICS, all singletons) ###
 
@@ -275,6 +323,7 @@ energy_sector:
   members:
     - name: Energy Sector
       ticker_symbol: 'XAE'
+      short_name: Energy Sector
 
 materials_sector:
   name: Materials Sector
@@ -283,6 +332,7 @@ materials_sector:
   members:
     - name: Materials Sector
       ticker_symbol: 'XAB'
+      short_name: Materials Sector
 
 industrials_sector:
   name: Industrials Sector
@@ -291,6 +341,7 @@ industrials_sector:
   members:
     - name: Industrials Sector
       ticker_symbol: 'XAI'
+      short_name: Industrials Sector
 
 consumer_discretionary_sector:
   name: Consumer Discretionary Sector
@@ -299,6 +350,7 @@ consumer_discretionary_sector:
   members:
     - name: Consumer Discretionary Sector
       ticker_symbol: 'XAY'
+      short_name: Consumer Discretionary Sector
 
 consumer_staples_sector:
   name: Consumer Staples Sector
@@ -307,6 +359,7 @@ consumer_staples_sector:
   members:
     - name: Consumer Staples Sector
       ticker_symbol: 'XAP'
+      short_name: Consumer Staples Sector
 
 health_care_sector:
   name: Health Care Sector
@@ -315,6 +368,7 @@ health_care_sector:
   members:
     - name: Health Care Sector
       ticker_symbol: 'XAV'
+      short_name: Health Care Sector
 
 financials_sector:
   name: Financials Sector
@@ -323,6 +377,7 @@ financials_sector:
   members:
     - name: Financials Sector
       ticker_symbol: 'XAF'
+      short_name: Financials Sector
 
 information_technology_sector:
   name: Information Technology Sector
@@ -331,6 +386,7 @@ information_technology_sector:
   members:
     - name: Information Technology Sector
       ticker_symbol: 'XAK'
+      short_name: Information Technology Sector
 
 communication_services_sector:
   name: Communication Services Sector
@@ -339,6 +395,7 @@ communication_services_sector:
   members:
     - name: Communication Services Sector
       ticker_symbol: 'XAZ'
+      short_name: Communication Services Sector
 
 utilities_sector:
   name: Utilities Sector
@@ -347,6 +404,7 @@ utilities_sector:
   members:
     - name: Utilities Sector
       ticker_symbol: 'XAU'
+      short_name: Utilities Sector
 
 real_estate_sector:
   name: Real Estate Sector
@@ -355,6 +413,7 @@ real_estate_sector:
   members:
     - name: Real Estate Sector
       ticker_symbol: 'XAR'
+      short_name: Real Estate Sector
 
 ### VOLATILITY ###
 
@@ -365,8 +424,10 @@ equity_volatility:
   members:
     - name: VIX Index
       ticker_symbol: 'VX'
+      short_name: VIX
     - name: VSTOXX Index
       ticker_symbol: 'FVS'
+      short_name: VSTOXX
 
 ### CURRENCIES (G10) ###
 
@@ -377,6 +438,7 @@ euro:
   members:
     - name: Euro
       ticker_symbol: '6E'
+      short_name: Euro
 
 sterling:
   name: Sterling
@@ -385,6 +447,7 @@ sterling:
   members:
     - name: Sterling
       ticker_symbol: '6B'
+      short_name: Sterling
 
 japanese_yen:
   name: Japanese Yen
@@ -393,6 +456,7 @@ japanese_yen:
   members:
     - name: Japanese Yen
       ticker_symbol: '6J'
+      short_name: Japanese Yen
 
 swiss_franc:
   name: Swiss Franc
@@ -401,6 +465,7 @@ swiss_franc:
   members:
     - name: Swiss Franc
       ticker_symbol: '6S'
+      short_name: Swiss Franc
 
 canadian_dollar:
   name: Canadian Dollar
@@ -409,6 +474,7 @@ canadian_dollar:
   members:
     - name: Canadian Dollar
       ticker_symbol: '6C'
+      short_name: Canadian Dollar
 
 antipodean_currencies:
   name: Antipodean Currencies
@@ -417,8 +483,10 @@ antipodean_currencies:
   members:
     - name: Australian Dollar
       ticker_symbol: '6A'
+      short_name: Australian Dollar
     - name: New Zealand Dollar
       ticker_symbol: '6N'
+      short_name: New Zealand Dollar
 
 scandinavian_currencies:
   name: Scandinavian Currencies
@@ -428,8 +496,10 @@ scandinavian_currencies:
   members:
     - name: Norwegian Krone
       ticker_symbol: 'NOK'
+      short_name: Norwegian Krone
     - name: Swedish Krona
       ticker_symbol: 'SEK'
+      short_name: Swedish Krona
 
 ### RATES ###
 
@@ -440,14 +510,19 @@ us_rates:
   members:
     - name: 2 Year US Government Note
       ticker_symbol: 'ZT'
+      short_name: 2-Year US Treasury Note
     - name: 5 Year US Government Note
       ticker_symbol: 'ZF'
+      short_name: 5-Year US Treasury Note
     - name: 10 Year US Government Note
       ticker_symbol: 'ZN'
+      short_name: 10-Year US Treasury Note
     - name: 30 Year US Government Bond
       ticker_symbol: 'ZB'
+      short_name: 30-Year US Treasury Bond
     - name: 3-Month SOFR (replaces 3-Month USD LIBOR / Eurodollar, pre-2018)
       ticker_symbol: 'SR3'
+      short_name: 3-Month SOFR
 
 eurozone_rates:
   name: Eurozone Rates
@@ -456,18 +531,25 @@ eurozone_rates:
   members:
     - name: Euro Schatz (2-Year German Federal Bond)
       ticker_symbol: 'FGBS'
+      short_name: Euro Schatz
     - name: Euro Bobl (5-Year German Federal Bond)
       ticker_symbol: 'FGBM'
+      short_name: Euro Bobl
     - name: Euro Bund (10-Year German Federal Bond)
       ticker_symbol: 'FGBL'
+      short_name: Euro Bund
     - name: Euro Buxl (30-Year German Federal Bond)
       ticker_symbol: 'FGBX'
+      short_name: Euro Buxl
     - name: 3-Month EURIBOR
       ticker_symbol: 'I'
+      short_name: 3-Month EURIBOR
     - name: French OAT (10-Year Government Bond)
       ticker_symbol: 'FOAT'
+      short_name: French OAT
     - name: Italian BTP (10-Year Government Bond)
       ticker_symbol: 'FBTP'
+      short_name: Italian BTP
 
 uk_rates:
   name: UK Rates
@@ -476,8 +558,10 @@ uk_rates:
   members:
     - name: UK Long Gilt (~10-Year benchmark)
       ticker_symbol: 'R'
+      short_name: UK Long Gilt
     - name: 3-Month SONIA (replaces Short Sterling / 3-Month GBP LIBOR, pre-2018)
       ticker_symbol: 'SO3'
+      short_name: 3-Month SONIA
 
 japan_rates:
   name: Japan Rates
@@ -486,8 +570,10 @@ japan_rates:
   members:
     - name: 10 Year Japanese Government Bond
       ticker_symbol: '160120001'
+      short_name: 10-Year JGB
     - name: 3-Month TONA (replaces Euroyen / 3-Month JPY LIBOR / TIBOR, pre-2023)
       ticker_symbol: '91'
+      short_name: 3-Month TONA
 
 swiss_rates:
   name: Swiss Rates
@@ -496,8 +582,10 @@ swiss_rates:
   members:
     - name: Swiss Confederation Bond (~10-Year benchmark)
       ticker_symbol: 'CONF'
+      short_name: Swiss Confederation Bond
     - name: 3-Month SARON (replaces 3-Month CHF LIBOR, pre-2021)
       ticker_symbol: 'SA3'
+      short_name: 3-Month SARON
 
 canada_rates:
   name: Canada Rates
@@ -506,6 +594,7 @@ canada_rates:
   members:
     - name: 10 Year Canadian Government Bond
       ticker_symbol: 'CGB'
+      short_name: 10-Year Canadian Govt Bond
 
 antipodean_rates:
   name: Antipodean Rates
@@ -514,9 +603,13 @@ antipodean_rates:
   members:
     - name: 10 Year Australian Government Bond
       ticker_symbol: 'XT'
+      short_name: 10-Year Australian Govt Bond
     - name: 3 Year Australian Government Bond
       ticker_symbol: 'YT'
+      short_name: 3-Year Australian Govt Bond
     - name: 90-Day Australian Bank Bill
       ticker_symbol: 'IR'
+      short_name: 90-Day Australian Bank Bill
     - name: 90-Day New Zealand Bank Bill
       ticker_symbol: 'BB'
+      short_name: 90-Day New Zealand Bank Bill

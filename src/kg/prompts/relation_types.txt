@@ -1,17 +1,5 @@
-OWNS, HOLDS_POSITION, IS_MEMBER_OF, OPERATES_IN,
-ANNOUNCES, REPORTS, PRODUCES, ACQUIRES, INVESTS_IN,
+IS_MEMBER_OF, OPERATES_IN,
+ANNOUNCES, REPORTS, FORECASTS, PRODUCES,
 CONTROLS, REGULATES, IMPOSES,
-RAISES, DECREASES,
-CAUSES_RISE_IN, CAUSES_FALL_IN, IMPACT,
-RELATED_TO
-
-For the directional relations, the sign is the DIRECTION in which the subject
-moves the object's level — never whether that move is good or bad:
-  CAUSES_RISE_IN — the subject moves the object's level UP. Pushing a quantity
-    that is undesirable to have higher is still CAUSES_RISE_IN; the sign tracks
-    the direction of the level, not its desirability.
-  CAUSES_FALL_IN — the subject moves the object's level DOWN.
-  IMPACT — use ONLY when the text leaves the direction genuinely unclear; never as
-    a default to avoid committing to a sign.
-  RAISES, DECREASES — reserve for an actor that directly and deliberately sets a
-    level; use CAUSES_RISE_IN / CAUSES_FALL_IN for indirect effects.
+RAISES, DECREASES, LEAVES_UNCHANGED,
+CAUSES_RISE_IN, CAUSES_FALL_IN, IMPACT

@@ -9,42 +9,62 @@ from kg.grading.llm import KGGraderInput, LLMKGGrader  # noqa: E402
 
 def _item():
     return KGGraderInput(
-        article_id="a1", headline="Fed hikes",
-        paragraphs=["The Fed raised rates.", "Stocks fell.", "Oil rose."],
-        subject="Federal Reserve", subject_type="CENTRAL_BANK",
-        relation="RAISES", object="U.S. Federal Funds Rate",
-        object_type="INTEREST_RATE", evidence_paragraphs=[0],
+        article_id="a1", headline="Treasury yields fall",
+        paragraphs=["The 10-year yield fell to 2.46%.", "Stocks rose.", "Oil rose."],
+        statement="The 10-year Treasury yield fell to 2.46%.",
+        statement_type="FACT",
+        triplets=[
+            {"subject": "10-Year US Treasury Note", "subject_type": "INTEREST_RATE",
+             "relation": "CAUSES_FALL_IN", "object": "yield",
+             "object_type": "INTEREST_RATE", "value": "to 2.46%"},
+        ],
+        evidence_paragraphs=[0],
     )
 
 
-def test_user_message_renders_indexed_paragraphs_and_fact():
+def test_user_message_static_first_layout():
     msg = LLMKGGrader.build_user_message(_item())
-    assert "[0] The Fed raised rates." in msg
+    # full article appears BEFORE any statement-specific content (prefix caching)
+    assert msg.index("[ARTICLE]") < msg.index("[STATEMENT]")
+    assert msg.index("[/ARTICLE]") < msg.index("[STATEMENT]")
+    assert "[0] The 10-year yield fell to 2.46%." in msg
     assert "[2] Oil rose." in msg
-    assert "Federal Reserve" in msg and "CENTRAL_BANK" in msg
-    assert "RAISES" in msg
-    assert "U.S. Federal Funds Rate" in msg and "INTEREST_RATE" in msg
-    assert "0" in msg  # the cited evidence index appears in the FACT block
+
+
+def test_user_message_renders_statement_type_and_triplet_value():
+    msg = LLMKGGrader.build_user_message(_item())
+    assert "(FACT)" in msg
+    assert "The 10-year Treasury yield fell to 2.46%." in msg
+    assert "CAUSES_FALL_IN" in msg
+    assert "10-Year US Treasury Note" in msg and "INTEREST_RATE" in msg
+    assert "to 2.46%" in msg          # the triplet value is rendered
+    assert "1." in msg                # triplets are numbered
+
+
+def test_user_message_evidence_line():
+    msg = LLMKGGrader.build_user_message(_item())
+    assert "Extractor-cited evidence paragraphs: 0" in msg   # the evidence line, not "[0]"
+    item = _item(); item.evidence_paragraphs = []
+    assert "(none)" in LLMKGGrader.build_user_message(item)
+
+
+def test_triplet_without_value_omits_equals():
+    item = _item()
+    item.triplets = [{"subject": "Fed", "subject_type": "CENTRAL_BANK",
+                      "relation": "LEAVES_UNCHANGED", "object": "rate",
+                      "object_type": "INTEREST_RATE", "value": None}]
+    msg = LLMKGGrader.build_user_message(item)
+    assert "LEAVES_UNCHANGED" in msg
+    assert " = " not in msg.split("[TRIPLETS]")[1]   # no value -> no "= ..."
 
 
 def test_system_prompt_is_schema_blind():
-    # The grader is NOT handed the entity/relation taxonomy (decoupled from the
-    # extractor): no placeholders, and no injected type/relation codes.
     g = LLMKGGrader(model_path="/unused")  # no GPU touched in __init__
     assert "{{ENTITY_TYPES}}" not in g.system_prompt
-    assert "{{RELATION_TYPES}}" not in g.system_prompt
-    assert "CENTRAL_BANK" not in g.system_prompt       # taxonomy NOT injected
+    assert "CENTRAL_BANK" not in g.system_prompt
     assert "CAUSES_FALL_IN" not in g.system_prompt
 
 
 def test_grade_batch_empty_returns_empty():
-    # Empty input short-circuits before any vLLM import / GPU init.
     g = LLMKGGrader(model_path="/unused")
     assert g.grade_batch([]) == []
-
-
-def test_user_message_uses_none_when_no_evidence():
-    item = _item()
-    item.evidence_paragraphs = []
-    msg = LLMKGGrader.build_user_message(item)
-    assert "(none)" in msg

@@ -8,8 +8,8 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
 
 from pipeline import load_articles  # noqa: E402
-from kg.grading.runner import build_fact_tasks, write_sidecar  # noqa: E402
-from kg.grading.schemas import KGFactVerdict  # noqa: E402
+from kg.grading.runner import build_statement_tasks, write_sidecar  # noqa: E402
+from kg.grading.schemas import KGStatementVerdict, TripletVerdict  # noqa: E402
 
 SPORTS_DIR = REPO / "data" / "sports_news_1994_2000"
 
@@ -23,16 +23,13 @@ def test_sports_loader_returns_standard_schema():
 
 
 def test_sports_loader_token_filter_fast_path_and_guard(tmp_path):
-    # max_tokens lets the sports loader skip over-long articles, the same way
-    # the djnw loader does, so a long sports article can't blow the model
-    # context. Short text stays under the fast-path char limit and loads with
-    # no tokenizer; long text trips the slow path and needs tokenizer_path.
+    # max_tokens lets the sports loader skip over-long articles; short text stays
+    # under the fast-path char limit (no tokenizer), long text needs tokenizer_path.
     from loaders import load_sports_articles
     (tmp_path / "a.json").write_text(json.dumps(
         {"title": "t", "text": "Short recap. Team won the game."}))
     arts = load_sports_articles(tmp_path, max_tokens=50, tokenizer_path=None)
-    assert len(arts) == 1  # short article: fast path, no tokenizer needed
-
+    assert len(arts) == 1
     (tmp_path / "b.json").write_text(json.dumps({"title": "t", "text": "word " * 200}))
     with pytest.raises(ValueError):  # long article needs a tokenizer; none given
         load_sports_articles(tmp_path, max_tokens=50, tokenizer_path=None)
@@ -42,137 +39,155 @@ def _src(aid, paras):
     return {"id": aid, "headline": "h", "paragraphs": paras}
 
 
-def test_build_fact_tasks_joins_and_emits_one_input_per_fact():
-    kg_rows = [{
-        "article_id": "a1", "headline": "h",
-        "facts": [
-            {"evidence_paragraphs": [0], "subject": "Fed", "subject_type": "CENTRAL_BANK",
-             "relation": "RAISES", "object": "FFR", "object_type": "INTEREST_RATE"},
-            {"evidence_paragraphs": [1], "subject": "FFR", "subject_type": "INTEREST_RATE",
-             "relation": "CAUSES_FALL_IN", "object": "S&P 500", "object_type": "INDEX"},
-        ],
-        "paragraphs": {"0": "The Fed raised rates.", "1": "Stocks fell."},
-    }]
-    src_by_id = {"a1": _src("a1", ["The Fed raised rates.", "Stocks fell.", "Oil rose."])}
-    inputs, meta, skipped = build_fact_tasks(kg_rows, src_by_id)
+def _event(eid, statement, triplets, stype="FACT", ttype="DYNAMIC", ev=(0,)):
+    return {"id": eid, "statement": statement, "statement_type": stype,
+            "temporal_type": ttype, "triplets": triplets,
+            "evidence_paragraphs": list(ev)}
+
+
+def _trip(s, r, o, sv="CONCEPT", ov="CONCEPT", value=None):
+    return {"subject": s, "subject_type": sv, "relation": r,
+            "object": o, "object_type": ov, "value": value}
+
+
+def test_build_statement_tasks_one_input_per_event():
+    rows = [{"article_id": "a1", "date": "2014-05-27", "headline": "h",
+             "events": [
+                 _event("e1", "Fed raised rates.", [_trip("Fed", "RAISES", "FFR")]),
+                 _event("e2", "Yield fell.",
+                        [_trip("note", "CAUSES_FALL_IN", "yield", value="to 2.4%")]),
+             ]}]
+    src = {"a1": _src("a1", ["The Fed raised rates.", "Yield fell.", "Oil rose."])}
+    inputs, meta, skipped = build_statement_tasks(rows, src)
     assert len(inputs) == 2 and len(meta) == 2 and not skipped
-    assert inputs[0].paragraphs == ["The Fed raised rates.", "Stocks fell.", "Oil rose."]
-    assert meta[0]["article_id"] == "a1" and meta[0]["date"] == ""
-    assert meta[1]["relation"] == "CAUSES_FALL_IN"
+    assert inputs[0].statement == "Fed raised rates."
+    assert inputs[0].statement_type == "FACT"
+    assert inputs[0].paragraphs == ["The Fed raised rates.", "Yield fell.", "Oil rose."]
+    assert meta[0]["event_id"] == "e1" and meta[0]["temporal_type"] == "DYNAMIC"
+    assert meta[1]["triplets"][0]["relation"] == "CAUSES_FALL_IN"
 
 
-def test_build_fact_tasks_skips_missing_article():
-    kg_rows = [{"article_id": "ghost", "facts": [
-        {"evidence_paragraphs": [0], "subject": "x", "subject_type": "CONCEPT",
-         "relation": "IMPACT", "object": "y", "object_type": "CONCEPT"}], "paragraphs": {}}]
-    inputs, meta, skipped = build_fact_tasks(kg_rows, {})
+def test_build_statement_tasks_sorted_by_article_id():
+    rows = [
+        {"article_id": "a2", "events": [_event("e2", "s2", [_trip("x", "IMPACT", "y")])]},
+        {"article_id": "a1", "events": [_event("e1", "s1", [_trip("p", "IMPACT", "q")])]},
+    ]
+    src = {"a1": _src("a1", ["t"]), "a2": _src("a2", ["t"])}
+    inputs, meta, _ = build_statement_tasks(rows, src)
+    assert [m["article_id"] for m in meta] == ["a1", "a2"]
+
+
+def test_build_statement_tasks_skips_missing_article():
+    rows = [{"article_id": "ghost",
+             "events": [_event("e1", "s", [_trip("x", "IMPACT", "y")])]}]
+    inputs, meta, skipped = build_statement_tasks(rows, {})
     assert not inputs and len(skipped) == 1
     assert skipped[0]["skip_reason"] == "article_not_in_source"
+    assert skipped[0]["event_id"] == "e1"
 
 
-def test_index_alignment_guard_flags_mismatch():
-    # Two facts on a misaligned article -> the WHOLE article is dropped (both facts).
-    kg_rows = [{"article_id": "a1", "facts": [
-        {"evidence_paragraphs": [0], "subject": "x", "subject_type": "CONCEPT",
-         "relation": "IMPACT", "object": "y", "object_type": "CONCEPT"},
-        {"evidence_paragraphs": [0], "subject": "p", "subject_type": "CONCEPT",
-         "relation": "IMPACT", "object": "q", "object_type": "CONCEPT"}],
-        "paragraphs": {"0": "STALE TEXT"}}]
-    src_by_id = {"a1": _src("a1", ["fresh text", "b"])}
-    inputs, meta, skipped = build_fact_tasks(kg_rows, src_by_id)
-    assert not inputs
-    assert len(skipped) == 2
-    assert all(s["skip_reason"] == "paragraph_misalignment" for s in skipped)
-
-
-def test_articles_with_zero_facts_are_ignored():
-    kg_rows = [{"article_id": "a1", "facts": [], "paragraphs": {}}]
-    inputs, meta, skipped = build_fact_tasks(kg_rows, {"a1": _src("a1", ["t"])})
+def test_build_statement_tasks_ignores_eventless_rows():
+    rows = [{"article_id": "a1", "events": []}]
+    inputs, meta, skipped = build_statement_tasks(rows, {"a1": _src("a1", ["t"])})
     assert not inputs and not meta and not skipped
 
 
-def test_kg_fact_verdict_has_only_the_six_schema_blind_fields():
-    # The redesigned verdict is schema-blind and lean: evidence, macro-relevance,
-    # one free-text "better label" suggestion per slot (blank = the label is fine),
-    # and a single `correct` bool. No critique, no *_ok bools, no conformance codes.
-    assert set(KGFactVerdict.model_fields) == {
-        "evidence_paragraphs", "macro_relevant",
-        "subject_type_suggestion", "relation_suggestion", "object_type_suggestion",
-        "correct"}
+def _meta(eid, stype="FACT", ttype="DYNAMIC", triplets=None):
+    return {"article_id": "a", "date": "", "event_id": eid,
+            "statement": "s", "statement_type": stype, "temporal_type": ttype,
+            "triplets": triplets or [_trip("s", "IMPACT", "o")],
+            "evidence_paragraphs": [0]}
 
 
-def test_write_sidecar_one_row_per_fact_with_tally(tmp_path):
-    meta = [{"article_id": "a1", "date": "2022-03-01", "subject": "x",
-             "subject_type": "CONCEPT", "relation": "IMPACT", "object": "y",
-             "object_type": "CONCEPT", "evidence_paragraphs": [0]}]
-    verdicts = [KGFactVerdict(
-        evidence_paragraphs=[0], macro_relevant=True,
-        subject_type_suggestion="", relation_suggestion="CAUSES_RISE_IN",
-        object_type_suggestion="COMMODITY", correct=False)]
+def test_write_sidecar_one_row_per_statement(tmp_path):
+    meta = [_meta("e1", triplets=[_trip("note", "REPORTS", "yield", value="2.4%")])]
+    verdicts = [KGStatementVerdict(
+        macro_relevant=True, supported=True, asserts_direction=True,
+        triplets=[TripletVerdict(faithful=False, relation_suggestion="CAUSES_FALL_IN")])]
     out = tmp_path / "g.jsonl"
     summary = write_sidecar(out, meta, verdicts, skipped=[])
-    rows = [json.loads(l) for l in out.read_text().splitlines()]
-    assert len(rows) == 1
-    r = rows[0]
-    assert r["correct"] is False and r["macro_relevant"] is True
-    assert r["relation_suggestion"] == "CAUSES_RISE_IN"   # non-blank suggestion lands
-    assert r["object_type_suggestion"] == "COMMODITY"
-    assert r["subject_type_suggestion"] == ""             # blank suggestion = label fine
-    # every dropped field is gone
-    for gone in ("critique", "supported", "relation_ok", "ideal_relation",
-                 "non_trivial", "subject_type_ok", "object_type_fix"):
-        assert gone not in r
-    # the two fail-able bools are tallied; False counts as a fail
-    assert summary["graded"] == 1
-    assert summary["axis_fail_counts"] == {"macro_relevant": 0, "correct": 1}
-    # non-blank suggestions are tallied per slot
+    r = json.loads(out.read_text().splitlines()[0])
+    assert r["event_id"] == "e1"
+    assert r["supported"] is True and r["asserts_direction"] is True
+    assert r["triplet_verdicts"][0]["faithful"] is False
+    assert r["triplet_verdicts"][0]["relation_suggestion"] == "CAUSES_FALL_IN"
+    assert r["triplet_count_mismatch"] is False
+    assert summary["statements_graded"] == 1 and summary["triplets_judged"] == 1
+    # the lone relation_suggestion is tallied; the two blank slots stay 0
     assert summary["suggestion_counts"] == {
-        "subject_type": 0, "relation": 1, "object_type": 1}
-    assert out.with_suffix(".summary.json").exists()
+        "relation_suggestion": 1, "subject_type_suggestion": 0,
+        "object_type_suggestion": 0}
 
 
-def test_grader_system_prompt_is_schema_blind():
-    # The grader must NOT be handed the entity/relation taxonomy — otherwise an
-    # extractor schema edit moves the ruler and it is not a true A/B. The system
-    # prompt is grader.txt verbatim, with no type/relation substitution.
-    from kg.grading.llm import LLMKGGrader, GRADER_PROMPT_PATH
-    g = LLMKGGrader(model_path="/nonexistent-no-vllm-init")
-    assert g.system_prompt == GRADER_PROMPT_PATH.read_text()
-    assert "{{ENTITY_TYPES}}" not in g.system_prompt
-    assert "{{RELATION_TYPES}}" not in g.system_prompt
-
-
-def test_summary_incorrect_by_relation_and_type(tmp_path):
-    # Per-relation / per-type incorrect (correct=False) rates in the summary, so we
-    # can see which relations/types the grader most often fails.
-    def m(rel, st="EVENT", ot="COMMODITY"):
-        return {"article_id": "a", "date": "", "subject": "s", "subject_type": st,
-                "relation": rel, "object": "o", "object_type": ot,
-                "evidence_paragraphs": []}
-    meta = [m("CAUSES_RISE_IN"), m("CAUSES_RISE_IN"), m("CAUSES_RISE_IN"), m("RAISES")]
-    correct = [False, False, True, True]
-    verdicts = [KGFactVerdict(correct=c) for c in correct]
+def test_faithful_rate_directional_is_model_agnostic(tmp_path):
+    # A REPORTS triplet on an asserts_direction statement enters the directional
+    # denominator; faithful=False lowers faithful_rate_directional.
+    meta = [_meta("e1", triplets=[_trip("note", "REPORTS", "yield")]),   # directional stmt
+            _meta("e2", triplets=[_trip("x", "RELATED_TO", "y")])]       # non-directional
+    verdicts = [
+        KGStatementVerdict(asserts_direction=True,
+                           triplets=[TripletVerdict(faithful=False)]),
+        KGStatementVerdict(asserts_direction=False,
+                           triplets=[TripletVerdict(faithful=True)]),
+    ]
     summary = write_sidecar(tmp_path / "g.jsonl", meta, verdicts, skipped=[])
-    ibr = summary["incorrect_by_relation"]
-    assert ibr["CAUSES_RISE_IN"] == {"n": 2, "of": 3, "rate": 0.67}
-    assert ibr["RAISES"] == {"n": 0, "of": 1, "rate": 0.0}
-    # subject EVENT: 2 of 4 wrong; object COMMODITY: 2 of 4 wrong
-    assert summary["incorrect_by_subject_type"]["EVENT"] == {"n": 2, "of": 4, "rate": 0.5}
-    assert summary["incorrect_by_object_type"]["COMMODITY"]["n"] == 2
+    # directional slice = e1 only (1 triplet, faithful False) -> 0.0
+    assert summary["faithful_rate_directional"] == 0.0
+    assert summary["asserts_direction_rate"] == 0.5
+    # overall faithful = 1 of 2
+    assert summary["faithful_rate"] == 0.5
+    # REPORTS appears in the by-relation breakdown
+    assert "REPORTS" in summary["faithful_by_relation"]
+
+
+def test_write_sidecar_zero_triplet_statement(tmp_path):
+    # A statement the triplet pass left undecomposed (a unary level/move fact —
+    # "S&P 500 rose 0.6%"). 0 triplets in; the judge may still emit a phantom
+    # triplet verdict. It must be dropped, NOT counted as a mismatch (0 in -> 0
+    # expected), and the statement-level verdict still counts.
+    # build meta inline: _meta's `triplets or [...]` would coerce [] to a default
+    meta = [{"article_id": "a", "date": "", "event_id": "e1", "statement": "s",
+             "statement_type": "FACT", "temporal_type": "STATIC",
+             "triplets": [], "evidence_paragraphs": [0]}]
+    verdicts = [KGStatementVerdict(
+        macro_relevant=True, supported=True, asserts_direction=True,
+        triplets=[TripletVerdict(faithful=True)])]   # phantom verdict
+    summary = write_sidecar(tmp_path / "g.jsonl", meta, verdicts, skipped=[])
+    r = json.loads((tmp_path / "g.jsonl").read_text().splitlines()[0])
+    assert r["triplet_verdicts"] == []
+    assert r["triplet_count_mismatch"] is False
+    assert r["macro_relevant"] is True and r["asserts_direction"] is True
+    assert summary["zero_triplet_statements"] == 1
+    assert summary["triplet_count_mismatch"] == 0     # NOT flagged as a mismatch
+    assert summary["triplets_judged"] == 0            # contributes 0 triplets
+    assert summary["statements_graded"] == 1
+    # statement-level rates still see this statement
+    assert summary["macro_relevant_rate"] == 1.0
+    assert summary["asserts_direction_rate"] == 1.0
+
+
+def test_write_sidecar_triplet_count_mismatch(tmp_path):
+    # verdict has 2 triplet verdicts but the input statement had 1 triplet.
+    meta = [_meta("e1", triplets=[_trip("a", "IMPACT", "b")])]
+    verdicts = [KGStatementVerdict(
+        triplets=[TripletVerdict(faithful=True), TripletVerdict(faithful=False)])]
+    summary = write_sidecar(tmp_path / "g.jsonl", meta, verdicts, skipped=[])
+    r = json.loads((tmp_path / "g.jsonl").read_text().splitlines()[0])
+    assert r["triplet_count_mismatch"] is True
+    assert r["triplet_verdicts"] == []            # no fabricated verdicts
+    assert summary["triplet_count_mismatch"] == 1
+    assert summary["triplets_judged"] == 0        # excluded from denominators
 
 
 def test_write_sidecar_skipped_rows(tmp_path):
-    out = tmp_path / "g.jsonl"
-    skipped = [{"article_id": "a1", "skip_reason": "article_not_in_source",
-                "subject": "x", "subject_type": "CONCEPT", "relation": "IMPACT",
-                "object": "y", "object_type": "CONCEPT", "evidence_paragraphs": []}]
-    summary = write_sidecar(out, [], [], skipped=skipped)
-    rows = [json.loads(l) for l in out.read_text().splitlines()]
-    assert len(rows) == 1 and rows[0]["grader_verdict_present"] is False
-    assert rows[0]["skip_reason"] == "article_not_in_source"
-    assert summary["graded"] == 0 and summary["skipped"] == 1
+    skipped = [{"article_id": "a1", "event_id": "e9", "statement": "s",
+                "skip_reason": "article_not_in_source"}]
+    summary = write_sidecar(tmp_path / "g.jsonl", [], [], skipped=skipped)
+    r = json.loads((tmp_path / "g.jsonl").read_text().splitlines()[0])
+    assert r["grader_verdict_present"] is False
+    assert summary["statements_graded"] == 0 and summary["statements_skipped"] == 1
 
 
 def test_write_sidecar_length_mismatch_raises(tmp_path):
     with pytest.raises(ValueError):
-        write_sidecar(tmp_path / "g.jsonl", [{"article_id": "a"}], [], skipped=[])
+        write_sidecar(tmp_path / "g.jsonl", [{"event_id": "e"}], [], skipped=[])

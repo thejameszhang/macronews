@@ -1,5 +1,6 @@
-"""KG grader runner — joins extracted facts to full-text source articles,
-grades one fact per call, writes a per-fact sidecar JSONL.
+"""KG grader runner — joins extracted statements to full-text source articles,
+grades one statement (with all its triplets) per call, writes a per-statement
+sidecar JSONL.
 
   python src/kg/grading/runner.py \\
       --kg-output results/kg/dev/march_2022_dev.v2.4.jsonl \\
@@ -27,149 +28,168 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 logger = logging.getLogger(__name__)
 
 SKIP_ARTICLE_NOT_IN_SOURCE = "article_not_in_source"
-SKIP_PARAGRAPH_MISALIGNMENT = "paragraph_misalignment"
 
 
-def _fact_meta(fct: dict) -> dict:
-    return {
-        "subject": fct["subject"], "subject_type": fct["subject_type"],
-        "relation": fct["relation"], "object": fct["object"],
-        "object_type": fct["object_type"],
-        "evidence_paragraphs": list(fct.get("evidence_paragraphs", [])),
-    }
-
-
-def build_fact_tasks(
+def build_statement_tasks(
     kg_rows: list[dict],
     source_by_id: dict[str, dict],
 ) -> tuple[list[KGGraderInput], list[dict], list[dict]]:
-    """One KGGraderInput per fact, joined to its full-text source article.
+    """One KGGraderInput per event/statement, joined to its full-text source.
 
-    Records skips (rather than crashing) when the source article is missing or
-    when the sidecar's sparse paragraph text disagrees with the reloaded source
-    at the same index (the index-alignment guard).
+    Records a skip (rather than crashing) when the source article is missing.
+    Tasks are emitted sorted by article_id so all statements of one article are
+    contiguous — vLLM's prefix cache then reuses the article KV across them.
     """
     inputs: list[KGGraderInput] = []
     meta: list[dict] = []
     skipped: list[dict] = []
 
-    for row in kg_rows:
-        facts = row.get("facts") or []
-        if not facts:
+    for row in sorted(kg_rows, key=lambda r: r.get("article_id", "")):
+        events = row.get("events") or []
+        if not events:
             continue
         aid = row["article_id"]
         src = source_by_id.get(aid)
         if src is None:
-            for fct in facts:
-                skipped.append({"article_id": aid, "skip_reason": SKIP_ARTICLE_NOT_IN_SOURCE,
-                                **_fact_meta(fct)})
-            logger.warning("SKIP article=%s reason=%s (%d facts)",
-                           aid, SKIP_ARTICLE_NOT_IN_SOURCE, len(facts))
+            for ev in events:
+                skipped.append({"article_id": aid, "event_id": ev.get("id"),
+                                "statement": ev.get("statement", ""),
+                                "skip_reason": SKIP_ARTICLE_NOT_IN_SOURCE})
+            logger.warning("SKIP article=%s reason=%s (%d events)",
+                           aid, SKIP_ARTICLE_NOT_IN_SOURCE, len(events))
             continue
         full = src["paragraphs"]
-        sparse = row.get("paragraphs") or {}
-        # Sidecar keys are str(int) paragraph indices (src/kg/runner.py writes
-        # {str(i): text}), so int(k) cannot raise; compare each stored
-        # paragraph against the reloaded full article at the same index.
-        mis = next(
-            (k for k, txt in sparse.items()
-             if not (0 <= int(k) < len(full)) or full[int(k)] != txt),
-            None,
-        )
-        if mis is not None:
-            for fct in facts:
-                skipped.append({"article_id": aid, "skip_reason": SKIP_PARAGRAPH_MISALIGNMENT,
-                                **_fact_meta(fct)})
-            logger.warning("SKIP article=%s reason=%s key=%s", aid,
-                           SKIP_PARAGRAPH_MISALIGNMENT, mis)
-            continue
-        headline = row.get("headline") or src.get("headline", "")
-        for fct in facts:
+        headline = src.get("headline", row.get("headline", ""))
+        for ev in events:
+            triplets = ev.get("triplets") or []
             inputs.append(KGGraderInput(
                 article_id=aid, headline=headline, paragraphs=full,
-                subject=fct["subject"], subject_type=fct["subject_type"],
-                relation=fct["relation"], object=fct["object"],
-                object_type=fct["object_type"],
-                evidence_paragraphs=list(fct.get("evidence_paragraphs", [])),
+                statement=ev.get("statement", ""),
+                statement_type=ev.get("statement_type", ""),
+                triplets=triplets,
+                evidence_paragraphs=list(ev.get("evidence_paragraphs", [])),
             ))
-            meta.append({"article_id": aid, "date": row.get("date", ""), **_fact_meta(fct)})
+            meta.append({"article_id": aid, "date": row.get("date", ""),
+                         "event_id": ev.get("id"),
+                         "statement": ev.get("statement", ""),
+                         "statement_type": ev.get("statement_type", ""),
+                         "temporal_type": ev.get("temporal_type", ""),
+                         "triplets": triplets,
+                         "evidence_paragraphs": list(ev.get("evidence_paragraphs", []))})
 
     return inputs, meta, skipped
 
 
-# The two fail-able boolean axes (False = a problem with the fact).
-_BOOL_AXES = ["macro_relevant", "correct"]
-# Free-text "better label" slots (non-blank = the judge would re-label it). Mapping
-# a non-blank suggestion against the extractor's code list offline recovers both
-# mis-pick (suggestion is a listed code) and schema-gap (out-of-schema).
-_SUGGESTION_SLOTS = {
-    "subject_type": "subject_type_suggestion",
-    "relation": "relation_suggestion",
-    "object_type": "object_type_suggestion",
-}
+# Free-text "better label" slots; a non-blank value = the judge would re-label
+# that triplet (mapped against the extractor's codes offline to find mis-picks).
+_SUGGESTION_SLOTS = ("relation_suggestion", "subject_type_suggestion",
+                     "object_type_suggestion")
+
+
+def _rate(num: int, den: int) -> float:
+    return round(num / den, 4) if den else 0.0
 
 
 def write_sidecar(out_path, meta, verdicts, skipped=None) -> dict:
-    """Write one JSONL row per graded fact (+ skipped rows); return a summary."""
+    """Write one JSONL row per statement (+ skipped rows); return a summary.
+
+    `faithful_rate_directional` is the headline A/B metric: faithful rate over
+    triplets whose statement the judge flagged `asserts_direction` — keyed on the
+    judge's flag, NOT the extractor's relation code, so 26B's REPORTS/IMPACT moves
+    are comparable to 31B's CAUSES_*.
+    """
     if len(meta) != len(verdicts):
         raise ValueError(f"meta/verdicts mismatch: {len(meta)} vs {len(verdicts)}")
     skipped = skipped or []
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    axis_fail = {ax: 0 for ax in _BOOL_AXES}
-    suggestion_counts = {slot: 0 for slot in _SUGGESTION_SLOTS}
-    # Per-relation / per-type incorrect (correct=False) tallies for the summary.
-    _GROUPS = ("relation", "subject_type", "object_type")
-    tot = {k: Counter() for k in _GROUPS}
-    bad = {k: Counter() for k in _GROUPS}
+
+    n_macro = n_supported = n_asserts = 0
+    trip_judged = trip_faithful = 0
+    dir_judged = dir_faithful = 0
+    mismatch = zero_triplet = 0
+    sugg = {s: 0 for s in _SUGGESTION_SLOTS}
+    rel_tot, rel_faith = Counter(), Counter()
 
     with open(out_path, "w", encoding="utf-8") as f:
         for m, v in zip(meta, verdicts):
+            in_triplets = m.get("triplets") or []
+            n_in = len(in_triplets)
+            if n_in == 0:
+                # A statement the triplet pass left undecomposed (a unary level/
+                # move fact — "S&P 500 rose 0.6%" — or non-macro micro). It still
+                # earns a statement-level verdict but has no triplet to judge; the
+                # judge's phantom triplet verdict is dropped and this is NOT a
+                # count mismatch (0 in -> 0 expected).
+                zero_triplet += 1
+                bad_len = False
+                aligned = False
+            else:
+                bad_len = len(v.triplets) != n_in
+                aligned = not bad_len
+                if bad_len:
+                    mismatch += 1
             row = {
                 **m,
                 "grader_verdict_present": True,
                 "grader_evidence_paragraphs": list(v.evidence_paragraphs),
                 "macro_relevant": v.macro_relevant,
-                "subject_type_suggestion": v.subject_type_suggestion,
-                "relation_suggestion": v.relation_suggestion,
-                "object_type_suggestion": v.object_type_suggestion,
-                "correct": v.correct,
+                "supported": v.supported,
+                "asserts_direction": v.asserts_direction,
+                "triplet_verdicts": (
+                    [tv.model_dump() for tv in v.triplets] if aligned else []),
+                "triplet_count_mismatch": bad_len,
                 "skip_reason": None,
             }
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
-            for ax in _BOOL_AXES:
-                if getattr(v, ax) is False:
-                    axis_fail[ax] += 1
-            for slot, field in _SUGGESTION_SLOTS.items():
-                if (getattr(v, field) or "").strip():
-                    suggestion_counts[slot] += 1
-            for k in _GROUPS:
-                tot[k][m[k]] += 1
-                if v.correct is False:
-                    bad[k][m[k]] += 1
+
+            n_macro += v.macro_relevant
+            n_supported += v.supported
+            n_asserts += v.asserts_direction
+            if not aligned:
+                continue
+            for in_t, tv in zip(in_triplets, v.triplets):
+                trip_judged += 1
+                trip_faithful += tv.faithful
+                rel = in_t.get("relation", "")
+                rel_tot[rel] += 1
+                rel_faith[rel] += tv.faithful
+                if v.asserts_direction:
+                    dir_judged += 1
+                    dir_faithful += tv.faithful
+                for s in _SUGGESTION_SLOTS:
+                    if (getattr(tv, s) or "").strip():
+                        sugg[s] += 1
         for s in skipped:
-            row = {**s, "grader_verdict_present": False}
-            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+            f.write(json.dumps({**s, "grader_verdict_present": False},
+                               ensure_ascii=False) + "\n")
 
-    def _incorrect_by(k):
-        # {label: {n incorrect, of total, rate}} sorted by # incorrect desc.
-        return {key: {"n": bad[k][key], "of": tot[k][key],
-                      "rate": round(bad[k][key] / tot[k][key], 2)}
-                for key in sorted(tot[k], key=lambda x: -bad[k][x])}
-
+    graded = len(meta)
+    faithful_by_relation = {
+        rel: {"faithful": rel_faith[rel], "of": rel_tot[rel],
+              "rate": _rate(rel_faith[rel], rel_tot[rel])}
+        for rel in sorted(rel_tot, key=lambda r: -rel_tot[r])
+    }
     summary = {
-        "graded": len(meta),
-        "skipped": len(skipped),
-        "axis_fail_counts": axis_fail,
-        "suggestion_counts": suggestion_counts,
-        "incorrect_by_relation": _incorrect_by("relation"),
-        "incorrect_by_subject_type": _incorrect_by("subject_type"),
-        "incorrect_by_object_type": _incorrect_by("object_type"),
+        "statements_graded": graded,
+        "statements_skipped": len(skipped),
+        "skipped_by_reason": dict(Counter(s.get("skip_reason") for s in skipped)),
+        "zero_triplet_statements": zero_triplet,
+        "triplets_judged": trip_judged,
+        "macro_relevant_rate": _rate(n_macro, graded),
+        "supported_rate": _rate(n_supported, graded),
+        "asserts_direction_rate": _rate(n_asserts, graded),
+        "faithful_rate": _rate(trip_faithful, trip_judged),
+        "faithful_rate_directional": _rate(dir_faithful, dir_judged),
+        "faithful_by_relation": faithful_by_relation,
+        "suggestion_counts": sugg,
+        "triplet_count_mismatch": mismatch,
     }
     with open(out_path.with_suffix(".summary.json"), "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
-    logger.info("Wrote %d graded + %d skipped to %s; fails=%s suggestions=%s",
-                len(meta), len(skipped), out_path, axis_fail, suggestion_counts)
+    logger.info("Wrote %d graded + %d skipped to %s; faithful=%s directional=%s",
+                graded, len(skipped), out_path,
+                summary["faithful_rate"], summary["faithful_rate_directional"])
     return summary
 
 
@@ -179,12 +199,18 @@ def _load_source(args) -> dict[str, dict]:
     elif args.dataset == "sports":
         arts = load_articles(dataset="sports", sample_dir=args.sports_dir,
                              max_articles=args.max_articles)
-    else:  # djnw — load the date range WITHOUT token filtering so every
-           # fact-bearing article is present to join (max_tokens=None).
+    else:  # djnw — pre-filter articles whose body alone would push the rendered
+           # conversation past max_model_len (mirrors src/mapping/grading/
+           # runner.py). An over-long article's statements then skip as
+           # article_not_in_source. Buffer = max_tokens (generation) + 3000 for
+           # the system prompt (~450) + paragraph numbering + the statement, its
+           # triplets, and the evidence line. Measured prompt overhead over the
+           # raw body is ~1-1.5k even for the longest articles, so 3000 is safe.
+        max_article_tokens = max(1024, args.max_model_len - args.max_tokens - 3000)
         arts = load_articles(
             dataset="djnw", sample_dir=args.data_dir,
             start_date=args.start_date, end_date=args.end_date,
-            max_tokens=None,
+            max_tokens=max_article_tokens, tokenizer_path=args.model,
         )
     return {a["id"]: a for a in arts}
 
@@ -192,7 +218,7 @@ def _load_source(args) -> dict[str, dict]:
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--kg-output", required=True, type=Path,
-                   help="KG extractor sidecar JSONL (facts to grade)")
+                   help="KG extractor sidecar JSONL (statements to grade)")
     p.add_argument("--output", required=True, type=Path)
     p.add_argument("--model", required=True, type=str)
     p.add_argument("--dataset", choices=["gold", "djnw", "sports"], required=True)
@@ -219,8 +245,8 @@ def main():
     logger.info("Loaded %d source articles", len(source_by_id))
     with open(args.kg_output, encoding="utf-8") as f:
         kg_rows = [json.loads(line) for line in f if line.strip()]
-    inputs, meta, skipped = build_fact_tasks(kg_rows, source_by_id)
-    logger.info("Built %d fact-grading tasks (%d skipped)", len(inputs), len(skipped))
+    inputs, meta, skipped = build_statement_tasks(kg_rows, source_by_id)
+    logger.info("Built %d statement-grading tasks (%d skipped)", len(inputs), len(skipped))
 
     grader = LLMKGGrader(model_path=args.model, max_model_len=args.max_model_len,
                          tensor_parallel_size=args.tensor_parallel_size)

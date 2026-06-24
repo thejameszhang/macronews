@@ -1,6 +1,6 @@
 #!/bin/bash
 # SLURM launcher for the KG fact grader (QwQ-32B) on Yale Bouchet.
-# Grades the facts in a KG extractor sidecar; writes a per-fact verdict sidecar.
+# Grades the statements in a KG extractor sidecar; writes a per-statement verdict sidecar.
 #
 # Usage (dev baseline, djnw March 2022):
 #   KG_OUTPUT=results/kg/dev/march_2022_dev.v2.4.jsonl \
@@ -8,7 +8,8 @@
 #   DATASET_ARGS="--dataset djnw --data-dir /nfs/roberts/project/pi_btk22/rc2573/output/cleaned/v2/articles --start-date 2022-03 --end-date 2022-03" \
 #     bash scripts/run_kg_grader.sh
 #
-# Env knobs: MODEL_PATH, MAX_MODEL_LEN, MAX_TOKENS, PARTITION, ACCOUNT, GRES, WALLTIME
+# Env knobs: MODEL_PATH, MAX_MODEL_LEN, MAX_TOKENS, PARTITION, ACCOUNT, QOS, GRES, WALLTIME
+#           (defaults = FREE B200 tier)
 set -euo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mkdir -p logs results
@@ -22,10 +23,16 @@ MODEL_PATH="${MODEL_PATH:-/nfs/roberts/scratch/pi_btk22/jyz32/qwq-32b}"
 # context. This matches run_grader.sh's production MAX_MODEL_LEN.
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-40960}"
 MAX_TOKENS="${MAX_TOKENS:-2048}"
-PARTITION="${PARTITION:-priority_gpu}"
-ACCOUNT="${ACCOUNT:-prio_btk22}"
+# FREE B200 tier is the DEFAULT (gpu_b200 / pi_btk22 / QOS normal). Do NOT default to
+# priority_gpu/prio_btk22 — that BILLS the lab's paid allocation; pass those explicitly
+# (PARTITION/ACCOUNT/QOS overrides) only when a run genuinely needs the priority queue.
+PARTITION="${PARTITION:-gpu_b200}"
+ACCOUNT="${ACCOUNT:-pi_btk22}"
+QOS="${QOS:-normal}"
 GRES="${GRES:-gpu:b200:1}"
-WALLTIME="${WALLTIME:-04:00:00}"
+# Matches the djnw walltime in run_grader.sh / run_kg.sh; over-requesting costs
+# nothing, a timeout forfeits the run. Override via WALLTIME for small dev runs.
+WALLTIME="${WALLTIME:-12:00:00}"
 EXCLUDE_NODES="${EXCLUDE_NODES-a1117u29n01}"
 EXCLUDE_FLAG=""; [ -n "$EXCLUDE_NODES" ] && EXCLUDE_FLAG="--exclude=${EXCLUDE_NODES}"
 
@@ -46,6 +53,7 @@ jobid=$(sbatch --parsable \
     --mem=128G \
     --partition=${PARTITION} \
     --account=${ACCOUNT} \
+    --qos=${QOS} \
     --gres=${GRES} \
     ${EXCLUDE_FLAG} \
     --wrap="

@@ -6,13 +6,19 @@
 # entities + (s, r, o) facts per article, and writes a sidecar JSONL of
 # KGArticleResult rows (+ summary.json).
 #
+# Priming is REQUIRED for every mode: run the mapper on this dataset FIRST, then
+# pass its sidecar via MAPPER_FILE (one file) or MAPPER_DIR (a dir of sidecars,
+# merged by article_id). There is no group-blind fallback.
+#
 # Gold usage:
-#   bash scripts/run_kg.sh
+#   MAPPER_FILE=results/mapper/dev/gold.jsonl \
+#     bash scripts/run_kg.sh
 #       (defaults to gold dataset -> results/kg/dev/gold.jsonl)
 #
 # DJNW single-shard usage:
 #   MODE=djnw \
 #     INPUT_FILE=/nfs/.../articles/2014-05c_clean.jsonl \
+#     MAPPER_FILE=results/mapper/prod/v1/2014-05c.jsonl \
 #     OUTPUT_FILE=results/kg/dev/2014-05c.jsonl \
 #     bash scripts/run_kg.sh
 #
@@ -20,14 +26,17 @@
 #   MODE=djnw \
 #     START_DATE=2022-03 END_DATE=2022-03 \
 #     MAX_ARTICLES=1000 RANDOM_SEED=42 \
+#     MAPPER_DIR=results/mapper/dev/march_2022 \
 #     OUTPUT_FILE=results/kg/dev/march_2022_dev.jsonl \
 #     bash scripts/run_kg.sh
 #
 # Env knobs:
 #   MODEL_PATH, MAX_MODEL_LEN, MAX_TOKENS,
-#   PARTITION, ACCOUNT, GRES, WALLTIME, EXCLUDE_NODES
+#   PARTITION, ACCOUNT, QOS, GRES, WALLTIME, EXCLUDE_NODES   (defaults = FREE B200 tier)
+# Required (all modes) — exactly one:
+#   MAPPER_FILE (single mapper sidecar) OR MAPPER_DIR (dir of sidecars, merged)
 # DJNW-only:
-#   INPUT_FILE  (single-shard mode), OR
+#   INPUT_FILE  (single-shard mode; MAX_ARTICLES/RANDOM_SEED optional), OR
 #   DATA_DIR, START_DATE, END_DATE, MAX_ARTICLES, RANDOM_SEED  (multi-shard mode)
 
 set -euo pipefail
@@ -37,19 +46,28 @@ cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mkdir -p logs results/kg/dev
 
 MODE="${MODE:-gold}"
-# KG uses the DENSE Gemma-4 31B, NOT the mapper's 26B-A4B MoE. The KG extractor
-# makes ONE pass per article and must find+type every entity and relation at once
-# (high per-call reasoning load), where the dense model is materially cleaner. A/B
-# 2026-06-04 (March-2022 dev, same prompts, grader fixed): macro-relevance 3x better,
-# typing halved, fewer hallucinations, ~flat fabrication; ~2x slower (acceptable).
-# The mapper's narrow one-asset-group-per-call passes keep the faster A4B.
-MODEL_PATH="${MODEL_PATH:-/nfs/roberts/scratch/pi_btk22/jyz32/gemma-4-31b-it}"
+# KG uses the mapper's Gemma-4 26B-A4B MoE (NOT the dense 31B). A/B 2026-06-11
+# (2014-05c, 3-pass extractor, statement-level grader): on grader-clean metrics
+# the two models are EQUAL quality — statement `supported` 0.992 vs 0.990, and on
+# directional statements the share of triplets using a signed relation is 33.4%
+# vs 35.4% (within noise; both flatten ~57% into a directionless relation). 26B
+# extracts +45% more statements at the same per-item quality and is ~2.84x faster.
+# The earlier 31B lock (2026-06-04) rested on faithful_rate, later found to score
+# relation PRECISION, not correctness (it penalises vague-but-correct relations).
+# The residual directional-typing weakness is model-independent (a prompt fix).
+MODEL_PATH="${MODEL_PATH:-/nfs/roberts/scratch/pi_btk22/jyz32/gemma-4-26b-a4b-it}"
 # Match mapper's default — keeps both pipelines on the same context window
 # so the token-length filter at load time produces the same article pool.
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-65536}"
 MAX_TOKENS="${MAX_TOKENS:-4096}"
-PARTITION="${PARTITION:-priority_gpu}"
-ACCOUNT="${ACCOUNT:-prio_btk22}"
+MAPPER_FILE="${MAPPER_FILE:-}"
+MAPPER_DIR="${MAPPER_DIR:-}"
+# FREE B200 tier is the DEFAULT (gpu_b200 / pi_btk22 / QOS normal). Do NOT default to
+# priority_gpu/prio_btk22 — that BILLS the lab's paid allocation; pass those explicitly
+# (PARTITION/ACCOUNT/QOS overrides) only when a production run genuinely needs the priority queue.
+PARTITION="${PARTITION:-gpu_b200}"
+ACCOUNT="${ACCOUNT:-pi_btk22}"
+QOS="${QOS:-normal}"
 GRES="${GRES:-gpu:b200:1}"
 
 if [ "$MODE" = "djnw" ]; then
@@ -84,7 +102,12 @@ elif [ "$MODE" = "djnw" ]; then
             exit 1
         fi
         DATASET_ARGS="--dataset djnw --input-file ${INPUT_FILE}"
-        JOB_DESC="djnw single shard: $(basename ${INPUT_FILE}) -> ${OUTPUT_FILE}"
+        # Single-shard sampling (same knobs as multi-shard mode below).
+        [ -n "$MAX_ARTICLES" ] && DATASET_ARGS="${DATASET_ARGS} --max-articles ${MAX_ARTICLES}"
+        [ -n "$RANDOM_SEED" ]  && DATASET_ARGS="${DATASET_ARGS} --random-seed ${RANDOM_SEED}"
+        JOB_DESC="djnw single shard: $(basename ${INPUT_FILE})"
+        [ -n "$MAX_ARTICLES" ] && JOB_DESC="${JOB_DESC} (${MAX_ARTICLES} sampled, seed ${RANDOM_SEED:-none})"
+        JOB_DESC="${JOB_DESC} -> ${OUTPUT_FILE}"
     else
         # Multi-shard / date-range / sampling mode.
         if [ ! -d "$DATA_DIR" ]; then
@@ -107,6 +130,17 @@ else
     exit 1
 fi
 
+# Priming is mandatory for every mode: run the mapper on this dataset first and
+# pass its sidecar (no group-blind fallback). The runner's argparse error is the
+# real enforcement; this fails fast before submitting the job.
+if [ -z "$MAPPER_FILE" ] && [ -z "$MAPPER_DIR" ]; then
+    echo "ERROR: KG runs require MAPPER_FILE or MAPPER_DIR (run the mapper on this dataset first; no group-blind fallback)."
+    exit 1
+fi
+[ -n "$MAPPER_FILE" ] && DATASET_ARGS="${DATASET_ARGS} --mapper-file ${MAPPER_FILE}"
+[ -n "$MAPPER_DIR" ]  && DATASET_ARGS="${DATASET_ARGS} --mapper-dir ${MAPPER_DIR}"
+JOB_DESC="${JOB_DESC} | mapper=${MAPPER_FILE:-$MAPPER_DIR}"
+
 # a1117u29n01 is ~3.4x slower than peer B200 nodes; auto-exclude.
 EXCLUDE_NODES="${EXCLUDE_NODES-a1117u29n01}"
 EXCLUDE_FLAG=""
@@ -124,6 +158,7 @@ jobid=$(sbatch --parsable \
     --mem=128G \
     --partition=${PARTITION} \
     --account=${ACCOUNT} \
+    --qos=${QOS} \
     --gres=${GRES} \
     ${EXCLUDE_FLAG} \
     --wrap="

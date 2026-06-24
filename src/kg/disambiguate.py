@@ -7,13 +7,14 @@ schema (the runner's output format), so the visualizer can be applied
 to either raw or disambiguated JSONL.
 
 Algorithm:
-  1. Iterate facts, count each unique (name, type) pair.
+  1. Iterate event triplets, count each unique (name, type) pair.
   2. Type-block: group entities by their entity_type.
   3. Embed every unique entity name once with a Sentence-BERT model
-     (default Alibaba-NLP/gte-large-en-v1.5, CPU-friendly, 1024-dim).
-  4. Within each type, build cosine-similarity matrix and complete-linkage
-     cluster above the threshold (default 0.9). Cross-type merging is
-     impossible by construction.
+     (default BAAI/bge-large-en-v1.5, 1024-dim).
+  4. Within each type, cluster names by cosine similarity via the shared
+     FAISS-backed `kg.clustering.cluster_by_cosine` (block near-neighbors →
+     connected components → within-block complete-linkage at the threshold,
+     default 0.9). Cross-type merging is impossible by construction.
   5. Per cluster, pick the canonical name = most-frequent surface form,
      ties broken by length (prefer more specific names).
   6. Rewrite the JSONL with subject/object strings replaced by their
@@ -25,14 +26,18 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import re
 from collections import defaultdict
 from pathlib import Path
 from typing import Iterable
 
 import numpy as np
-from scipy.cluster.hierarchy import fcluster, linkage
-from scipy.spatial.distance import squareform
+from rapidfuzz import fuzz
+import torch
 from sentence_transformers import SentenceTransformer
+
+from kg.clustering import cluster_by_cosine
+from kg.self_reference import filter_event, SELF_REF_COSINE_THRESHOLD
 
 logger = logging.getLogger(__name__)
 
@@ -45,15 +50,35 @@ DEFAULT_MODEL = "BAAI/bge-large-en-v1.5"
 DEFAULT_THRESHOLD = 0.9
 
 
+def _default_self_ref_rejected(output_jsonl):
+    p = Path(output_jsonl)
+    # strip a trailing .jsonl, append the audit suffix
+    stem = p.name[:-6] if p.name.endswith(".jsonl") else p.stem
+    return p.with_name(f"{stem}.self_ref_rejected.jsonl")
+
+
 def collect_entity_counts(rows: Iterable[dict]) -> dict[tuple[str, str], int]:
     """Count appearances of each unique (entity_name, entity_type) pair
-    across all facts in all rows."""
+    across all event triplets in all rows."""
     freq: dict[tuple[str, str], int] = defaultdict(int)
     for row in rows:
-        for fact in row.get("facts", []):
-            freq[(fact["subject"], fact["subject_type"])] += 1
-            freq[(fact["object"], fact["object_type"])] += 1
+        for ev in row.get("events", []):
+            for t in ev.get("triplets", []):
+                freq[(t["subject"], t["subject_type"])] += 1
+                freq[(t["object"], t["object_type"])] += 1
     return dict(freq)
+
+
+def _norm_key(name: str) -> str:
+    """Rule A normalization: lowercase, hyphens -> spaces, collapse whitespace.
+
+    Names equal under this (e.g. 'Natural-gas' == 'Natural Gas') are pre-merged
+    BEFORE embedding clustering, so the cosine threshold can't fragment trivial
+    punctuation/case variants (BGE puts 'Natural-gas' at 0.866 from 'Natural Gas',
+    below the 0.90 cutoff). Hyphen -> SPACE (never removal), so 'X-Y' merges with
+    'X Y' but NEVER with 'XY' — it can't fuse unrelated tokens.
+    """
+    return re.sub(r"\s+", " ", name.lower().replace("-", " ")).strip()
 
 
 def cluster_within_type(
@@ -67,28 +92,45 @@ def cluster_within_type(
     product is cosine similarity. Returns a list of clusters; each cluster
     is a list of names. Single-element clusters represent un-merged entities.
 
-    Complete-linkage means: a cluster contains a set of names where ALL
-    pairwise similarities are >= threshold. This prevents transitive
-    over-merging (A~B + B~C does NOT imply A,B,C cluster unless A~C too).
+    Names sharing a Rule A normalized key (see `_norm_key`) are pre-collapsed
+    into one unit FIRST (guaranteed merged); the units are then embed-clustered.
+    Complete-linkage means: a cluster contains a set of units where ALL pairwise
+    similarities are >= threshold. This prevents transitive over-merging (A~B +
+    B~C does NOT imply A,B,C cluster unless A~C too); pre-collapsing units adds
+    no chaining, since the embedding clustering still runs over distinct keys.
     """
     if len(names) == 0:
         return []
-    if len(names) == 1:
-        return [[names[0]]]
 
-    sim = embeddings @ embeddings.T
-    dist = 1.0 - sim
-    np.fill_diagonal(dist, 0.0)
-    # Clamp tiny negative floats from numerical error so squareform accepts.
-    np.clip(dist, 0.0, None, out=dist)
-    condensed = squareform(dist, checks=False)
-    Z = linkage(condensed, method="complete")
-    cluster_ids = fcluster(Z, t=1.0 - threshold, criterion="distance")
+    # Rule A pre-collapse: group names by normalized key; cluster one
+    # representative embedding per key, then expand each cluster to all members.
+    units: dict[str, list[str]] = defaultdict(list)
+    rep: dict[str, int] = {}
+    for i, name in enumerate(names):
+        key = _norm_key(name)
+        if key not in rep:
+            rep[key] = i
+        units[key].append(name)
+    keys = list(units)
+    if len(keys) == 1:
+        return [list(names)]
 
-    clusters: dict[int, list[str]] = defaultdict(list)
-    for name, cid in zip(names, cluster_ids):
-        clusters[cid].append(name)
-    return list(clusters.values())
+    rep_embs = np.array([embeddings[rep[k]] for k in keys])
+    # Shared-module complete-linkage, equivalent to the old global scipy version.
+    # Block (FAISS) at a slightly looser floor than `threshold`, then enforce
+    # complete-linkage at `threshold`. The 0.05 gap matters: FAISS range_search on
+    # IndexFlatIP returns inner product STRICTLY > the radius, so blocking exactly at
+    # `threshold` could drop a pair sitting at cosine == threshold — which within-block
+    # complete-linkage (inclusive, cutoff 1-threshold) WOULD merge. Any
+    # search_threshold < threshold is correct; 0.05 is conservative headroom.
+    key_clusters = cluster_by_cosine(
+        keys, rep_embs,
+        search_threshold=max(0.0, threshold - 0.05),
+        complete_linkage=True,
+        enforce_threshold=threshold,
+    )
+    # Expand representative-key clusters back to all member names.
+    return [[name for key in kc for name in units[key]] for kc in key_clusters]
 
 
 def select_canonical(cluster: list[str], freq: dict[str, int]) -> str:
@@ -119,6 +161,8 @@ def disambiguate(
     model_name: str = DEFAULT_MODEL,
     threshold: float = DEFAULT_THRESHOLD,
     clusters_sidecar: Path | None = None,
+    self_ref_threshold: float | None = None,
+    self_ref_rejected_jsonl: Path | None = None,
 ) -> dict:
     """Run the disambiguation pipeline on a KG v2 sidecar JSONL.
 
@@ -142,23 +186,27 @@ def disambiguate(
         by_type[typ].add(name)
 
     # 3. Embed every unique entity name ONCE, regardless of type.
-    model = SentenceTransformer(model_name, device="cpu")
+    # Use the GPU when one is present (a B200 cuts the encode from ~30 min to
+    # ~1-2 min); fall back to CPU on login/interactive nodes and in tests.
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = SentenceTransformer(model_name, device=device)
     all_names = sorted({name for name, _ in counts})
     logger.info(
-        "Embedding %d unique entity names with %s",
-        len(all_names), model_name,
+        "Embedding %d unique entity names with %s on %s",
+        len(all_names), model_name, device,
     )
     embs = model.encode(
         all_names,
         normalize_embeddings=True,
         show_progress_bar=True,
-        batch_size=64,
+        batch_size=256 if device == "cuda" else 64,
     )
     embs = np.asarray(embs)
     emb_by_name = dict(zip(all_names, embs))
 
     # Cluster within each type and pick canonical per cluster.
     canonical_map: dict[tuple[str, str], str] = {}
+    canonical_emb: dict[str, np.ndarray] = {}
     # Nested by type so identical canonicals in different types stay distinct.
     clusters_record: dict[str, dict[str, list[str]]] = defaultdict(dict)
 
@@ -172,10 +220,40 @@ def disambiguate(
             # graph renders (build_graph applies the same casing). Without
             # this, a lowercase surface form winning on frequency yields an
             # ugly canonical like "middle east conflict" in the JSONL.
-            canonical = _display(select_canonical(cluster, type_freq))
+            raw_canon = select_canonical(cluster, type_freq)
+            canonical = _display(raw_canon)
+            canonical_emb[canonical] = emb_by_name[raw_canon]
             clusters_record[typ][canonical] = sorted(cluster)
             for member in cluster:
                 canonical_map[(member, typ)] = canonical
+
+    # Acronym merge: collapse single-word tokens that are initials of a
+    # multi-word canonical in the same type (e.g. "ECB" → "European Central Bank").
+    # Update BOTH canonical_map and clusters_record so n_merges / n_clusters / the
+    # cluster sidecar reflect the merge (clusters_record drives those counts).
+    ACRONYM_THRESHOLD = 98.0
+    for typ, type_clusters in clusters_record.items():
+        canon_freq = {c: sum(counts[(m, typ)] for m in members)
+                      for c, members in type_clusters.items()}
+        singles = [c for c in type_clusters if " " not in c]
+        merges: list[tuple[str, str]] = []  # (winner, loser)
+        for multi in [c for c in type_clusters if " " in c]:
+            initials = "".join(w[0] for w in multi.split())
+            match = next((c for c in singles
+                          if fuzz.ratio(initials, c) >= ACRONYM_THRESHOLD), None)
+            if match is None:
+                continue
+            winner = multi if canon_freq[multi] >= canon_freq[match] else match
+            loser = match if winner == multi else multi
+            merges.append((winner, loser))
+        for winner, loser in merges:
+            if winner not in type_clusters or loser not in type_clusters:
+                continue  # already folded by an earlier merge in a chain
+            for m in type_clusters[loser]:
+                canonical_map[(m, typ)] = winner
+            type_clusters[winner] = sorted(
+                set(type_clusters[winner]) | set(type_clusters[loser]))
+            del type_clusters[loser]
 
     n_merges = sum(
         len(c) - 1
@@ -186,17 +264,29 @@ def disambiguate(
     n_clusters = sum(len(t) for t in clusters_record.values())
     output_jsonl = Path(output_jsonl)
     output_jsonl.parent.mkdir(parents=True, exist_ok=True)
+    self_ref_rejected = []
     with output_jsonl.open("w", encoding="utf-8") as out:
         for row in rows:
-            new_facts = []
-            for fact in row.get("facts", []):
-                new_facts.append({
-                    **fact,
-                    "subject": canonical_map[(fact["subject"], fact["subject_type"])],
-                    "object":  canonical_map[(fact["object"],  fact["object_type"])],
-                })
-            new_row = {**row, "facts": new_facts}
-            out.write(json.dumps(new_row, ensure_ascii=False) + "\n")
+            new_events = []
+            for ev in row.get("events", []):
+                new_trips = [{**t,
+                              "subject": canonical_map[(t["subject"], t["subject_type"])],
+                              "object":  canonical_map[(t["object"],  t["object_type"])]}
+                             for t in ev.get("triplets", [])]
+                ev_canon = {**ev, "triplets": new_trips}
+                if self_ref_threshold is not None:
+                    kept, rej = filter_event(ev_canon, canonical_emb, self_ref_threshold)
+                    ev_canon = {**ev_canon, "triplets": kept}
+                    self_ref_rejected.extend(rej)
+                new_events.append(ev_canon)
+            out.write(json.dumps({**row, "events": new_events}, ensure_ascii=False) + "\n")
+
+    if self_ref_rejected_jsonl is not None and self_ref_threshold is not None:
+        rej_path = Path(self_ref_rejected_jsonl)
+        rej_path.parent.mkdir(parents=True, exist_ok=True)
+        with rej_path.open("w", encoding="utf-8") as rf:
+            for r in self_ref_rejected:
+                rf.write(json.dumps(r, ensure_ascii=False) + "\n")
 
     if clusters_sidecar is not None:
         clusters_sidecar = Path(clusters_sidecar)
@@ -217,6 +307,7 @@ def disambiguate(
         "total_entities": len(counts),
         "clusters_n": n_clusters,
         "merges_n": n_merges,
+        "self_ref_dropped": len(self_ref_rejected),
     }
     logger.info(
         "Disambiguated %d unique (name,type) pairs -> %d clusters (%d merges)",
@@ -239,6 +330,11 @@ def main() -> None:
                    help=f"Sentence-Transformers model (default: {DEFAULT_MODEL})")
     p.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD,
                    help=f"Cosine similarity merge threshold (default: {DEFAULT_THRESHOLD})")
+    p.add_argument("--self-ref-threshold", type=float, default=SELF_REF_COSINE_THRESHOLD,
+                   help=f"self-reference cosine threshold (default {SELF_REF_COSINE_THRESHOLD}); "
+                        f"set > 1.0 to disable Tier-2")
+    p.add_argument("--self-ref-rejected", type=str, default=None,
+                   help="self-reference rejected-triplet audit log (default: sibling of --output)")
     p.add_argument("--clusters", type=Path, default=None,
                    help="Optional path to write {canonical: [variants...]} JSON sidecar")
     args = p.parse_args()
@@ -249,6 +345,9 @@ def main() -> None:
         model_name=args.model,
         threshold=args.threshold,
         clusters_sidecar=args.clusters,
+        self_ref_threshold=args.self_ref_threshold,
+        self_ref_rejected_jsonl=(args.self_ref_rejected
+                                 or _default_self_ref_rejected(args.output)),
     )
     print(f"Done: {summary}")
 

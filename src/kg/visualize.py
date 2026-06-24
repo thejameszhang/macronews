@@ -22,7 +22,11 @@ import networkx as nx
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
-from kg.schemas import ENTITY_TYPES_TUPLE, RELATION_TYPES_TUPLE  # noqa: E402
+from kg.schemas import (  # noqa: E402
+    ENTITY_TYPES_TUPLE, RELATION_TYPES_TUPLE, ASSET_GROUP_NODE_TYPE, ASSET_GROUP_RELATION,
+)
+from utils.groups import load_group_universe  # noqa: E402
+from kg.article_meta import load_display_dates, shard_path  # noqa: E402
 
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 TEMPLATE_PATH = Path(__file__).resolve().parent / "templates" / "graph.html.template"
@@ -50,11 +54,14 @@ def _make_palette(types: tuple[str, ...], cmap_names: tuple[str, ...]) -> dict[s
 
 
 # tab20b is shared as the OVERFLOW palette for both entity and relation
-# colors. With the current 18-type / 18-relation schemas, entities fit
-# entirely in tab20 and relations in tab20c, so tab20b is never reached
-# and there is no entity/relation color collision. If either list grows
-# past 20, overflow would pull shared tab20b colors — revisit then.
-ENTITY_COLORS = _make_palette(ENTITY_TYPES_TUPLE, ("tab20", "tab20b"))
+# colors. Entity types are now 19 extractor types + 1 synthetic ASSET_GROUP
+# = 20, which fills tab20 EXACTLY (ASSET_GROUP at index 19, the last slot);
+# the 19 relations fit in tab20c. So tab20b is still never reached and there
+# is no entity/relation color collision — but entities are now AT the 20 cap:
+# one more entity type would overflow into shared tab20b. Revisit then.
+# ASSET_GROUP_NODE_TYPE is appended last so existing type→color assignments
+# don't shift.
+ENTITY_COLORS = _make_palette(ENTITY_TYPES_TUPLE + (ASSET_GROUP_NODE_TYPE,), ("tab20", "tab20b"))
 RELATION_COLORS = _make_palette(RELATION_TYPES_TUPLE, ("tab20c", "tab20b"))
 
 
@@ -105,8 +112,25 @@ def _edge_date_range(sources: list[dict]) -> str:
     return f"{dates[0]} → {dates[-1]}"
 
 
-def serialize_graph(g: nx.MultiDiGraph) -> dict:
-    """Serialize to {"nodes": [...], "edges": [...]} for cosmos.gl."""
+def _edge_field(sources: list[dict], key: str) -> str:
+    """Summarize one field across an edge's sources: the unanimous value, or
+    'mixed' when sources disagree, or '' when no source carries it."""
+    vals = {s.get(key) for s in sources if s.get(key)}
+    if not vals:
+        return ""
+    if len(vals) == 1:
+        return next(iter(vals))
+    return "mixed"
+
+
+def serialize_graph(g: nx.MultiDiGraph, display_dates: dict[str, str] | None = None) -> dict:
+    """Serialize to {"nodes": [...], "edges": [...]} for cosmos.gl.
+
+    display_dates (optional) maps article_id -> exact release timestamp string;
+    when supplied, each edge source carries it as ``display_date`` for the
+    Reader tab's within-day ordering. Omitted -> ``display_date == ""``.
+    """
+    dd = display_dates or {}
     nodes = []
     for n, d in g.nodes(data=True):
         et = d.get("entity_type", "UNKNOWN")
@@ -119,22 +143,50 @@ def serialize_graph(g: nx.MultiDiGraph) -> dict:
             "size": min(NODE_MAX, NODE_BASE + NODE_SCALE * (deg ** 0.5)),
             "articleCount": len(d.get("source_articles", [])),
         })
+    # Supersession: a source may carry invalidated_by = the id of the event that
+    # closed it. Collect referenced superseder ids so we emit a source's `id` ONLY
+    # when something points at it — keeps the embedded JSON lean (most sources are
+    # never a superseder).
+    referenced_ids = {
+        s.get("invalidated_by")
+        for _, _, d in g.edges(data=True)
+        for s in d.get("sources", [])
+        if s.get("invalidated_by")
+    }
     edges = []
     for u, v, d in g.edges(data=True):
         rel = d.get("relation", "")
         raw_sources = d.get("sources", [])
         seen: set[str] = set()
         sources: list[dict] = []
+        # Dedup is per-(edge, article): if one article emits two events on the same
+        # (subject, relation, object), only the first survives. Rare consequence: a
+        # superseder whose id lives on the dropped event won't carry its `id` here, so
+        # the Reader can't resolve that one supersession (it falls back gracefully).
         for s in raw_sources:
             aid = s.get("article_id")
             if aid is None or aid in seen:
                 continue
             seen.add(aid)
-            sources.append({
+            src = {
                 "article_id": aid,
                 "date": s.get("date", ""),
+                "display_date": dd.get(aid, ""),
                 "headline": s.get("headline", ""),
-            })
+                "statement": s.get("statement", ""),
+                "value": s.get("value"),
+                "paragraphs": s.get("paragraphs", []),
+                "statement_type": s.get("statement_type"),
+                "temporal_type": s.get("temporal_type"),
+                "valid_at": s.get("valid_at"),
+                "invalid_at": s.get("invalid_at"),
+            }
+            invalidated_by = s.get("invalidated_by")
+            if invalidated_by:
+                src["invalidated_by"] = invalidated_by
+            if s.get("id") in referenced_ids:
+                src["id"] = s.get("id")
+            sources.append(src)
         sources.sort(key=lambda s: (s["date"], s["article_id"]))
         count = len(sources) if sources else 1
         edges.append({
@@ -145,7 +197,11 @@ def serialize_graph(g: nx.MultiDiGraph) -> dict:
             "color": RELATION_COLORS.get(rel, _UNKNOWN_COLOR),
             "count": count,
             "dateRange": _edge_date_range(d.get("sources", [])),
+            "statementType": _edge_field(d.get("sources", []), "statement_type"),
+            "temporalType": _edge_field(d.get("sources", []), "temporal_type"),
             "sources": sources,
+            "synthetic": bool(d.get("synthetic", False)),
+            "method": d.get("method", ""),
         })
     return {"nodes": nodes, "edges": edges}
 
@@ -185,39 +241,93 @@ def build_legend_html(g: nx.MultiDiGraph) -> str:
     )
 
 
+def build_asset_groups(g: nx.MultiDiGraph) -> list[dict]:
+    """For each of the 50 asset groups, the rendered-graph node keys forming its
+    "bubble", for the panel navigator. Sorted by (asset_class, group name); all
+    50 groups are always returned (a group with no bubble is greyed, count 0).
+
+    When the resolution layer is present (build_graph was given entity-groups, so
+    the graph has ASSET_GROUP anchor nodes), a group's bubble = its
+    ``[ASSET_GROUP] <name>`` anchor plus every entity linked to it by a
+    RELATED_TO_ASSET_GROUP edge; ``count`` is the number of linked members.
+
+    Fallback (no resolution layer in the graph — e.g. a render without
+    ``--entity-groups``): exact name match — keys are nodes whose name equals the
+    group name or a member name/short_name.
+    """
+    universe = load_group_universe()
+    has_anchors = any(d.get("entity_type") == ASSET_GROUP_NODE_TYPE
+                      for _, d in g.nodes(data=True))
+
+    out = []
+    if has_anchors:
+        for gv in universe.values():
+            anchor = f"[ASSET_GROUP] {gv['name']}"
+            if anchor in g:
+                members = sorted({u for u, _, d in g.in_edges(anchor, data=True)
+                                  if d.get("relation") == ASSET_GROUP_RELATION})
+                keys, count = [anchor, *members], len(members)
+            else:
+                keys, count = [], 0
+            out.append({"name": gv["name"], "assetClass": gv["asset_class"],
+                        "keys": keys, "count": count})
+    else:
+        by_casefold: dict[str, list[str]] = {}
+        for n in g.nodes():
+            by_casefold.setdefault(n.casefold(), []).append(n)
+        for gv in universe.values():
+            terms = {gv["name"].casefold()}
+            for m in gv["members"]:
+                terms.add(m["name"].casefold())
+                terms.add(m["short_name"].casefold())
+            keys = sorted({k for t in terms for k in by_casefold.get(t, [])})
+            out.append({"name": gv["name"], "assetClass": gv["asset_class"],
+                        "keys": keys, "count": len(keys)})
+    out.sort(key=lambda d: (d["assetClass"], d["name"]))
+    return out
+
+
 # Vendored JS bundle for cosmos.gl GPU force simulation.
 # Names + versions recorded in assets/VERSIONS.txt.
 _VENDORED_JS = ("cosmos.graph.umd.js",)
 
 
-def render_html(graph_data: dict, legend_html: str, title: str) -> str:
-    """Fill the HTML template: inline vendored JS, graph JSON, legend.
+def _js_literal(obj) -> str:
+    """JSON for inlining as a JS literal inside a <script> block: guard the
+    `</` and `<!--` sequences so a string can't break out of the block."""
+    return (json.dumps(obj, ensure_ascii=False)
+            .replace("</", "<\\/")
+            .replace("<!--", "<\\!--"))
 
-    The graph JSON is embedded as a JS literal. json.dumps escapes JSON
-    structure; we additionally guard the `</` sequence so a node name
-    containing `</script>` can't break out of the inlined <script> block.
+
+def render_html(graph_data: dict, legend_html: str, title: str,
+                asset_groups: list[dict]) -> str:
+    """Fill the HTML template: inline vendored JS, graph JSON, legend, and the
+    asset-group navigator data.
+
+    The graph/asset JSON is embedded as a JS literal (see `_js_literal`).
     """
     template = TEMPLATE_PATH.read_text()
     vendored = "\n".join((ASSETS_DIR / fn).read_text() for fn in _VENDORED_JS)
-    data_json = (json.dumps(graph_data, ensure_ascii=False)
-                 .replace("</", "<\\/")
-                 .replace("<!--", "<\\!--"))
     return (
         template
         .replace("{{TITLE}}", title)
         .replace("{{VENDORED_JS}}", vendored)
-        .replace("{{GRAPH_DATA}}", data_json)
+        .replace("{{GRAPH_DATA}}", _js_literal(graph_data))
         .replace("{{LEGEND_HTML}}", legend_html)
+        .replace("{{ASSET_GROUPS_JSON}}", _js_literal(asset_groups))
     )
 
 
 def visualize(g: nx.MultiDiGraph, output_html: Path,
               min_count: int = 1, min_degree: int = 1,
-              title: str = "Macro KG") -> dict:
+              title: str = "Macro KG",
+              display_dates: dict[str, str] | None = None) -> dict:
     """Filter -> serialize -> write a self-contained cosmos.gl HTML page."""
     n0, e0 = g.number_of_nodes(), g.number_of_edges()
     fg = filter_graph(g, min_count, min_degree)
-    html = render_html(serialize_graph(fg), build_legend_html(fg), title)
+    html = render_html(serialize_graph(fg, display_dates), build_legend_html(fg), title,
+                       build_asset_groups(fg))
     output_html = Path(output_html)
     output_html.parent.mkdir(parents=True, exist_ok=True)
     output_html.write_text(html)
@@ -238,11 +348,18 @@ def main() -> None:
     p.add_argument("--min-degree", type=int, default=1,
                    help="Drop nodes with fewer than N distinct neighbors (default 1).")
     p.add_argument("--title", type=str, default="Macro KG")
+    p.add_argument("--entity-groups", type=Path, default=None,
+                   help="entity_groups.json from link_groups.py (adds ASSET_GROUP anchors)")
+    p.add_argument("--shards", nargs="+", default=None,
+                   help="cleaned shard stems (e.g. 2014-05a) to join display_date "
+                        "for within-day Reader ordering; omit for day-level ordering")
     args = p.parse_args()
 
     from kg.build_graph import build_graph
-    g = build_graph(args.jsonl)
-    visualize(g, args.output, args.min_count, args.min_degree, args.title)
+    g = build_graph(args.jsonl, entity_groups_path=args.entity_groups)
+    display_dates = (load_display_dates([shard_path(s) for s in args.shards])
+                     if args.shards else None)
+    visualize(g, args.output, args.min_count, args.min_degree, args.title, display_dates)
 
 
 if __name__ == "__main__":

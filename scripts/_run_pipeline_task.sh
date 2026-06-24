@@ -8,7 +8,6 @@ set -euo pipefail
 # the repo root before submitting, so this lands in the repo root.
 cd "${SLURM_SUBMIT_DIR:?must be invoked via sbatch}"
 module load Python/3.12.3-GCCcore-13.3.0 >/dev/null 2>&1 || true
-source .venv/bin/activate
 
 : "${MANIFEST_FILE:?MANIFEST_FILE not set}"
 : "${INPUT_DIR:?INPUT_DIR not set}"
@@ -50,7 +49,10 @@ trap '_end=$(date +%s); echo "[task ${SLURM_ARRAY_TASK_ID}] $SHARD end:   $(date
 # vs ~29% without the flag. Requires compute capability >= 9.0.
 export VLLM_BATCH_INVARIANT=1
 
-PYTHONPATH=src python src/pipeline.py \
+# Venv python by ABSOLUTE PATH (not plain 'python'): module load re-prepends its
+# bin/, so 'python' can resolve to the system interpreter. Same pattern as
+# _run_grader_task.sh / run_kg.sh.
+PYTHONPATH=src .venv/bin/python src/pipeline.py \
     --model "$MODEL_PATH" \
     --max-model-len "$MAX_MODEL_LEN" \
     --mode prod \

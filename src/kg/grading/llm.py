@@ -16,7 +16,7 @@ from pathlib import Path
 
 import compat  # noqa: F401  — transformers / vLLM compat shim
 
-from kg.grading.schemas import KGFactVerdict
+from kg.grading.schemas import KGStatementVerdict
 
 logger = logging.getLogger(__name__)
 
@@ -25,16 +25,15 @@ GRADER_PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "grader.txt"
 
 @dataclass
 class KGGraderInput:
-    """Everything the judge sees for one (article, fact) call."""
+    """Everything the judge sees for one (article, statement) call."""
 
     article_id: str
     headline: str
-    paragraphs: list[str]       # FULL paragraph list (re-loaded from source)
-    subject: str
-    subject_type: str
-    relation: str
-    object: str
-    object_type: str
+    paragraphs: list[str]          # FULL paragraph list (re-loaded from source)
+    statement: str
+    statement_type: str            # FACT / OPINION / PREDICTION
+    triplets: list[dict]           # each: subject, subject_type, relation,
+                                   #   object, object_type, value
     evidence_paragraphs: list[int]
 
 
@@ -71,6 +70,7 @@ class LLMKGGrader:
                 max_model_len=self.max_model_len,
                 tensor_parallel_size=self.tensor_parallel_size,
                 gpu_memory_utilization=0.95,
+                enable_prefix_caching=True,
                 attention_config=AttentionConfig(backend="TRITON_ATTN"),
             )
 
@@ -78,10 +78,10 @@ class LLMKGGrader:
         self,
         items: list[KGGraderInput],
         max_tokens: int = 2048,
-    ) -> list[KGFactVerdict]:
+    ) -> list[KGStatementVerdict]:
         """Grade a batch of facts; one verdict per input, same order.
 
-        Parse failures fall through to a default KGFactVerdict() with a logged
+        Parse failures fall through to a default KGStatementVerdict() with a logged
         warning (should be ~0 under structured JSON decoding — verify in smoke).
         """
         if not items:
@@ -90,7 +90,7 @@ class LLMKGGrader:
         from vllm.sampling_params import StructuredOutputsParams
 
         self._init_llm()
-        schema = KGFactVerdict.model_json_schema()
+        schema = KGStatementVerdict.model_json_schema()
         sampling_params = SamplingParams(
             temperature=0.0,
             max_tokens=max_tokens,
@@ -103,13 +103,18 @@ class LLMKGGrader:
             ]
             for item in items
         ]
-        logger.info("[vLLM] Grading %d facts...", len(conversations))
+        logger.info("[vLLM] Grading %d statements...", len(conversations))
         outputs = self._llm.chat(conversations, sampling_params)
         return [self._parse_one(o.outputs[0].text, i) for i, o in enumerate(outputs)]
 
     @staticmethod
     def build_user_message(item: KGGraderInput) -> str:
-        """Compose the user message: [HEADLINE] / [ARTICLE]...[/ARTICLE] / [FACT]."""
+        """Compose: [HEADLINE] / [ARTICLE] / [STATEMENT] / [TRIPLETS].
+
+        The full article sits BEFORE any statement-specific content so that, for
+        all statements of one article, the prefix (system + headline + article) is
+        identical — vLLM's prefix cache then reuses the article KV across them.
+        """
         article_block = "\n\n".join(
             f"[{i}] {p}" for i, p in enumerate(item.paragraphs)
         )
@@ -117,29 +122,35 @@ class LLMKGGrader:
             ", ".join(str(i) for i in item.evidence_paragraphs)
             if item.evidence_paragraphs else "(none)"
         )
+        triplet_lines = []
+        for n, t in enumerate(item.triplets, 1):
+            val = t.get("value")
+            tail = f" = {val}" if val else ""
+            triplet_lines.append(
+                f"{n}. ({t['subject']} : {t['subject_type']}) "
+                f"-- {t['relation']} --> "
+                f"({t['object']} : {t['object_type']}){tail}"
+            )
         return (
             f"[HEADLINE] {item.headline}\n\n"
             f"[ARTICLE]\n{article_block}\n[/ARTICLE]\n\n"
-            f"[FACT]\n"
-            f"({item.subject} : {item.subject_type}) "
-            f"-- {item.relation} --> "
-            f"({item.object} : {item.object_type})\n"
-            f"Extractor-cited evidence paragraphs: {evidence}\n"
-            f"[/FACT]"
+            f"[STATEMENT] ({item.statement_type}) {item.statement}\n"
+            f"Extractor-cited evidence paragraphs: {evidence}\n\n"
+            f"[TRIPLETS]\n" + "\n".join(triplet_lines) + "\n[/TRIPLETS]"
         )
 
-    def _parse_one(self, raw: str, idx: int) -> KGFactVerdict:
+    def _parse_one(self, raw: str, idx: int) -> KGStatementVerdict:
         try:
-            return KGFactVerdict.model_validate_json(raw)
+            return KGStatementVerdict.model_validate_json(raw)
         except Exception:
             json_str = self._extract_json(raw)
             if json_str:
                 try:
-                    return KGFactVerdict.model_validate_json(json_str)
+                    return KGStatementVerdict.model_validate_json(json_str)
                 except Exception:
                     pass
             logger.warning("Failed to parse KG grader output %d: %s", idx, raw[:200])
-            return KGFactVerdict()
+            return KGStatementVerdict()
 
     @staticmethod
     def _extract_json(text: str) -> str | None:

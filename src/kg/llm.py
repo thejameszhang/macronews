@@ -1,198 +1,64 @@
-"""LLMExtractor — vLLM-backed KG Phase 1 fact extractor.
-
-Mirrors src/mapping/llm.py::LLMMapper (lazy vLLM init, batched chat,
-guided JSON decoding) but with one article-agnostic prompt and the
-KGArticleResult schema. One LLM.chat() invocation per batch; vLLM
-schedules N article conversations internally.
-"""
+"""KG LLM helpers: mapper-context renderer for per-article primed extraction."""
 
 from __future__ import annotations
 
-import json
 import logging
+import textwrap
 
-import compat  # noqa: F401  — transformers / vLLM compat shim
-
-from config.paths import KG_PROMPTS_DIR
-from kg.schemas import KGArticleResult
+from utils.groups import (
+    build_group_lookup, constituents_with_short_names, load_group_universe,
+)
 
 logger = logging.getLogger(__name__)
 
-EXTRACTOR_PROMPT_PATH = KG_PROMPTS_DIR / "extractor.txt"
-ENTITY_TYPES_PATH = KG_PROMPTS_DIR / "entity_types.txt"
-RELATION_TYPES_PATH = KG_PROMPTS_DIR / "relation_types.txt"
+# Cache the universe + lookup ONCE at import. render_mapper_context runs per article;
+# load_group_universe() opens the YAML on every call, so calling it per article
+# would be tens of thousands of NFS reads per run.
+_GROUP_UNIVERSE = load_group_universe()
+_GROUP_LOOKUP = build_group_lookup(_GROUP_UNIVERSE)
 
-_ENTITY_PLACEHOLDER = "{{ENTITY_TYPES}}"
-_RELATION_PLACEHOLDER = "{{RELATION_TYPES}}"
+_CONTEXT_HEADER = "[RELEVANT ASSET GROUPS]"
+_BREADTH = (
+    "extract the general macroeconomic facts in it — events, policies, "
+    "indicators, and other forces at play."
+)
 
 
-def render_system_prompt() -> str:
-    """Render the extractor system prompt with the entity and relation
-    taxonomies substituted in.
+def render_mapper_context(flagged_group_names: list[str]) -> str:
+    """Per-article mapper-context block (goes at the top of the user message).
 
-    Output is byte-identical across calls so vLLM prefix caching can
-    reuse the KV cache for the system prompt across every article.
-    Anything that would vary per call must NOT enter this function.
+    flagged_group_names: the group *names* the mapper flagged for this
+    article (may be empty → the no-groups form). Raises KeyError on an
+    unknown group name (alignment bug — fail loud).
     """
-    template = EXTRACTOR_PROMPT_PATH.read_text()
-    entity_table = ENTITY_TYPES_PATH.read_text().rstrip()
-    relation_table = RELATION_TYPES_PATH.read_text().rstrip()
-    return (
-        template
-        .replace(_ENTITY_PLACEHOLDER, entity_table)
-        .replace(_RELATION_PLACEHOLDER, relation_table)
-    )
-
-
-def render_user_message(headline: str, paragraphs: list[str]) -> str:
-    """Compose the per-article user message in the same indexed format
-    the mapper uses, so paragraph indices the LLM emits in
-    `evidence_paragraphs` are unambiguous.
-    """
-    article_block = "\n\n".join(
-        f"[{i}] {p}" for i, p in enumerate(paragraphs)
-    )
-    return (
-        f"[HEADLINE] {headline}\n\n"
-        f"[ARTICLE]\n{article_block}\n[/ARTICLE]"
-    )
-
-
-class LLMExtractor:
-    """Per-article KG fact extractor.
-
-    Gemma 4 31B on a single B200, batch-invariant attention, TP=1.
-    Default attention backend (vLLM auto-picks — same as LLMMapper). No
-    AttentionConfig override (that's Qwen2-arch-specific, used by the
-    grader). Prefix caching is enabled explicitly so the static system
-    prompt is cached after the first call across all subsequent calls.
-    """
-
-    def __init__(
-        self,
-        model_path: str,
-        max_model_len: int = 65536,  # production context (matches the runner default)
-        tensor_parallel_size: int = 1,
-    ):
-        self.model_path = model_path
-        self.max_model_len = max_model_len
-        self.tensor_parallel_size = tensor_parallel_size
-        self.system_prompt = render_system_prompt()
-        self._llm = None
-
-    # ------------------------------------------------------------------
-    # vLLM backend
-    # ------------------------------------------------------------------
-
-    def _init_llm(self):
-        if self._llm is None:
-            from vllm import LLM
-            logger.info(
-                "Initializing vLLM extractor: %s (tp=%d, max_model_len=%d, prefix_cache=on)",
-                self.model_path, self.tensor_parallel_size, self.max_model_len,
-            )
-            self._llm = LLM(
-                model=self.model_path,
-                max_model_len=self.max_model_len,
-                tensor_parallel_size=self.tensor_parallel_size,
-                gpu_memory_utilization=0.95,
-                # Mapper's vision-skip: avoids the video position-embedding
-                # 4D x 3D matmul that vLLM 0.19.0 batch-invariant rejects on B200.
-                limit_mm_per_prompt={"video": 0, "image": 0},
-                # Static system prompt → cache the system KV across all articles.
-                enable_prefix_caching=True,
-            )
-
-    # ------------------------------------------------------------------
-    # Extraction
-    # ------------------------------------------------------------------
-
-    def extract_batch(
-        self,
-        articles: list[dict],
-        max_tokens: int = 2048,
-    ) -> list[KGArticleResult]:
-        """Extract entities + facts for each article.
-
-        Each input dict has the standard loader shape: at minimum
-        `headline: str` and `paragraphs: list[str]`. Other keys are
-        ignored (the runner handles `id`, `date`, etc.).
-
-        Returns one KGArticleResult per input, in input order. Parse
-        failures yield an empty KGArticleResult with a WARN log rather
-        than raising.
-        """
-        if not articles:
-            return []
-
-        from vllm import SamplingParams
-        from vllm.sampling_params import StructuredOutputsParams
-
-        self._init_llm()
-
-        schema = KGArticleResult.model_json_schema()
-        sampling_params = SamplingParams(
-            temperature=0.0,
-            max_tokens=max_tokens,
-            structured_outputs=StructuredOutputsParams(json=schema),
+    if not flagged_group_names:
+        return textwrap.fill(
+            f"{_CONTEXT_HEADER} A prior step flagged no asset groups for this "
+            f"article; {_BREADTH}",
+            width=80,
         )
-
-        conversations = [
-            [
-                {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": render_user_message(
-                    a["headline"], a["paragraphs"]
-                )},
-            ]
-            for a in articles
-        ]
-        logger.info("[vLLM] Extracting KG from %d articles...", len(conversations))
-        outputs = self._llm.chat(conversations, sampling_params)
-
-        results: list[KGArticleResult] = []
-        for i, output in enumerate(outputs):
-            raw = output.outputs[0].text
-            results.append(self._parse_one(raw, i))
-        return results
-
-    # ------------------------------------------------------------------
-    # Output parsing — mirrors LLMMapper / LLMGrader
-    # ------------------------------------------------------------------
-
-    def _parse_one(self, raw: str, idx: int) -> KGArticleResult:
-        try:
-            return KGArticleResult.model_validate_json(raw)
-        except Exception:
-            json_str = self._extract_json(raw)
-            if json_str:
-                try:
-                    return KGArticleResult.model_validate_json(json_str)
-                except Exception:
-                    pass
-            logger.warning("Failed to parse KG output %d: %s", idx, raw[:200])
-            return KGArticleResult()
-
-    @staticmethod
-    def _extract_json(text: str) -> str | None:
-        """Extract the first balanced JSON object from text that may
-        contain a preamble. Mirrors LLMMapper._extract_json /
-        LLMGrader._extract_json so behavior is consistent across the
-        three vLLM-backed modules.
-        """
-        try:
-            json.loads(text)
-            return text
-        except (json.JSONDecodeError, ValueError):
-            pass
-        start = text.find("{")
-        if start == -1:
-            return None
-        depth = 0
-        for i in range(start, len(text)):
-            if text[i] == "{":
-                depth += 1
-            elif text[i] == "}":
-                depth -= 1
-                if depth == 0:
-                    return text[start : i + 1]
-        return None
+    keys = sorted({_GROUP_LOOKUP[name] for name in flagged_group_names})  # group_key order
+    lines = [
+        textwrap.fill(
+            f"{_CONTEXT_HEADER} A prior step flagged this article as relevant to "
+            f"the following asset groups and their constituent assets:",
+            width=80,
+        )
+    ]
+    for gk in keys:
+        gv = _GROUP_UNIVERSE[gk]
+        lines.append(
+            f"- Asset Group: {gv['name']} | Asset Class: {gv['asset_class']}"
+        )
+        for full, short in constituents_with_short_names(gk, _GROUP_UNIVERSE):
+            if full == short:
+                lines.append(f"    {full}")
+            else:
+                lines.append(f"    {full} — use {short}")
+    lines.append(textwrap.fill(
+        "Use these as a guide for some of your extracted facts. If you judge "
+        "that one of these groups is not actually relevant to this article, you "
+        "need not include it in any fact. Beyond these groups, also " + _BREADTH,
+        width=80,
+    ))
+    return "\n".join(lines)

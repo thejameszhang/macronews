@@ -104,12 +104,14 @@ jobid=$(sbatch --parsable \
     --wrap="
         module load Python/3.12.3-GCCcore-13.3.0 2>/dev/null || true
         cd \$SLURM_SUBMIT_DIR
-        source .venv/bin/activate
         export VLLM_BATCH_INVARIANT=1
+        # Call the venv python by ABSOLUTE PATH (not 'source activate' + plain
+        # 'python'): module load re-prepends its bin/, so plain 'python' can
+        # resolve to the system interpreter. Same pattern as _run_grader_task.sh.
         # Attention backend is pinned to TRITON_ATTN inside LLMGrader._init_llm
         # (vLLM 0.19.0 + VLLM_BATCH_INVARIANT=1 rejects None on Qwen2-arch;
         # FA2's PTX is sm_90-only so it crashes on B200).
-        PYTHONPATH=src python src/mapping/grading/runner.py \
+        PYTHONPATH=src .venv/bin/python src/mapping/grading/runner.py \
             --mapper-output ${MAPPER_OUTPUT} \
             --output ${OUTPUT_FILE} \
             --model ${MODEL_PATH} \

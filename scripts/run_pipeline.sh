@@ -108,11 +108,15 @@ jobid=$(sbatch --parsable \
     --wrap="
         module load Python/3.12.3-GCCcore-13.3.0 2>/dev/null || true
         cd \$SLURM_SUBMIT_DIR
-        source .venv/bin/activate
         # Deterministic vLLM output: ~0.09% tag drift on DJNW 1000 articles
         # vs ~29% without the flag. Requires compute capability >= 9.0.
         export VLLM_BATCH_INVARIANT=1
-        PYTHONPATH=src python src/pipeline.py \
+        # Call the venv python by ABSOLUTE PATH (not 'source activate' + plain
+        # 'python'): module load re-prepends its bin/, so plain 'python' can
+        # resolve to the system interpreter (which lacks pydantic/vllm). Module
+        # load stays for libpython3.12.so.1.0 on LD_LIBRARY_PATH. Same pattern as
+        # run_kg.sh / _run_grader_task.sh.
+        PYTHONPATH=src .venv/bin/python src/pipeline.py \
             --model ${MODEL_PATH} \
             --max-model-len ${MAX_MODEL_LEN} \
             ${PIPELINE_ARGS} \

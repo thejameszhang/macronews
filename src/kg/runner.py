@@ -1,7 +1,11 @@
-"""KG fact-extraction runner.
+"""KG temporal event-extraction runner.
 
-Loads articles via pipeline.load_articles, runs LLMExtractor, writes
-sidecar JSONL + summary. CLI mirrors src/mapping/grading/runner.py.
+Loads articles via pipeline.load_articles, runs LLMTemporalExtractor (3-pass),
+writes sidecar JSONL + summary. CLI mirrors src/mapping/grading/runner.py.
+
+# NOTE: the sidecar now carries row["events"] (not row["facts"]). The KG grader
+# (src/kg/grading/) still reads row["facts"] and is intentionally NOT updated
+# here — KG grading is deferred to the grader follow-up spec.
 
 Gold usage:
   python src/kg/runner.py \\
@@ -30,58 +34,86 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
-from kg.llm import LLMExtractor  # noqa: E402
-from kg.schemas import (  # noqa: E402
-    ENTITY_TYPES_TUPLE,
-    KGArticleResult,
-    KGFact,
-)
+from kg.llm import render_mapper_context  # noqa: E402
+from kg.schemas import ENTITY_TYPES_TUPLE  # noqa: E402
+from kg.temporal_extractor import LLMTemporalExtractor  # noqa: E402
+from kg.temporal_schemas import RawTriplet, TemporalEvent  # noqa: E402
 from pipeline import load_articles  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 logger = logging.getLogger(__name__)
 
-# Runner-side cleanup applied post-generation:
-#   1. Drop facts whose subject/object string is a literal entity-type
-#      code (schema leak — the prompt rule occasionally misses these).
-#   2. Drop facts where subject == object (self-referential).
-#   3. Dedup by (subject, relation, object), unioning evidence_paragraphs.
+_MIN_RELEVANCE = 0.5  # only mapper tags scored strictly above this prime the extractor
+
+
+def load_mapper_rows(path: Path) -> dict[str, list[str]]:
+    """article_id -> flagged group NAMES with relevance_score > _MIN_RELEVANCE.
+
+    The per-group score lives in `rec["mappings"]` (each entry is
+    {group, asset_class, relevance_score, evidence_paragraphs}; see
+    src/pipeline.py save_results) — the top-level `groups` field carries
+    no score, so we read `mappings`. An empty list means the mapper
+    covered the article but no group cleared the threshold -> the
+    no-groups mapper-context form (the article is still extracted).
+    """
+    rows: dict[str, list[str]] = {}
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            rec = json.loads(line)
+            rows[rec["article_id"]] = [
+                m["group"] for m in rec["mappings"]
+                if m["relevance_score"] > _MIN_RELEVANCE
+            ]
+    return rows
+
+
+def attach_mapper_context(
+    articles: list[dict], mapper_rows: dict[str, list[str]]
+) -> list[dict]:
+    """Set a["mapper_context"] on every article from its mapper row. No skipping.
+
+    Errors loudly if an article has no matching mapper row (alignment
+    failure — distinct from a row that covers it with zero groups).
+    """
+    for a in articles:
+        aid = a["id"]
+        if aid not in mapper_rows:
+            raise ValueError(
+                f"article {aid!r} has no matching mapper row — mapper/KG "
+                f"article sets are misaligned (same --max-model-len + shard?)"
+            )
+        a["mapper_context"] = render_mapper_context(mapper_rows[aid])
+    return articles
+
+
+def gate_zero_mappings(
+    articles: list[dict], mapper_rows: dict[str, list[str]]
+) -> list[dict]:
+    """Keep only articles the mapper tagged with >=1 group > _MIN_RELEVANCE (an empty
+    list, or a missing row, = no-mapping = dropped). Applied UNCONDITIONALLY: a
+    no-mapping article can't mapper-join to any asset group, so its facts would be
+    dropped downstream by the asset gate anyway — gating at extraction just skips the
+    wasted LLM work. (If a future broad/network KG ever needs the no-mapping articles
+    — foreign-CB / sovereign / geopolitics content — restore the opt-out from git.)"""
+    return [a for a in articles if mapper_rows.get(a["id"])]
+
+
 _TYPE_NAME_SET = frozenset(ENTITY_TYPES_TUPLE)
 
 
-def _postprocess_facts(facts: list[KGFact]) -> list[KGFact]:
-    """Strip type-code leaks and self-references, then merge duplicate
-    (s, r, o) triples.
-
-    Preserves first-occurrence ordering of unique triples; evidence
-    paragraph lists are sorted-unique-merged. Type tags on the
-    surviving merged fact come from the first occurrence.
-    """
-    cleaned: list[KGFact] = [
-        f for f in facts
-        if f.subject not in _TYPE_NAME_SET
-        and f.object not in _TYPE_NAME_SET
-        and f.subject != f.object
+def _clean_triplets(triplets: list[RawTriplet]) -> list[RawTriplet]:
+    """Drop entity-type-code leaks (subject/object is a literal type code) and
+    self-referential triplets. No cross-statement merge — the statement is the
+    unit of provenance, so duplicate triples across statements are kept."""
+    return [
+        t for t in triplets
+        if t.subject not in _TYPE_NAME_SET
+        and t.object not in _TYPE_NAME_SET
+        and t.subject != t.object
     ]
-    merged: dict[tuple[str, str, str], KGFact] = {}
-    for f in cleaned:
-        key = (f.subject, f.relation, f.object)
-        if key in merged:
-            existing = merged[key]
-            combined = sorted(
-                set(existing.evidence_paragraphs) | set(f.evidence_paragraphs)
-            )
-            merged[key] = KGFact(
-                evidence_paragraphs=combined,
-                subject=existing.subject,
-                subject_type=existing.subject_type,
-                relation=existing.relation,
-                object=existing.object,
-                object_type=existing.object_type,
-            )
-        else:
-            merged[key] = f
-    return list(merged.values())
 
 
 def _article_date(article: dict) -> str:
@@ -97,79 +129,49 @@ def _article_date(article: dict) -> str:
 def write_sidecar(
     out_path: Path,
     articles: list[dict],
-    results: list[KGArticleResult],
+    events_by_id: dict[str, list[TemporalEvent]],
 ) -> dict:
-    """Write the sidecar JSONL and return a small summary dict.
-
-    JSONL row shape (v2):
-      {"article_id", "date", "headline", "facts": [...],
-       "paragraphs": {str(idx): text}}
-
-    Facts come before paragraphs (priority-ordered for readability).
-    `paragraphs` is a dict containing only the indices that appear in
-    some fact's evidence_paragraphs — un-referenced paragraphs would
-    just bloat the file (same pattern as src/pipeline.py).
-
-    Summary shape (v2):
-      {"total_articles", "total_facts",
-       "raw_facts_before_postprocess",
-       "facts_removed_by_postprocess",
-       "by_relation": {...},
-       "by_subject_type": {...},
-       "by_object_type": {...}}
-    """
-    if len(articles) != len(results):
-        raise ValueError(
-            f"articles/results length mismatch: {len(articles)} vs {len(results)}"
-        )
+    """Write the event sidecar JSONL + summary. Row shape:
+      {"article_id", "date", "events": [<TemporalEvent dict, mode=json>, ...]}
+    Each event's triplets are cleaned (type-code/self-ref dropped). Every input
+    article gets a row (empty events if the extractor produced none)."""
     out_path.parent.mkdir(parents=True, exist_ok=True)
-
     by_relation: Counter = Counter()
-    by_subject_type: Counter = Counter()
-    by_object_type: Counter = Counter()
-    total_facts = 0
-    raw_fact_total = 0    # before postprocess, for cleanup logging
-
+    by_statement_type: Counter = Counter()
+    by_temporal_type: Counter = Counter()
+    total_events = 0
+    total_triplets = 0
     with open(out_path, "w", encoding="utf-8") as f:
-        for art, res in zip(articles, results):
-            raw_fact_total += len(res.facts)
-            clean_facts = _postprocess_facts(res.facts)
-            paragraphs = art.get("paragraphs", [])
-            referenced = sorted({
-                i for fct in clean_facts for i in fct.evidence_paragraphs
-                if 0 <= i < len(paragraphs)
-            })
-            para_dict = {str(i): paragraphs[i] for i in referenced}
+        for art in articles:
+            events = events_by_id.get(art["id"], [])
+            for ev in events:
+                ev.triplets = _clean_triplets(ev.triplets)
             row = {
                 "article_id": art["id"],
                 "date": _article_date(art),
                 "headline": art.get("headline", ""),
-                "facts": [fct.model_dump() for fct in clean_facts],
-                "paragraphs": para_dict,
+                "events": [ev.model_dump(mode="json") for ev in events],
             }
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
-            total_facts += len(clean_facts)
-            by_relation.update(fct.relation for fct in clean_facts)
-            by_subject_type.update(fct.subject_type for fct in clean_facts)
-            by_object_type.update(fct.object_type for fct in clean_facts)
-
+            total_events += len(events)
+            for ev in events:
+                by_statement_type.update([ev.statement_type])
+                by_temporal_type.update([ev.temporal_type])
+                total_triplets += len(ev.triplets)
+                by_relation.update(t.relation for t in ev.triplets)
     summary = {
         "total_articles": len(articles),
-        "total_facts": total_facts,
-        "raw_facts_before_postprocess": raw_fact_total,
-        "facts_removed_by_postprocess": raw_fact_total - total_facts,
+        "total_events": total_events,
+        "total_triplets": total_triplets,
         "by_relation": dict(sorted(by_relation.items())),
-        "by_subject_type": dict(sorted(by_subject_type.items())),
-        "by_object_type": dict(sorted(by_object_type.items())),
+        "by_statement_type": dict(sorted(by_statement_type.items())),
+        "by_temporal_type": dict(sorted(by_temporal_type.items())),
     }
     summary_path = out_path.with_suffix(".summary.json")
     with open(summary_path, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
-    logger.info(
-        "Wrote %d rows to %s (+ %s). facts=%d (removed %d)",
-        len(articles), out_path, summary_path.name,
-        total_facts, raw_fact_total - total_facts,
-    )
+    logger.info("Wrote %d rows to %s (+ %s). events=%d triplets=%d",
+                len(articles), out_path, summary_path.name, total_events, total_triplets)
     return summary
 
 
@@ -202,6 +204,13 @@ def main():
                    help="Sidecar JSONL to write")
     p.add_argument("--model", required=True, type=str,
                    help="Path to Gemma 4 31B (or compatible) model directory")
+    p.add_argument("--mapper-file", type=Path, default=None,
+                   help="REQUIRED (every dataset): mapper sidecar JSONL whose "
+                        "article_ids match this run. Run the mapper on this dataset "
+                        "first; no group-blind fallback.")
+    p.add_argument("--mapper-dir", type=Path, default=None,
+                   help="Alternative to --mapper-file: a dir of mapper JSONLs; "
+                        "the row for each article_id is looked up across them.")
     # Production context window (same as the mapper and run_kg.sh's djnw mode).
     # Keeps the loader's length cap (max_model_len - 2000) generous so articles
     # are rarely dropped for length on direct runner calls (djnw or sports).
@@ -267,16 +276,39 @@ def main():
         len(articles), len(eligible),
     )
 
+    if args.mapper_file is None and args.mapper_dir is None:
+        p.error("--mapper-file or --mapper-dir is required (run the mapper on "
+                "this dataset first; no group-blind fallback)")
+    if args.mapper_file is not None and args.mapper_dir is not None:
+        p.error("--mapper-file and --mapper-dir are mutually exclusive")
+    if args.mapper_file is not None:
+        mapper_rows = load_mapper_rows(args.mapper_file)
+    else:
+        mapper_rows = {}
+        for mf in sorted(args.mapper_dir.glob("*.jsonl")):  # excludes *.summary.json
+            mapper_rows.update(load_mapper_rows(mf))
+    eligible = attach_mapper_context(eligible, mapper_rows)
+    n_flagged = sum(1 for a in eligible if mapper_rows[a["id"]])
+    logger.info("Primed %d articles (%d flagged >0.5, %d no-groups)",
+                len(eligible), n_flagged, len(eligible) - n_flagged)
+
+    before = len(eligible)
+    eligible = gate_zero_mappings(eligible, mapper_rows)   # unconditional: no-mapping = non-asset
+    logger.info("Zero-mapping gate: %d -> %d articles (dropped %d no-mapping)",
+                before, len(eligible), before - len(eligible))
+
     # 2. Extract.
-    extractor = LLMExtractor(
+    extractor = LLMTemporalExtractor(
         model_path=args.model,
         max_model_len=args.max_model_len,
         tensor_parallel_size=args.tensor_parallel_size,
     )
-    results = extractor.extract_batch(eligible, max_tokens=args.max_tokens)
+    events_by_id = extractor.extract_batch(eligible, max_tokens=args.max_tokens)
 
-    # 3. Write sidecar.
-    summary = write_sidecar(args.output, eligible, results)
+    # 3. Write sidecar. Supersession is handled downstream by the LLM invalidation
+    # agent (src/kg/invalidate_llm.py), a separate post-disambiguation stage — the
+    # deterministic reconcile() pass was retired (redundant with the agent).
+    summary = write_sidecar(args.output, eligible, events_by_id)
     logger.info("Done. Summary: %s", summary)
 
 

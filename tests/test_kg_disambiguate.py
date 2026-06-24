@@ -5,7 +5,6 @@ import sys
 from pathlib import Path
 
 import numpy as np
-import pytest
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
@@ -22,10 +21,10 @@ from kg.disambiguate import (  # noqa: E402
 
 def test_collect_counts_basic():
     rows = [
-        {"facts": [
+        {"events": [{"triplets": [
             {"subject": "Fed", "subject_type": "CENTRAL_BANK",
              "object": "FFR", "object_type": "INTEREST_RATE"},
-        ]},
+        ]}]},
     ]
     counts = collect_entity_counts(rows)
     assert counts == {
@@ -36,14 +35,14 @@ def test_collect_counts_basic():
 
 def test_collect_counts_aggregates_across_rows():
     rows = [
-        {"facts": [
+        {"events": [{"triplets": [
             {"subject": "Fed", "subject_type": "CENTRAL_BANK",
              "object": "FFR", "object_type": "INTEREST_RATE"},
-        ]},
-        {"facts": [
+        ]}]},
+        {"events": [{"triplets": [
             {"subject": "Fed", "subject_type": "CENTRAL_BANK",
              "object": "USD", "object_type": "CURRENCY"},
-        ]},
+        ]}]},
     ]
     counts = collect_entity_counts(rows)
     assert counts[("Fed", "CENTRAL_BANK")] == 2
@@ -51,19 +50,19 @@ def test_collect_counts_aggregates_across_rows():
     assert counts[("USD", "CURRENCY")] == 1
 
 
-def test_collect_counts_handles_empty_facts():
-    rows = [{"facts": []}, {}]
+def test_collect_counts_handles_empty_events():
+    rows = [{"events": []}, {}]
     assert collect_entity_counts(rows) == {}
 
 
 def test_collect_counts_same_name_different_type_counted_separately():
     rows = [
-        {"facts": [
+        {"events": [{"triplets": [
             {"subject": "Apple", "subject_type": "COMPANY",
              "object": "iPhone", "object_type": "FIN_INSTRUMENT"},
             {"subject": "Apple", "subject_type": "COMMODITY",
              "object": "Fruit", "object_type": "CONCEPT"},
-        ]},
+        ]}]},
     ]
     counts = collect_entity_counts(rows)
     assert counts[("Apple", "COMPANY")] == 1
@@ -122,6 +121,34 @@ def test_cluster_complete_linkage_no_transitive_merge():
         f"complete-linkage should prevent transitive merge: got {clusters}"
 
 
+# --- Rule A normalization pre-merge ---
+
+def test_norm_key_rule_a():
+    from kg.disambiguate import _norm_key
+    assert _norm_key("Natural-gas") == _norm_key("Natural Gas") == "natural gas"
+    assert _norm_key("Foreign-Exchange") == _norm_key("foreign exchange") == "foreign exchange"
+    # hyphen becomes a SPACE, not nothing: 'e-mini' -> 'e mini', not 'emini'
+    assert _norm_key("e-mini") == "e mini" and _norm_key("emini") == "emini"
+
+
+def test_cluster_normalized_variants_merge_below_threshold():
+    # Rule A: 'Natural-gas' / 'Natural Gas' share a normalized key, so they merge
+    # even though their embeddings are only 0.866 cosine (< the 0.90 threshold).
+    embs = np.array([[1.0, 0.0], [0.866, 0.5]])   # cosine = 0.866
+    embs = embs / np.linalg.norm(embs, axis=1, keepdims=True)
+    clusters = cluster_within_type(["Natural Gas", "Natural-gas"], embs, threshold=0.9)
+    assert len(clusters) == 1
+    assert sorted(clusters[0]) == ["Natural Gas", "Natural-gas"]
+
+
+def test_cluster_hyphen_not_merged_with_concatenation():
+    # Hyphen -> space (not removal): 'e-mini' ('e mini') must NOT collapse into
+    # 'emini'. With dissimilar embeddings the two stay in separate clusters.
+    embs = np.array([[1.0, 0.0], [0.0, 1.0]])     # orthogonal -> cosine 0
+    clusters = cluster_within_type(["e-mini", "emini"], embs, threshold=0.9)
+    assert len(clusters) == 2
+
+
 # --- select_canonical ---
 
 def test_canonical_most_frequent_wins():
@@ -145,6 +172,23 @@ def _write_jsonl(path, rows):
     path.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
 
 
+def _trip(subj, stype, rel, obj, otype):
+    """Minimal triplet dict for test rows."""
+    return {"subject": subj, "subject_type": stype, "relation": rel,
+            "object": obj, "object_type": otype, "value": None}
+
+
+def _ev_row_meta(article_id, date, triplets, *, headline=None, paragraphs=None):
+    """Events-format row with optional metadata fields."""
+    row = {"article_id": article_id, "date": date,
+           "events": [{"triplets": triplets}]}
+    if headline is not None:
+        row["headline"] = headline
+    if paragraphs is not None:
+        row["paragraphs"] = paragraphs
+    return row
+
+
 def _patch_st_model(monkeypatch, encode_fn):
     """Patch SentenceTransformer so encode() returns whatever encode_fn returns
     for a given list of names. Avoids loading the real model."""
@@ -158,13 +202,8 @@ def _patch_st_model(monkeypatch, encode_fn):
 
 def test_disambiguate_roundtrip_no_merges(tmp_path, monkeypatch):
     rows = [
-        {"article_id": "a1", "date": "2026-01-01", "headline": "h",
-         "facts": [
-             {"evidence_paragraphs": [0], "subject": "Fed",
-              "subject_type": "CENTRAL_BANK", "relation": "RAISES",
-              "object": "FFR", "object_type": "INTEREST_RATE"},
-         ],
-         "paragraphs": {"0": "para 0"}},
+        _ev_row_meta("a1", "2026-01-01",
+                     [_trip("Fed", "CENTRAL_BANK", "RAISES", "FFR", "INTEREST_RATE")]),
     ]
     input_file = tmp_path / "input.jsonl"
     _write_jsonl(input_file, rows)
@@ -181,20 +220,10 @@ def test_disambiguate_roundtrip_no_merges(tmp_path, monkeypatch):
 
 def test_disambiguate_merges_duplicate_central_banks(tmp_path, monkeypatch):
     rows = [
-        {"article_id": "a1", "date": "2026-01-01", "headline": "h",
-         "facts": [
-             {"evidence_paragraphs": [0], "subject": "Fed",
-              "subject_type": "CENTRAL_BANK", "relation": "RAISES",
-              "object": "FFR", "object_type": "INTEREST_RATE"},
-         ],
-         "paragraphs": {"0": "para 0"}},
-        {"article_id": "a2", "date": "2026-01-02", "headline": "h2",
-         "facts": [
-             {"evidence_paragraphs": [1], "subject": "Federal Reserve",
-              "subject_type": "CENTRAL_BANK", "relation": "RAISES",
-              "object": "FFR", "object_type": "INTEREST_RATE"},
-         ],
-         "paragraphs": {"1": "para 1"}},
+        _ev_row_meta("a1", "2026-01-01",
+                     [_trip("Fed", "CENTRAL_BANK", "RAISES", "FFR", "INTEREST_RATE")]),
+        _ev_row_meta("a2", "2026-01-02",
+                     [_trip("Federal Reserve", "CENTRAL_BANK", "RAISES", "FFR", "INTEREST_RATE")]),
     ]
     input_file = tmp_path / "input.jsonl"
     _write_jsonl(input_file, rows)
@@ -217,8 +246,8 @@ def test_disambiguate_merges_duplicate_central_banks(tmp_path, monkeypatch):
     out_rows = [json.loads(line) for line in
                 output_file.read_text().splitlines() if line.strip()]
     # Both rows now reference the longer name (length tiebreak).
-    assert out_rows[0]["facts"][0]["subject"] == "Federal Reserve"
-    assert out_rows[1]["facts"][0]["subject"] == "Federal Reserve"
+    assert out_rows[0]["events"][0]["triplets"][0]["subject"] == "Federal Reserve"
+    assert out_rows[1]["events"][0]["triplets"][0]["subject"] == "Federal Reserve"
     assert summary["merges_n"] == 1
 
 
@@ -227,16 +256,10 @@ def test_disambiguate_does_not_merge_across_types(tmp_path, monkeypatch):
     stay distinct. Uses the same string "Apple" in both COMPANY and COMMODITY
     so the only thing preventing a merge is type-blocking."""
     rows = [
-        {"article_id": "a1", "date": "2026-01-01", "headline": "h",
-         "facts": [
-             {"evidence_paragraphs": [0], "subject": "Apple",
-              "subject_type": "COMPANY", "relation": "PRODUCES",
-              "object": "iPhone", "object_type": "FIN_INSTRUMENT"},
-             {"evidence_paragraphs": [0], "subject": "Apple",
-              "subject_type": "COMMODITY", "relation": "RELATED_TO",
-              "object": "Fruit", "object_type": "CONCEPT"},
-         ],
-         "paragraphs": {"0": "para 0"}},
+        _ev_row_meta("a1", "2026-01-01", [
+            _trip("Apple", "COMPANY", "PRODUCES", "iPhone", "FIN_INSTRUMENT"),
+            _trip("Apple", "COMMODITY", "RELATED_TO", "Fruit", "CONCEPT"),
+        ]),
     ]
     input_file = tmp_path / "input.jsonl"
     _write_jsonl(input_file, rows)
@@ -261,23 +284,21 @@ def test_disambiguate_does_not_merge_across_types(tmp_path, monkeypatch):
     # Same surface form, different types -> 2 separate clusters, 0 merges.
     assert summary["clusters_n"] == 4   # Apple-COMPANY, Apple-COMMODITY, iPhone, Fruit
     assert summary["merges_n"] == 0
-    # Both Apple facts still say "Apple" — neither was rewritten to the other.
-    assert out_rows[0]["facts"][0]["subject"] == "Apple"
-    assert out_rows[0]["facts"][1]["subject"] == "Apple"
+    trips = out_rows[0]["events"][0]["triplets"]
+    # Both Apple triplets still say "Apple" — neither was rewritten to the other.
+    assert trips[0]["subject"] == "Apple"
+    assert trips[1]["subject"] == "Apple"
     # And their types remained distinct.
-    assert out_rows[0]["facts"][0]["subject_type"] == "COMPANY"
-    assert out_rows[0]["facts"][1]["subject_type"] == "COMMODITY"
+    assert trips[0]["subject_type"] == "COMPANY"
+    assert trips[1]["subject_type"] == "COMMODITY"
 
 
 def test_disambiguate_preserves_metadata(tmp_path, monkeypatch):
     rows = [
-        {"article_id": "a1", "date": "2026-01-01", "headline": "Test Headline",
-         "facts": [
-             {"evidence_paragraphs": [0, 1], "subject": "Fed",
-              "subject_type": "CENTRAL_BANK", "relation": "RAISES",
-              "object": "FFR", "object_type": "INTEREST_RATE"},
-         ],
-         "paragraphs": {"0": "para zero", "1": "para one"}},
+        _ev_row_meta("a1", "2026-01-01",
+                     [_trip("Fed", "CENTRAL_BANK", "RAISES", "FFR", "INTEREST_RATE")],
+                     headline="Test Headline",
+                     paragraphs={"0": "para zero", "1": "para one"}),
     ]
     input_file = tmp_path / "input.jsonl"
     _write_jsonl(input_file, rows)
@@ -292,26 +313,19 @@ def test_disambiguate_preserves_metadata(tmp_path, monkeypatch):
     assert out_rows[0]["date"] == "2026-01-01"
     assert out_rows[0]["headline"] == "Test Headline"
     assert out_rows[0]["paragraphs"] == {"0": "para zero", "1": "para one"}
-    assert out_rows[0]["facts"][0]["evidence_paragraphs"] == [0, 1]
-    # Per-fact type tags + relation must also pass through unchanged.
-    fact_out = out_rows[0]["facts"][0]
-    assert fact_out["subject_type"] == "CENTRAL_BANK"
-    assert fact_out["object_type"] == "INTEREST_RATE"
-    assert fact_out["relation"] == "RAISES"
+    # Per-triplet type tags + relation must pass through unchanged.
+    trip_out = out_rows[0]["events"][0]["triplets"][0]
+    assert trip_out["subject_type"] == "CENTRAL_BANK"
+    assert trip_out["object_type"] == "INTEREST_RATE"
+    assert trip_out["relation"] == "RAISES"
 
 
 def test_disambiguate_writes_clusters_sidecar(tmp_path, monkeypatch):
     rows = [
-        {"article_id": "a1", "date": "2026-01-01", "headline": "h",
-         "facts": [
-             {"evidence_paragraphs": [0], "subject": "Fed",
-              "subject_type": "CENTRAL_BANK", "relation": "RAISES",
-              "object": "FFR", "object_type": "INTEREST_RATE"},
-             {"evidence_paragraphs": [0], "subject": "Federal Reserve",
-              "subject_type": "CENTRAL_BANK", "relation": "ANNOUNCES",
-              "object": "Rate Hike", "object_type": "EVENT"},
-         ],
-         "paragraphs": {"0": "para"}},
+        _ev_row_meta("a1", "2026-01-01", [
+            _trip("Fed", "CENTRAL_BANK", "RAISES", "FFR", "INTEREST_RATE"),
+            _trip("Federal Reserve", "CENTRAL_BANK", "ANNOUNCES", "Rate Hike", "EVENT"),
+        ]),
     ]
     input_file = tmp_path / "input.jsonl"
     _write_jsonl(input_file, rows)
@@ -344,30 +358,15 @@ def test_disambiguate_titlecases_lowercase_canonical(tmp_path, monkeypatch):
     """When a lowercase surface form wins canonical selection (e.g. it's the
     most frequent), the stored canonical is title-cased so the JSONL and
     clusters sidecar are not ugly. Acronyms are preserved."""
+    # "middle east conflict" appears 2x (wins on frequency),
+    # "Middle East Conflict" appears 1x.
     rows = [
-        {"article_id": "a1", "date": "2026-01-01", "headline": "h",
-         "facts": [
-             # "middle east conflict" appears 2x (wins on frequency),
-             # "Middle East Conflict" appears 1x.
-             {"evidence_paragraphs": [0], "subject": "middle east conflict",
-              "subject_type": "EVENT", "relation": "CAUSES_RISE_IN",
-              "object": "Crude Oil", "object_type": "COMMODITY"},
-         ],
-         "paragraphs": {"0": "p"}},
-        {"article_id": "a2", "date": "2026-01-02", "headline": "h",
-         "facts": [
-             {"evidence_paragraphs": [0], "subject": "middle east conflict",
-              "subject_type": "EVENT", "relation": "CAUSES_RISE_IN",
-              "object": "Crude Oil", "object_type": "COMMODITY"},
-         ],
-         "paragraphs": {"0": "p"}},
-        {"article_id": "a3", "date": "2026-01-03", "headline": "h",
-         "facts": [
-             {"evidence_paragraphs": [0], "subject": "Middle East Conflict",
-              "subject_type": "EVENT", "relation": "CAUSES_RISE_IN",
-              "object": "Crude Oil", "object_type": "COMMODITY"},
-         ],
-         "paragraphs": {"0": "p"}},
+        _ev_row_meta("a1", "2026-01-01",
+                     [_trip("middle east conflict", "EVENT", "CAUSES_RISE_IN", "Crude Oil", "COMMODITY")]),
+        _ev_row_meta("a2", "2026-01-02",
+                     [_trip("middle east conflict", "EVENT", "CAUSES_RISE_IN", "Crude Oil", "COMMODITY")]),
+        _ev_row_meta("a3", "2026-01-03",
+                     [_trip("Middle East Conflict", "EVENT", "CAUSES_RISE_IN", "Crude Oil", "COMMODITY")]),
     ]
     input_file = tmp_path / "input.jsonl"
     _write_jsonl(input_file, rows)
@@ -393,7 +392,7 @@ def test_disambiguate_titlecases_lowercase_canonical(tmp_path, monkeypatch):
     # Even though the lowercase form won on frequency, the stored canonical
     # is title-cased.
     for row in out_rows:
-        assert row["facts"][0]["subject"] == "Middle East Conflict"
+        assert row["events"][0]["triplets"][0]["subject"] == "Middle East Conflict"
     clusters = json.loads(clusters_file.read_text())
     assert "Middle East Conflict" in clusters["EVENT"]
 
@@ -402,13 +401,8 @@ def test_disambiguate_preserves_acronyms_in_canonical(tmp_path, monkeypatch):
     """Title-casing must not mangle acronyms: 'U.S. CPI Inflation' stays
     exactly as-is (not 'U.s. Cpi Inflation')."""
     rows = [
-        {"article_id": "a1", "date": "2026-01-01", "headline": "h",
-         "facts": [
-             {"evidence_paragraphs": [0], "subject": "U.S. CPI Inflation",
-              "subject_type": "ECON_INDICATOR", "relation": "CAUSES_RISE_IN",
-              "object": "Gold", "object_type": "COMMODITY"},
-         ],
-         "paragraphs": {"0": "p"}},
+        _ev_row_meta("a1", "2026-01-01",
+                     [_trip("U.S. CPI Inflation", "ECON_INDICATOR", "CAUSES_RISE_IN", "Gold", "COMMODITY")]),
     ]
     input_file = tmp_path / "input.jsonl"
     _write_jsonl(input_file, rows)
@@ -419,4 +413,119 @@ def test_disambiguate_preserves_acronyms_in_canonical(tmp_path, monkeypatch):
 
     out_rows = [json.loads(line) for line in
                 output_file.read_text().splitlines() if line.strip()]
-    assert out_rows[0]["facts"][0]["subject"] == "U.S. CPI Inflation"
+    assert out_rows[0]["events"][0]["triplets"][0]["subject"] == "U.S. CPI Inflation"
+
+
+# ---------------------------------------------------------------------------
+# Rule-A guard: pre-collapse must survive the cluster_by_cosine migration.
+# ---------------------------------------------------------------------------
+
+def _unit_rows(rows):
+    a = np.asarray(rows, dtype=np.float32)
+    return a / np.linalg.norm(a, axis=1, keepdims=True)
+
+
+def test_rule_a_merges_hyphen_case_variants_below_threshold():
+    # "Natural Gas" and "Natural-gas" share a _norm_key -> pre-merged unconditionally,
+    # even though their embeddings are only 0.86 cosine (below the 0.90 cutoff).
+    # "Gold" (orthogonal) stays separate.
+    names = ["Natural Gas", "Natural-gas", "Gold"]
+    embs = _unit_rows([[1, 0, 0], [0.86, 0.51, 0], [0, 1, 0]])
+    clusters = cluster_within_type(names, embs, threshold=0.90)
+    cluster_sets = sorted([frozenset(c) for c in clusters], key=lambda s: sorted(s)[0])
+    assert frozenset({"Natural Gas", "Natural-gas"}) in cluster_sets
+    assert frozenset({"Gold"}) in cluster_sets
+
+
+# ---------------------------------------------------------------------------
+# Events-format tests (new sidecar schema: rows have "events"/"triplets",
+# no "facts" key).
+# ---------------------------------------------------------------------------
+
+def _ev_row(subj, stype):
+    """Minimal events-format row with a single triplet."""
+    return {"article_id": "a", "date": "2014-05-01", "events": [
+        {"article_id": "a", "statement": "s", "statement_type": "FACT",
+         "temporal_type": "STATIC", "created_at": "2014-05-01T00:00:00",
+         "triplets": [{"subject": subj, "subject_type": stype, "relation": "RAISES",
+                       "object": "Rate", "object_type": "INTEREST_RATE",
+                       "value": None}]}]}
+
+
+def _subjects(out_path):
+    return {t["subject"]
+            for line in out_path.read_text().splitlines()
+            for ev in json.loads(line)["events"] for t in ev["triplets"]}
+
+
+def test_events_format_canonicalizes_and_merges_acronym(tmp_path):
+    rows = [_ev_row("European Central Bank", "CENTRAL_BANK")] * 3 + \
+           [_ev_row("ECB", "CENTRAL_BANK")]
+    src = tmp_path / "in.jsonl"
+    src.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    out = tmp_path / "out.jsonl"
+    summary = disambiguate(src, out, threshold=0.95)
+    subjects = _subjects(out)
+    assert len(subjects) == 1
+    assert "European Central Bank" in subjects
+    first = json.loads(out.read_text().splitlines()[0])
+    assert "events" in first and "facts" not in first
+    # The acronym merge must be reflected in the summary (clusters_record updated).
+    assert summary["merges_n"] >= 1
+
+
+def test_default_rejected_path_helper():
+    from kg.disambiguate import _default_self_ref_rejected
+    from pathlib import Path
+    assert _default_self_ref_rejected(Path("/x/2014-05.relv3.disambig.jsonl")) == \
+        Path("/x/2014-05.relv3.disambig.self_ref_rejected.jsonl")
+
+
+def test_disambiguate_self_reference_filter(tmp_path, monkeypatch):
+    import json, numpy as np
+    from kg.disambiguate import disambiguate
+    rows = [{
+        "article_id": "a1", "date": "20140501", "headline": "h",
+        "events": [{
+            "id": "e1", "article_id": "a1", "statement": "Brent fell",
+            "triplets": [
+                # Tier-1 exact self-loop (any relation)
+                {"subject": "EUR/USD", "subject_type": "CURRENCY", "relation": "DECREASES",
+                 "object": "EUR/USD", "object_type": "CURRENCY", "value": None},
+                # Tier-2 same-asset, cross-type (high cosine), directional -> dropped
+                {"subject": "Brent Crude Oil", "subject_type": "COMMODITY", "relation": "DECREASES",
+                 "object": "Brent Crude Price", "object_type": "ASSET_METRIC", "value": "108"},
+                # cross-asset (orthogonal) -> kept
+                {"subject": "Brent Crude Oil", "subject_type": "COMMODITY", "relation": "IMPACT",
+                 "object": "Gold", "object_type": "COMMODITY", "value": None},
+            ],
+        }],
+    }]
+    input_file = tmp_path / "in.jsonl"
+    input_file.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    output_file = tmp_path / "out.jsonl"
+    rejected_file = tmp_path / "rej.jsonl"
+
+    # Controlled embeddings: Brent Oil ~ Brent Price (cos ~0.997), everything else orthogonal.
+    vecs = {
+        "EUR/USD": [1, 0, 0, 0],
+        "Brent Crude Oil": [0, 1, 0, 0],
+        "Brent Crude Price": [0, 0.92, 0.39, 0],   # dot with Brent Oil = 0.92 >= 0.85
+        "Gold": [0, 0, 0, 1],
+    }
+    def encode_fn(names):
+        assert set(names) <= set(vecs), f"unexpected entity in encode: {set(names) - set(vecs)}"
+        return np.array([np.array(vecs[n], dtype=float) /
+                         np.linalg.norm(vecs[n]) for n in names])
+    _patch_st_model(monkeypatch, encode_fn)
+
+    summary = disambiguate(input_file, output_file, threshold=0.99,   # 0.99: no entity merges
+                           self_ref_threshold=0.85, self_ref_rejected_jsonl=rejected_file)
+
+    out = [json.loads(l) for l in output_file.read_text().splitlines()]
+    kept = out[0]["events"][0]["triplets"]
+    assert len(kept) == 1 and kept[0]["object"] == "Gold"            # only cross-asset survives
+    rej = [json.loads(l) for l in rejected_file.read_text().splitlines()]
+    assert len(rej) == 2
+    assert {r["self_ref_reason"] for r in rej} == {"self_loop", "same_asset_cosine"}
+    assert summary["self_ref_dropped"] == 2

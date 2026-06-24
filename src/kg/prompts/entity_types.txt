@@ -1,18 +1,27 @@
-PERSON:          Macro-relevant person (e.g., "Jerome Powell")
-SOVEREIGN:       Sovereign nation (e.g., "United States")
-GPE:             Geopolitical entity (e.g., "European Union", "Middle East")
-CENTRAL_BANK:    Central bank (e.g., "Federal Reserve")
-GOV_BODY:        Government body (e.g., "U.S. Treasury")
-REG_BODY:        Regulatory body (e.g., "SEC")
-COMPANY:         Macro-relevant company (e.g., "Saudi Aramco", "ExxonMobil", "Apple Inc.", "JPMorgan")
-ORG:             Organization (e.g., "IMF", "OPEC")
-SECTOR:          GICS sector (e.g., "Technology")
-CURRENCY:        Currency (e.g., "U.S. Dollar")
-COMMODITY:       Commodity (e.g., "Crude Oil")
-INTEREST_RATE:   Interest rate (e.g., "U.S. Federal Funds Rate", NOT a value like "3.5%")
-INDEX:           Equity index (e.g., "S&P 500")
-GOV_BOND:        Government bond (e.g., "U.S. Treasury Bonds", "German Bund")
-FIN_INSTRUMENT:  Any tradable or issued financial security or derivative, such as "Mortgage-Backed Securities" or "Credit Default Swaps" (illustrative, not exhaustive); NOT a private legal or employment contract. Use the most specific applicable type instead when one fits: government debt is GOV_BOND, a commodity (including its futures) is COMMODITY, a currency is CURRENCY, an equity index is INDEX. FIN_INSTRUMENT is the residual — only for instruments with no more-specific listed type.
-ECON_INDICATOR:  Economic indicator (e.g., "U.S. CPI Inflation", NOT a value like "2.4%")
-CONCEPT:         Concept (e.g., "Recession")
-EVENT:           Event (e.g., "Russia-Ukraine War", "Covid-19")
+PERSON:          Macro-relevant person (e.g., Jerome Powell)
+SOVEREIGN:       Sovereign nation (e.g., United States)
+GPE:             Geopolitical entity (e.g., European Union, Middle East)
+CENTRAL_BANK:    Central bank (e.g., Federal Reserve)
+GOV_BODY:        Government body (e.g., U.S. Treasury)
+REG_BODY:        Regulatory body (e.g., SEC)
+COMPANY:         Macro-relevant company (e.g., Saudi Aramco, ExxonMobil, Apple
+                 Inc., JPMorgan)
+ORG:             Organization (e.g., IMF, OPEC)
+US_GICS_SECTOR:  US GICS sector or sector future (e.g., Consumer Staples)
+CURRENCY:        Exchange rate or FX future (e.g., Japanese Yen / USD)
+COMMODITY:       Commodity or commodity future (e.g., WTI Crude Oil)
+INTEREST_RATE:   Interest rate or short-term rate future (e.g., 3-Month SOFR);
+                 NOT a value like 3.5%
+EQUITY_INDEX:    Equity index or index future (e.g., S&P 500)
+GOV_BOND:        Government bond or bond future (e.g., 10-Year US Treasury Note,
+                 Euro Bund)
+FIN_INSTRUMENT:  A tradable or issued financial security or derivative with no
+                 more-specific type above (e.g., Mortgage-Backed Securities,
+                 Credit Default Swaps)
+ECON_INDICATOR:  Broad macro aggregate (e.g., U.S. CPI Inflation, GDP); NOT a
+                 value like 2.4%, and NOT an asset-specific measure (see
+                 ASSET_METRIC)
+ASSET_METRIC:    A statistic/measure describing a specific asset (e.g., Net
+                 Purchases of Gilts, Gold ETF Holdings, Crude Oil Inventories)
+CONCEPT:         Concept (e.g., Recession)
+EVENT:           Event (e.g., Russia-Ukraine War, Covid-19)

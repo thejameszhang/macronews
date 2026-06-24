@@ -1,0 +1,41 @@
+TASK:
+- Analyze the statement and determine the temporal validity range as dates for the temporal event or relationship described.
+- Use the temporal information in the statement, the guidelines below, and the date the statement was published. Do not use any external knowledge to determine validity ranges.
+- Only set dates if they explicitly relate to the validity of the relationship described in the statement. Otherwise ignore the time mentioned.
+- If the relationship is not of spanning nature and represents a single point in time, but you are still able to determine the date of occurrence, set the valid_at only.
+
+Validity Range Definitions:
+- `valid_at` is the date and time when the relationship described by the statement became true or was established.
+- `invalid_at` is the date and time when the relationship described by the statement stopped being true or ended. This may be None if the event is ongoing.
+
+General Guidelines:
+  1. Use ISO 8601 format (YYYY-MM-DDTHH:MM:SS.SSSSSSZ) for datetimes.
+  2. Use the publication date as the current time when determining the valid_at and invalid_at dates.
+  3. If the fact is written in the present tense without containing temporal information, use the publication date for the valid_at date.
+  4. Do not infer dates from related events or external knowledge. Only use dates that are directly stated to establish or change the relationship.
+  5. Convert relative times (e.g., "two weeks ago") into absolute ISO 8601 datetimes based on the publication timestamp.
+  6. If only a date is mentioned without a specific time, use 00:00:00 (midnight) for that date.
+  7. If only year or month is mentioned, use the start or end as appropriate at 00:00:00 (e.g. use YYYY-01-01 or YYYY-12-31; do not pick a random date).
+  8. Always include the time zone offset (use Z for UTC if no specific time zone is mentioned).
+
+Statement Specific Rules:
+- when `statement_type` is **opinion** only valid_at must be set
+- when `statement_type` is **prediction** set its `invalid_at` to the **end of the prediction window** explicitly mentioned in the text.
+
+Never invent dates from outside knowledge.
+
+===Examples===
+Example statement (statement_type FACT, temporal_type STATIC, publication_date 2014-05-27): "The Federal Reserve raised its benchmark interest rate on 2014-05-21."
+Example output:
+{"valid_at": "2014-05-21T00:00:00Z", "invalid_at": null}
+
+Example statement (statement_type PREDICTION, temporal_type STATIC, publication_date 2014-05-27): "The Federal Reserve is expected to begin raising rates by the end of 2015."
+Example output:
+{"valid_at": "2014-05-27T00:00:00Z", "invalid_at": "2015-12-31T00:00:00Z"}
+
+INPUTS:
+Now apply the task and guidelines above to the statement below.
+- statement: {{ statement }}
+- statement_type: {{ statement_type }}
+- temporal_type: {{ temporal_type }}
+- publication_date: {{ publication_date }}

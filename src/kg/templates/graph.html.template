@@ -21,7 +21,7 @@
   .kg-swatch { width: 13px; height: 13px; margin-right: 7px; border-radius: 3px;
     border: 1px solid #999; flex-shrink: 0; display: inline-block; }
   #kg-legend .count { color: #888; margin-left: 4px; }
-  #kg-controls { position: fixed; top: 10px; left: 10px; z-index: 10;
+  #kg-controls { position: fixed; top: 50px; left: 10px; z-index: 10;
     background: rgba(255,255,255,0.96); border: 1px solid #ccc; border-radius: 6px;
     padding: 10px 12px; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,.15);
     width: 220px; }
@@ -30,6 +30,7 @@
   #kg-controls .kg-row { margin: 6px 0; }
   #kg-controls label { display: block; color: #444; margin-bottom: 2px; }
   #kg-controls input[type=range] { width: 100%; }
+  #kg-controls .kg-hint { font-size: 11px; color: #888; margin-top: 8px; line-height: 1.45; }
   #kg-controls input[type=text] { width: 100%; box-sizing: border-box; padding: 4px 6px;
     font-size: 13px; border: 1px solid #bbb; border-radius: 3px; }
   #kg-status { position: fixed; bottom: 10px; left: 10px; z-index: 10; font-size: 12px;
@@ -94,6 +95,10 @@
   .kg-relmeta { display: block; color: #888; font-size: 11px; margin-top: 2px; }
   .kg-rel-row { cursor: pointer; }
   .kg-rel-row:hover { background: rgba(255,255,255,0.05); }
+  .kg-open-reader { display: block; width: 100%; margin: 0 0 10px; padding: 6px 10px;
+    font-size: 13px; cursor: pointer; background: #2a4d8f; color: #fff; border: none;
+    border-radius: 5px; }
+  .kg-open-reader:hover { background: #21407a; }
   #kg-modal { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); }
   #kg-modal[hidden] { display: none; }
   .kg-modal-card { max-width: 520px; width: 90%; max-height: 70vh; overflow-y: auto; background: #15161c; color: #e8e8ec; border: 1px solid #2a2c36; border-radius: 8px; padding: 18px 20px; position: relative; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
@@ -105,6 +110,79 @@
   .kg-src-head { font-weight: bold; font-size: 13px; word-break: break-word; }
   .kg-src-meta { font-size: 11px; color: #888; margin-top: 3px; }
   .kg-src-empty { color: #888; font-size: 13px; }
+  .kg-src-stmt { font-size: 13px; color: #e8e8ec; margin-bottom: 4px; word-break: break-word; }
+  .kg-src-val { color: #8ab4f8; }
+  .kg-src-temporal { font-size: 11px; color: #6fae6f; margin-top: 3px; }
+  /* Asset-group navigator (left controls) */
+  #kg-ag-details > summary { cursor: pointer; color: #444; font-size: 12px; user-select: none; }
+  #kg-asset-groups { max-height: 260px; overflow-y: auto; margin-top: 4px; }
+  .kg-ag-class { font-size: 10px; text-transform: uppercase; letter-spacing: .04em;
+    color: #999; margin: 6px 0 2px; }
+  .kg-ag-row { display: flex; justify-content: space-between; align-items: baseline;
+    gap: 8px; padding: 2px 4px; font-size: 12px; cursor: pointer; border-radius: 3px; }
+  .kg-ag-row:hover { background: rgba(0,0,0,0.06); }
+  .kg-ag-name { color: #222; word-break: break-word; }
+  .kg-ag-count { color: #888; font-variant-numeric: tabular-nums; flex: none; }
+  .kg-ag-empty { cursor: default; }
+  .kg-ag-empty .kg-ag-name, .kg-ag-empty .kg-ag-count { color: #bbb; }
+  .kg-ag-empty:hover { background: none; }
+  /* Tab chrome (Graph | Reader) */
+  #kg-tabs { position: fixed; top: 12px; left: 10px; z-index: 16; display: flex; gap: 4px; }
+  .kg-tab { font-size: 12px; padding: 5px 12px; cursor: pointer; border: 1px solid #ccc;
+    background: rgba(255,255,255,0.96); border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+  .kg-tab-active { background: #2a4d8f; color: #fff; border-color: #2a4d8f; }
+  /* Graph-only chrome hidden while the Reader is open */
+  body.reader-active #kg-controls, body.reader-active #kg-legend, body.reader-active #kg-status,
+  body.reader-active #kg-title, body.reader-active #kg-panel, body.reader-active #kg-labels,
+  body.reader-active #kg-tooltip { display: none !important; }
+  /* Reader panel */
+  #kg-reader { position: fixed; inset: 0; z-index: 14; background: #f7f7f9; display: none; }
+  body.reader-active #kg-reader { display: flex; flex-direction: column; }
+  #kg-reader-head { padding: 12px 16px 8px 160px; display: flex; align-items: center; gap: 14px;
+    border-bottom: 1px solid #e0e0e6; background: #fff; flex: none; }
+  #kg-reader-group { font-size: 14px; padding: 4px 8px; border: 1px solid #bbb; border-radius: 4px;
+    max-width: 360px; }
+  .kg-reader-count { font-size: 12px; color: #777; font-variant-numeric: tabular-nums; }
+  #kg-reader-filters { padding: 8px 16px; display: flex; flex-wrap: wrap; gap: 14px;
+    align-items: center; border-bottom: 1px solid #e0e0e6; background: #fafafc; flex: none;
+    font-size: 12px; }
+  #kg-reader-filters .kg-fgroup { display: flex; align-items: center; gap: 6px; }
+  #kg-reader-filters .kg-fgroup > b { color: #555; font-weight: 600; }
+  #kg-reader-filters label { display: inline-flex; align-items: center; gap: 3px; color: #333;
+    cursor: pointer; }
+  #kg-reader-filters input[type=date] { font-size: 12px; padding: 2px 4px; }
+  #kg-reader-search { font-size: 13px; padding: 4px 8px; border: 1px solid #bbb; border-radius: 4px;
+    min-width: 220px; }
+  #kg-reader-feed { flex: 1; overflow-y: auto; padding: 8px 16px 40px; }
+  .kg-day { margin: 14px 0 4px; font-size: 13px; font-weight: 700; color: #2a4d8f;
+    position: sticky; top: 0; background: #f7f7f9; padding: 4px 0; }
+  .kg-fact { background: #fff; border: 1px solid #e4e4ea; border-radius: 6px; padding: 9px 12px;
+    margin: 6px 0; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+  .kg-fact-arrow { font-size: 13px; color: #222; word-break: break-word; }
+  .kg-fact-arrow b { color: #111; }
+  .kg-fact-type { color: #aaa; font-weight: 400; font-size: 0.9em; }
+  .kg-rel-up { color: #2ca02c; font-weight: 600; }
+  .kg-rel-down { color: #d62728; font-weight: 600; }
+  .kg-rel-flat { color: #777; font-weight: 600; }
+  .kg-rel-other { color: #555; font-weight: 600; }
+  .kg-fact-stmt { font-size: 13px; color: #333; margin: 4px 0; word-break: break-word; }
+  .kg-fact-meta { font-size: 11px; color: #999; }
+  .kg-fact-chip { display: inline-block; font-size: 10px; text-transform: uppercase;
+    letter-spacing: .03em; color: #555; background: #eef0f4; border-radius: 3px; padding: 1px 5px;
+    margin-right: 5px; }
+  .kg-fact-time { color: #aaa; margin-left: 6px; font-variant-numeric: tabular-nums; }
+  .kg-fact-aid { color: #b0b0b8; font-variant-numeric: tabular-nums; }
+  .kg-reader-tz { font-size: 11px; color: #999; margin-left: auto; white-space: nowrap; }
+  .kg-fact-super { color: #b08; font-size: 10px; margin-left: 6px; }
+  .kg-fact-super-link { cursor: pointer; }
+  .kg-fact-super-link:hover { text-decoration: underline; }
+  .kg-fact-super-detail { margin-top: 6px; padding: 6px 8px; border-left: 2px solid #d9aacb;
+    background: #faf4f8; border-radius: 0 4px 4px 0; font-size: 12px; color: #555; }
+  .kg-fact-super-detail[hidden] { display: none; }
+  .kg-fact-super-by { color: #b08; font-weight: 600; }
+  .kg-fact-super-meta { color: #999; }
+  .kg-fact-super-stmt { margin-top: 3px; color: #444; word-break: break-word; }
+  .kg-reader-empty { color: #999; font-size: 13px; padding: 20px 0; }
 </style>
 </head>
 <body>
@@ -113,6 +191,46 @@
   <div class="kg-title-sub">{{TITLE}}</div>
 </div>
 <div id="kg-container"></div>
+<div id="kg-tabs">
+  <button id="kg-tab-graph" class="kg-tab kg-tab-active">Graph</button>
+  <button id="kg-tab-reader" class="kg-tab">Reader</button>
+</div>
+<div id="kg-reader">
+  <div id="kg-reader-head">
+    <select id="kg-reader-group" aria-label="asset group"></select>
+    <span id="kg-reader-count" class="kg-reader-count"></span>
+    <span class="kg-reader-tz" title="article release times are converted from UTC to US Eastern">times shown in ET</span>
+  </div>
+  <div id="kg-reader-filters">
+    <span class="kg-fgroup"><b>Type</b>
+      <label><input type="checkbox" class="kg-f-stype" value="FACT" checked>Fact</label>
+      <label><input type="checkbox" class="kg-f-stype" value="OPINION" checked>Opinion</label>
+      <label><input type="checkbox" class="kg-f-stype" value="PREDICTION" checked>Prediction</label>
+    </span>
+    <span class="kg-fgroup"><b>Time</b>
+      <label><input type="checkbox" class="kg-f-ttype" value="STATIC" checked>Static</label>
+      <label><input type="checkbox" class="kg-f-ttype" value="DYNAMIC" checked>Dynamic</label>
+      <label><input type="checkbox" class="kg-f-ttype" value="ATEMPORAL" checked>Atemporal</label>
+    </span>
+    <span class="kg-fgroup"><b>Sign</b>
+      <label><input type="checkbox" class="kg-f-sign" value="up" checked>&#9650; Up</label>
+      <label><input type="checkbox" class="kg-f-sign" value="down" checked>&#9660; Down</label>
+      <label><input type="checkbox" class="kg-f-sign" value="flat" checked>&#8211; Unch.</label>
+      <label><input type="checkbox" class="kg-f-sign" value="other" checked>Other</label>
+    </span>
+    <span class="kg-fgroup"><b>Role</b>
+      <select id="kg-reader-role">
+        <option value="either">either</option>
+        <option value="object">affects it (object)</option>
+        <option value="subject">it drives (subject)</option>
+      </select>
+    </span>
+    <span class="kg-fgroup"><b>From</b><input type="date" id="kg-reader-start"></span>
+    <span class="kg-fgroup"><b>To</b><input type="date" id="kg-reader-end"></span>
+    <input type="text" id="kg-reader-search" placeholder="search statement text...">
+  </div>
+  <div id="kg-reader-feed"></div>
+</div>
 <div id="kg-labels"></div>
 <div id="kg-controls">
   <div class="kg-row">
@@ -122,6 +240,24 @@
   <div class="kg-row">
     <label>Min. node degree <span id="kg-md-val">1</span></label>
     <input type="range" id="kg-md" min="1" max="2" value="1">
+  </div>
+  <div class="kg-row">
+    <label>Statement type</label>
+    <div id="kg-statement">
+      <label><input type="radio" name="kg-stmt" value="all" checked> All</label>
+      <label><input type="radio" name="kg-stmt" value="FACT"> FACT</label>
+      <label><input type="radio" name="kg-stmt" value="OPINION"> OPINION</label>
+      <label><input type="radio" name="kg-stmt" value="PREDICTION"> PREDICTION</label>
+    </div>
+  </div>
+  <div class="kg-row">
+    <label>Temporal type</label>
+    <div id="kg-temporal">
+      <label><input type="radio" name="kg-temp" value="all" checked> All</label>
+      <label><input type="radio" name="kg-temp" value="STATIC"> STATIC</label>
+      <label><input type="radio" name="kg-temp" value="DYNAMIC"> DYNAMIC</label>
+      <label><input type="radio" name="kg-temp" value="ATEMPORAL"> ATEMPORAL</label>
+    </div>
   </div>
   <div class="kg-btn-row">
     <button id="kg-apply">Apply filters</button>
@@ -140,6 +276,11 @@
     <input type="text" id="kg-search" placeholder="Search entity..." list="kg-node-list" autocomplete="off">
   </div>
   <datalist id="kg-node-list"></datalist>
+  <details class="kg-row" id="kg-ag-details">
+    <summary>Asset groups</summary>
+    <div id="kg-asset-groups"></div>
+  </details>
+  <div class="kg-hint">Drag a node to move it · <b>hold Space + drag to pan</b> · scroll to zoom</div>
 </div>
 <div id="kg-legend">{{LEGEND_HTML}}</div>
 <div id="kg-status"></div>
@@ -166,6 +307,7 @@
 <script>
 "use strict";
 const DATA = {{GRAPH_DATA}};
+window.KG_ASSET_GROUPS = {{ASSET_GROUPS_JSON}};
 const container = document.getElementById("kg-container");
 
 // --- cosmos.gl config ---
@@ -207,6 +349,11 @@ const graph = new cosmos.Graph(container, config);
 // --- expose shared state skeleton so Task-3/4 handlers can reference window.kg ---
 // idx, nodeMeta, edgeMeta, adjacency are populated/updated by buildAndApply.
 window.kg = { graph, idx: new Map(), nodeMeta: [], edgeMeta: [], adjacency: [], DATA };
+
+// Entity name -> type, from the unfiltered node set. Shared by the edge tooltip and the
+// Reader so each entity shows its type next to its name (e.g. "yield [ASSET_METRIC]").
+window.kg.nodeTypeByKey = {};
+DATA.nodes.forEach((n) => { window.kg.nodeTypeByKey[n.key] = n.entityType; });
 
 // --- Play/Pause state — declared here so setRunning/buildAndApply can reference them ---
 var running = true;
@@ -293,9 +440,9 @@ function buildAndApply(nodes, edges, preserve) {
     var c = cosmos.getRgbaColor(e.color);
     linkColors[4*k]=c[0]; linkColors[4*k+1]=c[1]; linkColors[4*k+2]=c[2]; linkColors[4*k+3]=0.7;
     linkWidths[k] = Math.min(10, 2.5 + 1.5 * Math.log1p(e.count));
-    edgeMeta[k] = { subject: e.source, relation: e.relationType, object: e.target, count: e.count, dateRange: e.dateRange };
-    adjacency[s].push({ dir:"out", relation:e.relationType, other:e.target, count:e.count, dateRange:e.dateRange, sources: e.sources || [] });
-    adjacency[t].push({ dir:"in",  relation:e.relationType, other:e.source, count:e.count, dateRange:e.dateRange, sources: e.sources || [] });
+    edgeMeta[k] = { subject: e.source, relation: e.relationType, object: e.target, count: e.count, dateRange: e.dateRange, statementType: e.statementType, temporalType: e.temporalType };
+    adjacency[s].push({ dir:"out", relation:e.relationType, other:e.target, count:e.count, dateRange:e.dateRange, statementType:e.statementType, temporalType:e.temporalType, sources: e.sources || [] });
+    adjacency[t].push({ dir:"in",  relation:e.relationType, other:e.source, count:e.count, dateRange:e.dateRange, statementType:e.statementType, temporalType:e.temporalType, sources: e.sources || [] });
   });
 
   // --- push data to cosmos ---
@@ -362,6 +509,18 @@ function buildAndApply(nodes, edges, preserve) {
 // -------------------------------------------------------------------------
 var hiddenTypes = new Set();
 var hiddenRels  = new Set();
+var statementFilter = "all";
+var temporalFilter = "all";
+function statementOk(e) {
+  if (statementFilter === "all") return true;
+  var v = e.statementType || "";
+  return v === statementFilter || v === "mixed";
+}
+function temporalOk(e) {
+  if (temporalFilter === "all") return true;
+  var v = e.temporalType || "";
+  return v === temporalFilter || v === "mixed";
+}
 
 function computeSubset(minCount, minDegree) {
   var D = window.kg.DATA;
@@ -370,6 +529,7 @@ function computeSubset(minCount, minDegree) {
   var edges = D.edges.filter(function(e) {
     return (e.count || 1) >= minCount &&
            !hiddenRels.has(e.relationType) &&
+           statementOk(e) && temporalOk(e) &&
            visible(nodeByKey.get(e.source)) &&
            visible(nodeByKey.get(e.target));
   });
@@ -447,6 +607,26 @@ if (mdSlider) mdSlider.oninput = function() { mdVal.textContent = mdSlider.value
 // Apply button.
 var applyBtn = document.getElementById("kg-apply");
 if (applyBtn) applyBtn.onclick = function() { applyView(); };
+
+// Statement-type radio — applies immediately, like the legend toggles.
+Array.prototype.forEach.call(
+  document.querySelectorAll('#kg-statement input[name="kg-stmt"]'),
+  function(radio) {
+    radio.addEventListener("change", function() {
+      if (radio.checked) { statementFilter = radio.value; applyView(); }
+    });
+  }
+);
+
+// Temporal-type radio — applies immediately, like the legend toggles.
+Array.prototype.forEach.call(
+  document.querySelectorAll('#kg-temporal input[name="kg-temp"]'),
+  function(radio) {
+    radio.addEventListener("change", function() {
+      if (radio.checked) { temporalFilter = radio.value; applyView(); }
+    });
+  }
+);
 
 // Play/Pause toggle (running/playBtn/setRunning declared above, before buildAndApply).
 if (playBtn) {
@@ -538,9 +718,14 @@ if (searchInput) {
   }
   function edgeTipText(k) {
     const m = kg.edgeMeta[k];
-    let s = m.subject + "  --[" + m.relation + "]-->  " + m.object +
+    const T = kg.nodeTypeByKey || {};
+    const st = T[m.subject] ? " [" + T[m.subject] + "]" : "";
+    const ot = T[m.object]  ? " [" + T[m.object]  + "]" : "";
+    let s = m.subject + st + "  --[" + m.relation + "]-->  " + m.object + ot +
             "\nAsserted in " + m.count + " article(s)";
     if (m.dateRange) s += "\n" + m.dateRange;
+    if (m.statementType) s += "\nStatement: " + m.statementType;
+    if (m.temporalType)  s += "\nTemporal: " + m.temporalType;
     return s;
   }
 
@@ -566,9 +751,24 @@ if (searchInput) {
       modalBody.innerHTML = "<div class='kg-src-empty'>No source records.</div>";
     } else {
       modalBody.innerHTML = sources.map(function(s) {
+        var stmt = s.statement
+          ? "<div class='kg-src-stmt'>" + escapeHtml(s.statement) +
+              (s.value ? " <span class='kg-src-val'>(" + escapeHtml(s.value) + ")</span>" : "") +
+            "</div>"
+          : "";
+        var temporal = (s.valid_at || s.invalid_at)
+          ? "<div class='kg-src-temporal'>valid " +
+              escapeHtml((s.valid_at || "?") + " → " + (s.invalid_at || "open")) + "</div>"
+          : "";
+        var meta = (s.date || "") + " · " + (s.article_id || "") +
+                   (s.statement_type ? " · " + s.statement_type : "") +
+                   (s.temporal_type ? " · " + s.temporal_type : "") +
+                   (s.paragraphs && s.paragraphs.length ? " · ¶ " + s.paragraphs.join(", ") : "");
         return "<div class='kg-src'>" +
+          stmt +
           "<div class='kg-src-head'>" + escapeHtml(s.headline || "(no headline)") + "</div>" +
-          "<div class='kg-src-meta'>" + escapeHtml((s.date || "") + " · " + (s.article_id || "")) + "</div>" +
+          "<div class='kg-src-meta'>" + escapeHtml(meta) + "</div>" +
+          temporal +
           "</div>";
       }).join("");
     }
@@ -581,6 +781,12 @@ if (searchInput) {
 
   // Delegated click on panel rows — attached once here, not per panel build.
   document.getElementById("kg-panel-body").addEventListener("click", function(e) {
+    if (e.target.closest(".kg-open-reader")) {
+      if (window.kgReader && typeof window.kgReader.openActive === "function") {
+        window.kgReader.openActive();
+      }
+      return;
+    }
     var li = e.target.closest(".kg-rel-row");
     if (!li) return;
     var idx = parseInt(li.getAttribute("data-relidx"), 10);
@@ -630,6 +836,14 @@ if (searchInput) {
     const n    = kg.nodeMeta[i];
     const rels = kg.adjacency[i];
 
+    // Clicking an ASSET_GROUP anchor highlights its bubble like any node AND records
+    // it as the focused group, so the Reader tab / the panel "Open in Reader" button
+    // can jump straight to it. (entityType mirrors schemas.ASSET_GROUP_NODE_TYPE.)
+    var isAssetGroup = n && n.entityType === "ASSET_GROUP";
+    if (isAssetGroup && window.kgReader && typeof window.kgReader.setActive === "function") {
+      window.kgReader.setActive(n.key);
+    }
+
     // --- (c) Panel sort: by count desc, then dateRange desc (empty last),
     //         then alphabetical by arrow text.
     const sortedRels = rels.slice().sort(function(a, b) {
@@ -654,7 +868,7 @@ if (searchInput) {
       const arrow = r.dir === "out"
         ? (n.label + " —[" + r.relation + "]→ " + r.other)
         : (r.other  + " —[" + r.relation + "]→ " + n.label);
-      const meta = r.count + " article(s)" + (r.dateRange ? " · " + r.dateRange : "");
+      const meta = r.count + " article(s)" + (r.dateRange ? " · " + r.dateRange : "") + (r.statementType ? " · " + r.statementType : "") + (r.temporalType ? " · " + r.temporalType : "");
       currentPanelRels.push({ arrow: arrow, sources: r.sources || [] });
       return "<li class=\"kg-rel-row\" data-relidx=\"" + ridx + "\">" +
         "<span class=\"kg-rel\">"     + escapeHtml(arrow) + "</span>" +
@@ -667,6 +881,7 @@ if (searchInput) {
       "<div class=\"kg-panel-sub\">" +
         escapeHtml(n.entityType + " · " + n.articleCount + " article(s) · " + rels.length + " relation(s)") +
       "</div>" +
+      (isAssetGroup ? "<button class=\"kg-open-reader\">Open in Reader →</button>" : "") +
       "<ul class=\"kg-rels\">" + rows + "</ul>";
 
     panel.hidden = false;
@@ -781,6 +996,53 @@ if (searchInput) {
     kg.graph.zoomToPointByIndex(i);
     window.handleClick(i);
   };
+
+  // ---------------------------------------------------- asset-group navigator --
+  // Clicking a group highlights its bubble: the [ASSET_GROUP] anchor plus every
+  // entity linked to it by a RELATED_TO_ASSET_GROUP edge (the resolution layer;
+  // keys/count are built server-side in build_asset_groups). All 50 groups are
+  // listed; a group with no anchor in the current render is greyed. (Falls back
+  // to exact name-match when the graph has no resolution layer.)
+  (function buildAssetGroupNav() {
+    var host = document.getElementById("kg-asset-groups");
+    var groups = window.KG_ASSET_GROUPS || [];
+    if (!host) return;
+    var html = "", lastClass = null;
+    groups.forEach(function (grp, gi) {
+      if (grp.assetClass !== lastClass) {
+        html += "<div class='kg-ag-class'>" + escapeHtml(grp.assetClass) + "</div>";
+        lastClass = grp.assetClass;
+      }
+      html += "<div class='kg-ag-row" + (grp.count ? "" : " kg-ag-empty") +
+        "' data-agidx='" + gi + "'>" +
+        "<span class='kg-ag-name'>" + escapeHtml(grp.name) + "</span>" +
+        "<span class='kg-ag-count'>" + grp.count + "</span></div>";
+    });
+    host.innerHTML = html;
+
+    host.addEventListener("click", function (e) {
+      var row = e.target.closest(".kg-ag-row");
+      if (!row) return;
+      var grp = groups[parseInt(row.getAttribute("data-agidx"), 10)];
+      if (!grp || !grp.keys.length) return;
+      var k = window.kg;
+      var st = document.getElementById("kg-status");
+      // grp.keys[0] is the [ASSET_GROUP] anchor (or, in the exact-match fallback,
+      // the first matching entity). Focus it exactly like Search does — zoom +
+      // handleClick — so the whole bubble (anchor + its member spokes) highlights
+      // and the panel/label state refreshes, clearing any previous focus. The old
+      // multi-select path never called handleClick, so prior labels persisted and
+      // the clicked group's labels never rendered.
+      var anchorIdx = k.idx.get(grp.keys[0]);
+      if (anchorIdx == null) {
+        if (st) st.textContent = grp.name + ": not in current view";
+        return;
+      }
+      try { k.graph.zoomToPointByIndex(anchorIdx); } catch (e2) {}
+      try { window.handleClick(anchorIdx); } catch (e2) {}
+      if (st) st.textContent = grp.name + " — " + grp.count + " linked entity(ies)";
+    });
+  })();
 
 })();
 </script>
@@ -1082,6 +1344,329 @@ if (searchInput) {
     lastThrottle = performance.now();
     rafId = requestAnimationFrame(tick);
   });
+})();
+</script>
+<!-- Tab toggle: Graph <-> Reader. The reader feed itself is built in a later
+     script block (window.kgReader). -->
+<script>
+"use strict";
+(function () {
+  var tabGraph  = document.getElementById("kg-tab-graph");
+  var tabReader = document.getElementById("kg-tab-reader");
+  function show(which) {
+    var reader = (which === "reader");
+    document.body.classList.toggle("reader-active", reader);
+    tabReader.classList.toggle("kg-tab-active", reader);
+    tabGraph.classList.toggle("kg-tab-active", !reader);
+    if (reader && window.kgReader && typeof window.kgReader.reveal === "function") {
+      window.kgReader.reveal();
+    }
+  }
+  tabGraph.onclick  = function () { show("graph"); };
+  tabReader.onclick = function () { show("reader"); };
+  // Exposed so the reader script can flip to itself on an anchor click.
+  window.kgShowTab = show;
+})();
+</script>
+<!-- Reader feed: per-group chronological, filterable statement view.
+     Pure client-side over window.kg.DATA (the rendered subgraph) +
+     window.KG_ASSET_GROUPS. No returns, no signals — a reading instrument. -->
+<script>
+"use strict";
+(function () {
+  var DATA   = (window.kg && window.kg.DATA) || { nodes: [], edges: [] };
+  var GROUPS = window.KG_ASSET_GROUPS || [];
+
+  // Sign bucket per relation (mirrors news_returns_overlay.SIGN; "other" = the
+  // unsigned/causal-unspecified relations like IMPACT and anything else).
+  var SIGN_UP   = { RAISES: 1, CAUSES_RISE_IN: 1 };
+  var SIGN_DOWN = { DECREASES: 1, CAUSES_FALL_IN: 1 };
+  var SIGN_FLAT = { LEAVES_UNCHANGED: 1 };
+  function signOf(rel) {
+    return SIGN_UP[rel] ? "up" : SIGN_DOWN[rel] ? "down" : SIGN_FLAT[rel] ? "flat" : "other";
+  }
+  var SIGN_CLASS = { up: "kg-rel-up", down: "kg-rel-down", flat: "kg-rel-flat", other: "kg-rel-other" };
+  var SIGN_GLYPH = { up: "▲", down: "▼", flat: "–", other: "" };
+
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+  // display_date is basic-ISO UTC ('YYYYMMDDTHHMMSS.fffZ', the trailing Z = UTC).
+  // Convert to US Eastern (America/New_York, DST-correct) and show HH:MM (24h).
+  function fmtTime(dd) {
+    if (!dd || dd.length < 15) return "";
+    var iso = dd.slice(0, 4) + "-" + dd.slice(4, 6) + "-" + dd.slice(6, 8) + "T" +
+              dd.slice(9, 11) + ":" + dd.slice(11, 13) + ":" + dd.slice(13, 15) + "Z";
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    try {
+      return d.toLocaleTimeString("en-US", { timeZone: "America/New_York",
+        hour: "2-digit", minute: "2-digit", hour12: false });
+    } catch (e) {
+      // Engine lacks IANA tz data (not browsers): show raw UTC, labeled honestly.
+      return dd.slice(9, 11) + ":" + dd.slice(11, 13) + " UTC";
+    }
+  }
+
+  // anchor key ('[ASSET_GROUP] Crude Oil') -> group index, for openByAnchor.
+  var anchorToGroup = new Map();
+  GROUPS.forEach(function (g, gi) {
+    if (g.keys && g.keys.length) anchorToGroup.set(g.keys[0], gi);
+  });
+
+  // ---- DOM refs ----
+  var selGroup  = document.getElementById("kg-reader-group");
+  var countEl   = document.getElementById("kg-reader-count");
+  var feedEl    = document.getElementById("kg-reader-feed");
+  var roleSel   = document.getElementById("kg-reader-role");
+  var startEl   = document.getElementById("kg-reader-start");
+  var endEl     = document.getElementById("kg-reader-end");
+  var searchEl  = document.getElementById("kg-reader-search");
+  var stypeBoxes = Array.prototype.slice.call(document.querySelectorAll(".kg-f-stype"));
+  var ttypeBoxes = Array.prototype.slice.call(document.querySelectorAll(".kg-f-ttype"));
+  var signBoxes  = Array.prototype.slice.call(document.querySelectorAll(".kg-f-sign"));
+
+  // Populate the group selector (GROUPS already sorted assetClass -> name).
+  GROUPS.forEach(function (g, gi) {
+    var o = document.createElement("option");
+    o.value = String(gi);
+    o.textContent = g.name + "  (" + g.assetClass + ")";
+    selGroup.appendChild(o);
+  });
+
+  var built = false;       // group selector populated + listeners wired
+  var allFacts = [];       // facts for the currently-selected group (unfiltered)
+  var activeAnchor = null; // [ASSET_GROUP] key of the group focused in the Graph
+
+  // Build the unfiltered fact list for group index gi.
+  function buildFacts(gi) {
+    var grp = GROUPS[gi];
+    // keys[0] is the [ASSET_GROUP] anchor ONLY when the resolution layer is present.
+    // In the exact-match fallback (graph rendered without --entity-groups) keys is a
+    // flat member list with no anchor, so blindly slicing would drop the first member.
+    var hasAnchor = !!(grp && grp.keys && grp.keys.length &&
+                       grp.keys[0].indexOf("[ASSET_GROUP] ") === 0);
+    var members = new Set(grp && grp.keys ? (hasAnchor ? grp.keys.slice(1) : grp.keys) : []);
+    var facts = [];
+    DATA.edges.forEach(function (e) {
+      if (e.synthetic) return;                       // skip RELATED_TO_ASSET_GROUP scaffold
+      var isSubj = members.has(e.source);
+      var isObj  = members.has(e.target);
+      if (!isSubj && !isObj) return;
+      var sign = signOf(e.relationType);
+      (e.sources || []).forEach(function (s) {
+        facts.push({
+          subject: e.source, relation: e.relationType, object: e.target,
+          isSubj: isSubj, isObj: isObj, sign: sign,
+          stype: s.statement_type || "", ttype: s.temporal_type || "",
+          date: s.date || "", dd: s.display_date || "", aid: s.article_id || "",
+          statement: s.statement || "", headline: s.headline || "",
+          invalid_at: s.invalid_at || null, invalidated_by: s.invalidated_by || null,
+        });
+      });
+    });
+    // Chronological: day asc, then release time asc, then article id.
+    facts.sort(function (a, b) {
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+      if (a.dd !== b.dd)     return a.dd < b.dd ? -1 : 1;
+      return a.aid < b.aid ? -1 : a.aid > b.aid ? 1 : 0;
+    });
+    return facts;
+  }
+
+  function checkedValues(boxes) {
+    var s = new Set();
+    boxes.forEach(function (b) { if (b.checked) s.add(b.value); });
+    return s;
+  }
+
+  function applyFilters() {
+    var keepStype = checkedValues(stypeBoxes);
+    var keepTtype = checkedValues(ttypeBoxes);
+    var keepSign  = checkedValues(signBoxes);
+    var role      = roleSel.value;
+    var start     = startEl.value;   // 'YYYY-MM-DD' or ''
+    var end       = endEl.value;
+    var q         = searchEl.value.trim().toLowerCase();
+
+    var out = allFacts.filter(function (f) {
+      if (f.stype && !keepStype.has(f.stype)) return false;
+      if (f.ttype && !keepTtype.has(f.ttype)) return false;
+      if (!keepSign.has(f.sign)) return false;
+      if (role === "object"  && !f.isObj)  return false;
+      if (role === "subject" && !f.isSubj) return false;
+      if (start && f.date && f.date < start) return false;
+      if (end   && f.date && f.date > end)   return false;
+      if (q && f.statement.toLowerCase().indexOf(q) === -1) return false;
+      return true;
+    });
+    render(out);
+    countEl.textContent = "showing " + out.length + " of " + allFacts.length + " facts";
+  }
+
+  function arrowHtml(f) {
+    var subjBold = f.isSubj, objBold = f.isObj;
+    var subj = subjBold ? "<b>" + esc(f.subject) + "</b>" : esc(f.subject);
+    var obj  = objBold  ? "<b>" + esc(f.object)  + "</b>" : esc(f.object);
+    var T = (window.kg && window.kg.nodeTypeByKey) || {};
+    var st = T[f.subject] ? " <span class='kg-fact-type'>[" + esc(T[f.subject]) + "]</span>" : "";
+    var ot = T[f.object]  ? " <span class='kg-fact-type'>[" + esc(T[f.object])  + "]</span>" : "";
+    var relCls = SIGN_CLASS[f.sign];
+    var glyph  = SIGN_GLYPH[f.sign] ? SIGN_GLYPH[f.sign] + " " : "";
+    return subj + st + " <span class='" + relCls + "'>" + glyph + "—[" + esc(f.relation) +
+           "]→</span> " + obj + ot;
+  }
+
+  // Superseder index (lazy): superseder event id -> its fact summary. Only superseder
+  // sources carry an `id` (serialize emits it leanly), so this map stays small.
+  var _byId = null;
+  function supersederById(id) {
+    if (_byId === null) {
+      _byId = {};
+      DATA.edges.forEach(function (e) {
+        if (e.synthetic) return;
+        (e.sources || []).forEach(function (s) {
+          // Keep first: a multi-triplet superseder event shares one id across its
+          // edges; the earliest edge tends to its canonical (first) triplet.
+          if (s.id && !(s.id in _byId)) _byId[s.id] = {
+            subject: e.source, relation: e.relationType, object: e.target,
+            sign: signOf(e.relationType), statement: s.statement || "",
+            date: s.date || "", dd: s.display_date || "",
+            stype: s.statement_type || "", ttype: s.temporal_type || "",
+            headline: s.headline || "", aid: s.article_id || "",
+          };
+        });
+      });
+    }
+    return _byId[id] || null;
+  }
+
+  // Expand/collapse the "superseded by" detail (delegated once; feedEl persists across renders).
+  feedEl.addEventListener("click", function (e) {
+    var m = e.target.closest(".kg-fact-super-link");
+    if (!m) return;
+    var card = m.closest(".kg-fact");
+    var det = card && card.querySelector(".kg-fact-super-detail");
+    if (det) det.hidden = !det.hidden;
+  });
+
+  function render(facts) {
+    if (!facts.length) {
+      feedEl.innerHTML = "<div class='kg-reader-empty'>No facts match these filters.</div>";
+      return;
+    }
+    var html = [], curDay = null;
+    facts.forEach(function (f) {
+      if (f.date !== curDay) {
+        curDay = f.date;
+        html.push("<div class='kg-day'>" + esc(f.date || "(undated)") + "</div>");
+      }
+      var t = fmtTime(f.dd);
+      var chips = (f.stype ? "<span class='kg-fact-chip'>" + esc(f.stype) + "</span>" : "") +
+                  (f.ttype ? "<span class='kg-fact-chip'>" + esc(f.ttype) + "</span>" : "");
+      var supMarker = "", supDetail = "";
+      // Mark ONLY genuine supersessions (a later fact closed this one => invalidated_by
+      // points at it). NOT plain invalid_at, which the extractor sets as a validity
+      // end-date on many facts that were never superseded by another fact.
+      if (f.invalidated_by) {
+        var bySup = supersederById(f.invalidated_by);
+        if (bySup) {
+          supMarker = "<span class='kg-fact-super kg-fact-super-link' " +
+            "title='show the later fact that superseded this'>superseded ▸</span>";
+          var supArrow = arrowHtml({ subject: bySup.subject, relation: bySup.relation,
+            object: bySup.object, sign: bySup.sign, isSubj: false, isObj: false });
+          var supT = fmtTime(bySup.dd);
+          var supChips = (bySup.stype ? "<span class='kg-fact-chip'>" + esc(bySup.stype) + "</span>" : "") +
+                         (bySup.ttype ? "<span class='kg-fact-chip'>" + esc(bySup.ttype) + "</span>" : "");
+          supDetail = "<div class='kg-fact-super-detail' hidden>" +
+            "<span class='kg-fact-super-by'>superseded by:</span> " + supArrow + supChips +
+            ((bySup.date || bySup.aid) ? " <span class='kg-fact-super-meta'>· " + esc(bySup.date || "") +
+                          (supT ? " " + supT : "") + (bySup.aid ? " · " + esc(bySup.aid) : "") + "</span>" : "") +
+            (bySup.statement ? "<div class='kg-fact-super-stmt'>" + esc(bySup.statement) + "</div>" : "") +
+            (bySup.headline ? "<div class='kg-fact-super-meta'>" + esc(bySup.headline) + "</div>" : "") +
+            "</div>";
+        } else {
+          supMarker = "<span class='kg-fact-super'>superseded</span>";  // superseder not in current view
+        }
+      }
+      html.push(
+        "<div class='kg-fact'>" +
+          "<div class='kg-fact-arrow'>" + arrowHtml(f) +
+            (t ? "<span class='kg-fact-time'>" + t + "</span>" : "") + supMarker + "</div>" +
+          (f.statement ? "<div class='kg-fact-stmt'>" + esc(f.statement) + "</div>" : "") +
+          "<div class='kg-fact-meta'>" + chips +
+            "<span>" + esc(f.headline || "(no headline)") + "</span>" +
+            (f.aid ? " <span class='kg-fact-aid'>· " + esc(f.aid) + "</span>" : "") +
+          "</div>" +
+          supDetail +
+        "</div>");
+    });
+    feedEl.innerHTML = html.join("");
+  }
+
+  function selectGroup(gi) {
+    selGroup.value = String(gi);
+    allFacts = buildFacts(gi);
+    // Default the date range to the group's full span (only on group change).
+    var days = allFacts.map(function (f) { return f.date; }).filter(Boolean).sort();
+    startEl.value = days.length ? days[0] : "";
+    endEl.value   = days.length ? days[days.length - 1] : "";
+    applyFilters();
+  }
+
+  function wire() {
+    selGroup.addEventListener("change", function () { selectGroup(parseInt(selGroup.value, 10)); });
+    roleSel.addEventListener("change", applyFilters);
+    startEl.addEventListener("change", applyFilters);
+    endEl.addEventListener("change", applyFilters);
+    searchEl.addEventListener("input", applyFilters);
+    stypeBoxes.concat(ttypeBoxes, signBoxes).forEach(function (b) {
+      b.addEventListener("change", applyFilters);
+    });
+  }
+
+  window.kgReader = {
+    // Remember the asset group focused in the Graph (set by handleClick on an
+    // ASSET_GROUP node) so reveal()/openActive() can jump straight to it.
+    setActive: function (anchorKey) { activeAnchor = anchorKey; },
+    // Build (idempotent) + select a group. Called when the Reader is first shown
+    // so we don't compute facts for a tab nobody opened. Defaults to the focused
+    // group if one is set, else the first.
+    ensureBuilt: function () {
+      if (built) return;
+      built = true;
+      wire();
+      var gi = (activeAnchor && anchorToGroup.has(activeAnchor))
+        ? anchorToGroup.get(activeAnchor) : (GROUPS.length ? 0 : -1);
+      selectGroup(gi);
+    },
+    // Reveal the Reader (tab switch): build if needed, then jump to the focused
+    // group if one is set and it isn't already shown.
+    reveal: function () {
+      this.ensureBuilt();
+      if (activeAnchor && anchorToGroup.has(activeAnchor)) {
+        var gi = anchorToGroup.get(activeAnchor);
+        if (String(gi) !== selGroup.value) selectGroup(gi);
+      }
+    },
+    // "Open in Reader" panel button -> open the focused group explicitly.
+    openActive: function () { if (activeAnchor) this.openByAnchor(activeAnchor); },
+    // Open the Reader for the group whose anchor key is `anchorKey`.
+    openByAnchor: function (anchorKey) {
+      if (!built) { built = true; wire(); }  // wire once; render exactly once below
+      if (anchorToGroup.has(anchorKey)) {
+        selectGroup(anchorToGroup.get(anchorKey));
+      } else {
+        // Fail loud, not silent: don't substitute an unrelated group's facts.
+        console.warn("kgReader: anchor key not in group map: " + anchorKey);
+        feedEl.innerHTML = "<div class='kg-reader-empty'>No group for anchor: " +
+                           esc(anchorKey) + "</div>";
+      }
+      if (window.kgShowTab) window.kgShowTab("reader");  // reveal()/ensureBuilt() no-op (built); group already shown
+    },
+  };
 })();
 </script>
 </body>
