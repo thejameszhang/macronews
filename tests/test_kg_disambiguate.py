@@ -458,20 +458,22 @@ def _subjects(out_path):
             for ev in json.loads(line)["events"] for t in ev["triplets"]}
 
 
-def test_events_format_canonicalizes_and_merges_acronym(tmp_path):
+def test_events_format_does_not_merge_acronym_with_expansion(tmp_path):
+    # The acronym sub-stage was removed: an acronym and its spelled-out form are
+    # NOT merged (they embed far apart and there is no initials rule), so "ECB"
+    # and "European Central Bank" stay distinct. The events output format is
+    # unaffected.
     rows = [_ev_row("European Central Bank", "CENTRAL_BANK")] * 3 + \
            [_ev_row("ECB", "CENTRAL_BANK")]
     src = tmp_path / "in.jsonl"
     src.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
     out = tmp_path / "out.jsonl"
-    summary = disambiguate(src, out, threshold=0.95)
+    disambiguate(src, out, threshold=0.95)
     subjects = _subjects(out)
-    assert len(subjects) == 1
-    assert "European Central Bank" in subjects
+    assert len(subjects) == 2
+    assert "ECB" in subjects and "European Central Bank" in subjects
     first = json.loads(out.read_text().splitlines()[0])
     assert "events" in first and "facts" not in first
-    # The acronym merge must be reflected in the summary (clusters_record updated).
-    assert summary["merges_n"] >= 1
 
 
 def test_default_rejected_path_helper():

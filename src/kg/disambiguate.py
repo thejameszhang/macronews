@@ -32,7 +32,6 @@ from pathlib import Path
 from typing import Iterable
 
 import numpy as np
-from rapidfuzz import fuzz
 import torch
 from sentence_transformers import SentenceTransformer
 
@@ -226,34 +225,6 @@ def disambiguate(
             clusters_record[typ][canonical] = sorted(cluster)
             for member in cluster:
                 canonical_map[(member, typ)] = canonical
-
-    # Acronym merge: collapse single-word tokens that are initials of a
-    # multi-word canonical in the same type (e.g. "ECB" → "European Central Bank").
-    # Update BOTH canonical_map and clusters_record so n_merges / n_clusters / the
-    # cluster sidecar reflect the merge (clusters_record drives those counts).
-    ACRONYM_THRESHOLD = 98.0
-    for typ, type_clusters in clusters_record.items():
-        canon_freq = {c: sum(counts[(m, typ)] for m in members)
-                      for c, members in type_clusters.items()}
-        singles = [c for c in type_clusters if " " not in c]
-        merges: list[tuple[str, str]] = []  # (winner, loser)
-        for multi in [c for c in type_clusters if " " in c]:
-            initials = "".join(w[0] for w in multi.split())
-            match = next((c for c in singles
-                          if fuzz.ratio(initials, c) >= ACRONYM_THRESHOLD), None)
-            if match is None:
-                continue
-            winner = multi if canon_freq[multi] >= canon_freq[match] else match
-            loser = match if winner == multi else multi
-            merges.append((winner, loser))
-        for winner, loser in merges:
-            if winner not in type_clusters or loser not in type_clusters:
-                continue  # already folded by an earlier merge in a chain
-            for m in type_clusters[loser]:
-                canonical_map[(m, typ)] = winner
-            type_clusters[winner] = sorted(
-                set(type_clusters[winner]) | set(type_clusters[loser]))
-            del type_clusters[loser]
 
     n_merges = sum(
         len(c) - 1
