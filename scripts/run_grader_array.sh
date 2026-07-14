@@ -54,8 +54,12 @@ mkdir -p "$LOG_DIR"
 MODEL_PATH="${MODEL_PATH:-/nfs/roberts/scratch/pi_btk22/jyz32/qwq-32b}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-40960}"
 MAX_TOKENS="${MAX_TOKENS:-1024}"
-PARTITION="${PARTITION:-priority_gpu}"
-ACCOUNT="${ACCOUNT:-prio_btk22}"
+# FREE B200 tier is the DEFAULT (gpu_b200 / pi_btk22 / QOS normal). Do NOT default to
+# priority_gpu/prio_btk22 — that BILLS the lab's paid allocation, and this is the launcher
+# a full-corpus grader run uses. Pass those explicitly only when a run needs the queue.
+PARTITION="${PARTITION:-gpu_b200}"
+ACCOUNT="${ACCOUNT:-pi_btk22}"
+QOS="${QOS:-normal}"
 GRES="${GRES:-gpu:b200:1}"
 WALLTIME="${WALLTIME:-12:00:00}"
 # a1117u29n01 is ~3.4x slower than peer B200 nodes (observed on 2014 prod run:
@@ -174,6 +178,7 @@ fi
 jobid=$(sbatch --parsable \
     --account="$ACCOUNT" \
     --partition="$PARTITION" \
+    --qos="$QOS" \
     --gres="$GRES" \
     --time="$WALLTIME" \
     --ntasks=1 \

@@ -13,9 +13,17 @@
 #                that catches the articles the LLM tags for this group. A more
 #                specific term that always co-occurs with a general one is left
 #                out (no "WTI" under Crude Oil when "oil"/"crude" are present).
-#                US equity sectors have no clean anchor, so their lists are
-#                rough and expected to score low recall -> always-run.
-#                Used by scripts/measure_gate.py and scripts/regex_mapper.py.>
+#                TWO consumers, and they disagree about what a false positive
+#                costs. src/mapping/gate.py skips the LLM call when none of a
+#                group's keywords appear, so a loose keyword is nearly free (the
+#                model still rejects the pair). src/kg/link_groups.py uses the
+#                same list to link entities to groups, with no model in the loop,
+#                so a loose keyword there is a spurious edge. Broadening for gate
+#                recall costs KG link precision. Edit with both in view.
+#                US equity sectors have no clean lexical anchor, so their lists
+#                are the weak ones: they carry 66% of every correct tag the gate
+#                loses (12.2% of sector tags, vs 0.2% for commodities). Exempting
+#                them would cost 389 extra B200-hours. Revisit; do not assume.>
 #     members:
 #       - name: <asset name matching `name:` in asset_universe.yaml>
 #         ticker_symbol: <stable trading ticker; primary stable identifier>

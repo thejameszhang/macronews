@@ -21,6 +21,7 @@ from mapping.llm import (
     ASSET_CLASS_POSITIVES_PLACEHOLDER,
     LLMMapper,
 )
+from mapping.gate import compile_gate, gate_text
 from mapping.schemas import SingleAssetResult
 from utils.groups import load_group_universe, group_keys
 
@@ -38,6 +39,19 @@ ARTICLE_PROMPT = (PROMPTS_DIR / "mapper.txt").read_text()
 # to per-member entries.
 _GROUP_UNIVERSE = load_group_universe()
 ALL_GROUPS = group_keys(_GROUP_UNIVERSE)
+
+
+def gate_default(dataset: str) -> bool:
+    """Whether the keyword gate runs by default for ``dataset``.
+
+    The gate is a production cost optimization. gold/sports/wikigaming are
+    measurement sets, and gating them removes the model from the experiment
+    they exist to run: the negative controls test that the *model* rejects
+    non-financial text, and a regex rejecting it first proves nothing (a model
+    that tagged everything would pass too). They are small enough that gating
+    them saves no meaningful GPU time anyway.
+    """
+    return dataset == "djnw"
 
 
 def _group_label(group_key: str) -> str:
@@ -178,13 +192,24 @@ def _run_per_class(
 def run_pipeline(
     mapper: LLMMapper,
     articles: list[dict],
-) -> list[dict[str, SingleAssetResult]]:
+    keyword_gate: bool,
+) -> tuple[list[dict[str, SingleAssetResult]], dict]:
     """Per-group article-level mapping.
 
-    Returns list (one per article) of {group_key: SingleAssetResult} for
-    relevant groups only. Output fan-out to per-member assets happens in
-    save_results_jsonl.
+    Returns (results, gate_stats). ``results`` is one entry per article,
+    {group_key: SingleAssetResult} for relevant groups only; output fan-out to
+    per-member assets happens in save_results_jsonl. ``gate_stats`` records
+    whether the gate ran and how many calls it skipped, so a gated run and an
+    ungated one are distinguishable from their artifacts alone.
+
+    With ``keyword_gate`` on, an (article, group) pair whose article contains
+    none of that group's keywords is skipped without an LLM call. It is
+    required, not defaulted: see gate_default for why the answer depends on
+    what the dataset is for.
     """
+    gate = compile_gate(_GROUP_UNIVERSE) if keyword_gate else None
+    n_gated = 0
+
     tasks: list[tuple[int, str]] = []
     texts: list[str] = []
     for art_idx, a in enumerate(articles):
@@ -199,7 +224,11 @@ def run_pipeline(
             + "\n\n".join(f"[{i}] {p}" for i, p in enumerate(a["paragraphs"]))
             + "\n[/ARTICLE]"
         )
+        gated_on = gate_text(a["headline"], a["paragraphs"]) if gate is not None else ""
         for gk in ALL_GROUPS:
+            if gate is not None and not gate[gk].search(gated_on):
+                n_gated += 1
+                continue
             # Group-last layout so sys_prompt + article body form a shared
             # prefix across siblings in a class batch (prefix-cache reuse).
             # mapper.txt YOUR TASK block instructs the model to read the
@@ -209,6 +238,18 @@ def run_pipeline(
             tasks.append((art_idx, gk))
             texts.append(text)
 
+    attempted = len(texts) + n_gated
+    gate_stats = {
+        "keyword_gate": gate is not None,
+        "calls_made": len(texts),
+        "calls_skipped": n_gated,
+        "calls_saved_pct": (100 * n_gated / attempted) if attempted else 0.0,
+    }
+    if gate is not None:
+        logger.info(
+            "=== keyword gate: %d of %d pairs skipped (%.1f%% of calls saved) ===",
+            n_gated, attempted, gate_stats["calls_saved_pct"],
+        )
     logger.info("=== ArticleMapper: %d calls (groups) ===", len(texts))
     results = _run_per_class(
         mapper,
@@ -226,19 +267,54 @@ def run_pipeline(
     for art_idx, a in enumerate(articles):
         logger.info("  %s: %d groups flagged by ArticleMapper", a["id"], len(by_article[art_idx]))
 
-    return by_article
+    return by_article, gate_stats
 
 
 # ---------------------------------------------------------------------------
 # Output
 # ---------------------------------------------------------------------------
 
+def _refuse_mixed_gate(out_path: Path, gate_stats: dict) -> None:
+    """Fail if a sibling shard in this directory ran with the other gate setting.
+
+    The array launcher skips shards whose output already exists, so re-running a
+    directory after flipping the gate would leave the old shards ungated and gate
+    only the new ones — a corpus that is half one thing and half another, with
+    nothing to show for it but a number that is wrong in a way no one can see.
+    """
+    mine = gate_stats["keyword_gate"]
+    for sibling in sorted(out_path.parent.glob("*.summary.json")):
+        if sibling.name == out_path.with_suffix(".summary.json").name:
+            continue
+        try:
+            summary = json.loads(sibling.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        # A summary with no `gate` block was written before the gate existed,
+        # which means that shard is ungated. Absence is False, not unknown --
+        # resuming the pre-gate prod run with gated code is exactly the mistake
+        # this guard is for, and every shard of it looks like this.
+        theirs = summary.get("gate", {}).get("keyword_gate", False)
+        if theirs != mine:
+            raise ValueError(
+                f"{out_path.parent} already holds shards with keyword_gate={theirs} "
+                f"(e.g. {sibling.name}), but this run has keyword_gate={mine}. "
+                f"Mixing them makes the directory a half-gated corpus. Write to a "
+                f"different --output-dir, or re-run the existing shards to match."
+            )
+
+
 def save_results_jsonl(
     articles: list[dict],
     article_results: list[dict[str, SingleAssetResult]],
     out_path: Path,
+    gate_stats: dict,
 ) -> None:
     """Write one JSONL record per article + a sidecar `<basename>.summary.json`.
+
+    ``gate_stats`` is required, not defaulted, and is checked against the
+    shards already in the output directory: a run is a corpus, and half of it
+    gated is a silently corrupt one.
 
     Each `mappings` entry corresponds to one LLM group decision: it carries
     the group name, its asset_class, the relevance_score, and the
@@ -252,6 +328,7 @@ def save_results_jsonl(
     these up across shards.
     """
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    _refuse_mixed_gate(out_path, gate_stats)
 
     total_mappings = 0
     by_asset_class_count: dict[str, int] = {}
@@ -322,6 +399,7 @@ def save_results_jsonl(
         "total_articles": len(articles),
         "filtered_articles": n_filtered,
         "filtered_by_reason": reason_counts,
+        "gate": gate_stats,
         "total_mappings": total_mappings,
         "by_asset_class": {ac: by_asset_class_count[ac] for ac in sorted(by_asset_class_count)},
         "by_group": {g: by_group_count[g] for g in sorted(by_group_count)},
@@ -348,6 +426,8 @@ def run_experiment(
     end_date: str | None = None,
     random_seed: int | None = None,
     input_file: Path | None = None,
+    *,
+    keyword_gate: bool,
 ) -> None:
     # Leave ~2K tokens headroom for the system prompt and generation budget.
     # djnw loader uses this to skip articles whose text alone would push the
@@ -373,9 +453,9 @@ def run_experiment(
         tensor_parallel_size=tensor_parallel_size,
     )
 
-    article_results = run_pipeline(mapper, articles)
+    article_results, gate_stats = run_pipeline(mapper, articles, keyword_gate=keyword_gate)
     if output_path:
-        save_results_jsonl(articles, article_results, output_path)
+        save_results_jsonl(articles, article_results, output_path, gate_stats)
 
 
 def main():
@@ -415,6 +495,16 @@ def main():
                         help="[prod] Single *_clean.jsonl shard to process")
     parser.add_argument("--output-dir", type=str, default=None,
                         help="[prod] Output directory; filename derived from input basename")
+
+    # Default depends on the dataset (see gate_default); an explicit flag wins.
+    gate_flag = parser.add_mutually_exclusive_group()
+    gate_flag.add_argument("--keyword-gate", dest="keyword_gate", action="store_true",
+                           default=None,
+                           help="Force the keyword gate on (default for djnw).")
+    gate_flag.add_argument("--no-keyword-gate", dest="keyword_gate", action="store_false",
+                           default=None,
+                           help="Call the model on every (article, group) pair. Default for "
+                                "gold/sports/wikigaming; use on djnw to A/B the gate.")
 
     args = parser.parse_args()
 
@@ -460,6 +550,10 @@ def main():
         sample_dir = input_file.parent
         dataset = "djnw"
 
+    keyword_gate = (
+        gate_default(dataset) if args.keyword_gate is None else args.keyword_gate
+    )
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -477,6 +571,7 @@ def main():
         end_date=args.end_date,
         random_seed=args.random_seed,
         input_file=input_file,
+        keyword_gate=keyword_gate,
     )
 
 

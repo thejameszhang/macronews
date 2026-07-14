@@ -33,8 +33,12 @@ mkdir -p logs results
 MODE="${MODE:-dev}"
 MODEL_PATH="${MODEL_PATH:-/nfs/roberts/scratch/pi_btk22/jyz32/gemma-4-26b-a4b-it}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-65536}"
-PARTITION="${PARTITION:-priority_gpu}"
-ACCOUNT="${ACCOUNT:-prio_btk22}"
+# FREE B200 tier is the DEFAULT (gpu_b200 / pi_btk22 / QOS normal). Do NOT default to
+# priority_gpu/prio_btk22 — that BILLS the lab's paid allocation; pass those explicitly
+# (PARTITION/ACCOUNT/QOS overrides) only when a production run genuinely needs the priority queue.
+PARTITION="${PARTITION:-gpu_b200}"
+ACCOUNT="${ACCOUNT:-pi_btk22}"
+QOS="${QOS:-normal}"
 GRES="${GRES:-gpu:b200:1}"
 # a1117u29n01 is ~3.4x slower than peer B200 nodes (observed on 2014 prod run:
 # 6h35m / 6h48m on this node vs ~2h on others). Override with EXCLUDE_NODES=
@@ -103,6 +107,7 @@ jobid=$(sbatch --parsable \
     --mem=128G \
     --partition=${PARTITION} \
     --account=${ACCOUNT} \
+    --qos=${QOS} \
     --gres=${GRES} \
     ${EXCLUDE_FLAG} \
     --wrap="
