@@ -31,7 +31,7 @@ sys.path.insert(0, str(REPO / "src"))
 
 from mapping.grading.llm import GraderInput, LLMGrader  # noqa: E402
 from mapping.grading.schemas import GraderResult, is_self_inconsistent  # noqa: E402
-from pipeline import load_articles  # noqa: E402  — reuses gold/djnw loaders
+from loaders import load_articles  # noqa: E402
 from utils.groups import load_group_universe  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")

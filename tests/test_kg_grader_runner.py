@@ -7,7 +7,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
 
-from pipeline import load_articles  # noqa: E402
+from loaders import load_articles  # noqa: E402
 from kg.grading.runner import build_statement_tasks, write_sidecar  # noqa: E402
 from kg.grading.schemas import KGStatementVerdict, TripletVerdict  # noqa: E402
 

@@ -1,6 +1,6 @@
 """KG temporal event-extraction runner.
 
-Loads articles via pipeline.load_articles, runs LLMTemporalExtractor (3-pass),
+Loads articles via loaders.load_articles, runs LLMTemporalExtractor (3-pass),
 writes sidecar JSONL + summary. CLI mirrors src/mapping/grading/runner.py.
 
 # NOTE: the sidecar now carries row["events"] (not row["facts"]). The KG grader
@@ -38,7 +38,7 @@ from kg.llm import render_mapper_context  # noqa: E402
 from kg.schemas import ENTITY_TYPES_TUPLE  # noqa: E402
 from kg.temporal_extractor import LLMTemporalExtractor  # noqa: E402
 from kg.temporal_schemas import RawTriplet, TemporalEvent  # noqa: E402
-from pipeline import load_articles  # noqa: E402
+from loaders import load_articles  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 logger = logging.getLogger(__name__)

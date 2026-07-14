@@ -15,7 +15,7 @@ from pathlib import Path
 from collections import defaultdict
 
 from config.paths import PROMPTS_DIR, DEFAULT_MODEL
-from loaders import load_gold_articles, load_sports_articles, load_wikigaming_articles, load_djnw_articles
+from loaders import load_articles
 from mapping.llm import (
     ASSET_CLASS_DISQUALIFIERS_PLACEHOLDER,
     ASSET_CLASS_POSITIVES_PLACEHOLDER,
@@ -67,70 +67,6 @@ def _group_label(group_key: str) -> str:
 
 # ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
-
-def load_articles(
-    dataset: str,
-    sample_dir: Path,
-    max_articles: int | None = None,
-    start_date: str | None = None,
-    end_date: str | None = None,
-    random_seed: int | None = None,
-    max_tokens: int | None = None,
-    tokenizer_path: str | None = None,
-    chars_per_token: float = 2.0,
-    input_file: Path | None = None,
-) -> list[dict]:
-    """Load articles in the standard schema {id, headline, paragraphs}.
-
-    Parameters
-    ----------
-    dataset : str
-        "gold" for gold_*.json articles, "sports" for sports news.
-    sample_dir : Path
-        Directory to load from.
-    max_articles : int, optional
-        Limit number of articles (useful for sports with 5000+ articles).
-    start_date, end_date : str, optional
-        YYYY-MM bounds for djnw monthly files.
-    random_seed : int, optional
-        Seed for random sampling within djnw. Default is the first ``max_articles``.
-    max_tokens : int, optional
-        Skip articles whose text exceeds this token count (djnw only).
-    tokenizer_path : str, optional
-        Model path used to load the tokenizer for the ``max_tokens`` filter.
-    chars_per_token : float, optional
-        Conservative lower bound on the tokenizer's char-to-token ratio for the
-        fast-path filter. Default 2.0 is safe for Gemma English.
-    """
-    if dataset == "gold":
-        return load_gold_articles(sample_dir)
-    elif dataset == "sports":
-        return load_sports_articles(
-            sample_dir,
-            max_articles=max_articles,
-            max_tokens=max_tokens,
-            tokenizer_path=tokenizer_path,
-            chars_per_token=chars_per_token,
-        )
-    elif dataset == "wikigaming":
-        return load_wikigaming_articles(sample_dir, max_articles=max_articles)
-    elif dataset == "djnw":
-        return load_djnw_articles(
-            sample_dir,
-            max_articles=max_articles,
-            start_date=start_date,
-            end_date=end_date,
-            random_seed=random_seed,
-            max_tokens=max_tokens,
-            tokenizer_path=tokenizer_path,
-            input_file=input_file,
-            chars_per_token=chars_per_token,
-        )
-    else:
-        raise ValueError(f"Unknown dataset: {dataset!r}")
-
-
 
 # ---------------------------------------------------------------------------
 # Per-asset-class batching helper

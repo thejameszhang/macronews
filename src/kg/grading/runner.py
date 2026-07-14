@@ -22,7 +22,7 @@ REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "src"))
 
 from kg.grading.llm import KGGraderInput, LLMKGGrader  # noqa: E402
-from pipeline import load_articles  # noqa: E402
+from loaders import load_articles  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 logger = logging.getLogger(__name__)
