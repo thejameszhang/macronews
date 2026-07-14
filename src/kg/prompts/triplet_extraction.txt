@@ -14,6 +14,7 @@ Second, Triplet extraction:
 - Identify the object entity of the predicate – the entity, value, or concept that the predicate affects or describes.
 - Identify a predicate between the entities expressed in the statement. Follow the RELATION TYPES schema below.
 - If the statement states the direction of a change (rising, falling, increasing, decreasing, widening, tightening), the relation must preserve that direction, even when the change is reported or forecast.
+- For such a change, identify the object as the quantity that rises or falls and the subject as what drives or owns it — not a location, observer, or benchmark mentioned alongside.
 - Extract the corresponding (subject, subject_type, relation, object, object_type, value) knowledge triplet.
 - Exclude all temporal expressions (dates, years, seasons, etc.) from every field.
 - Repeat until all predicates contained in the statement have been extracted.

@@ -62,3 +62,7 @@ scripts/misc/
 
 # Autoresearch sandbox (kept local, not tracked)
 autoresearch/
+# Docs are a deliverable, not shipped code, and live only on the mapper-docs
+# branch (worktree at ../macronews-docs). Ignored here so a `git add -A` on main
+# can never sweep in LaTeX build artifacts or the doc sources themselves.
+documentation/
