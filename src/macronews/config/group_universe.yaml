@@ -1,0 +1,623 @@
+# Group universe — collapses near-substitute assets in `asset_universe.yaml`
+# into groups so the mapper makes one decision per group instead of one per
+# asset.
+#
+# Design: docs/superpowers/specs/2026-04-27-asset-group-universe-design.md
+#
+# Schema:
+#   <group_key>:
+#     name: <human-readable group name, used in prompts>
+#     asset_class: one of {commodity, US equity sector, equity index,
+#                          volatility, currency, rates}
+#     keywords: <bare-minimum list for the pre-filter gate — the shortest set
+#                that catches the articles the LLM tags for this group. A more
+#                specific term that always co-occurs with a general one is left
+#                out (no "WTI" under Crude Oil when "oil"/"crude" are present).
+#                TWO consumers, and they disagree about what a false positive
+#                costs. src/macronews/mapping/gate.py skips the LLM call when none of a
+#                group's keywords appear, so a loose keyword is nearly free (the
+#                model still rejects the pair). src/macronews/kg/link_groups.py uses the
+#                same list to link entities to groups, with no model in the loop,
+#                so a loose keyword there is a spurious edge. Broadening for gate
+#                recall costs KG link precision. Edit with both in view.
+#                US equity sectors have no clean lexical anchor, so their lists
+#                are the weak ones: they carry 66% of every correct tag the gate
+#                loses (12.2% of sector tags, vs 0.2% for commodities). Exempting
+#                them would cost 389 extra B200-hours. Revisit; do not assume.>
+#     members:
+#       - name: <asset name matching `name:` in asset_universe.yaml>
+#         ticker_symbol: <stable trading ticker; primary stable identifier>
+#         short_name: <concise display name used in KG extraction prompts>
+
+### ENERGY COMMODITIES ###
+
+crude_oil:
+  name: Crude Oil
+  asset_class: commodity
+  keywords: [oil, crude]
+  members:
+    - name: WTI Crude Oil
+      ticker_symbol: 'CL'
+      short_name: WTI Crude Oil
+    - name: Brent Crude Oil
+      ticker_symbol: 'BRN'
+      short_name: Brent Crude Oil
+
+refined_petroleum:
+  name: Refined Petroleum
+  asset_class: commodity
+  keywords: [gasoline, diesel, "heating oil", refinery, refineries, refining, refined, refiners, fuel, fuels, petroleum, gas]
+  members:
+    - name: Heating Oil
+      ticker_symbol: 'HO'
+      short_name: Heating Oil
+    - name: RBOB Gasoline (replaces NY Harbor Unleaded Gasoline, pre-2006)
+      ticker_symbol: 'RB'
+      short_name: RBOB Gasoline
+    - name: ICE Gas Oil
+      ticker_symbol: 'G'
+      short_name: ICE Gas Oil
+
+natural_gas:
+  name: Natural Gas
+  asset_class: commodity
+  keywords: [gas, lng]
+  members:
+    - name: Natural Gas
+      ticker_symbol: 'NG'
+      short_name: Natural Gas
+
+### METALS ###
+
+precious_metals:
+  name: Precious Metals
+  asset_class: commodity
+  keywords: [gold, silver, "precious metals"]
+  members:
+    - name: Gold
+      ticker_symbol: 'GC'
+      short_name: Gold
+    - name: Silver
+      ticker_symbol: 'SI'
+      short_name: Silver
+
+dr_copper:
+  name: Dr. Copper
+  asset_class: commodity
+  keywords: [copper]
+  members:
+    - name: LME Copper
+      ticker_symbol: 'CAD'
+      short_name: LME Copper
+    - name: Copper (High Grade)
+      ticker_symbol: 'HG'
+      short_name: COMEX Copper
+
+industrial_metals:
+  name: Industrial Metals
+  asset_class: commodity
+  keywords: [aluminum, aluminium, nickel, zinc, steel, metals, metal, ore, alumina, bauxite, smelter, lead]
+  members:
+    - name: LME Aluminium
+      ticker_symbol: 'AHD'
+      short_name: Aluminium
+    - name: LME Lead
+      ticker_symbol: 'PBD'
+      short_name: Lead
+    - name: LME Nickel
+      ticker_symbol: 'NID'
+      short_name: Nickel
+    - name: LME Zinc
+      ticker_symbol: 'ZSD'
+      short_name: Zinc
+
+### AGRICULTURE ###
+
+wheat:
+  name: Wheat
+  asset_class: commodity
+  keywords: [wheat, grain, grains]
+  members:
+    - name: Chicago Wheat
+      ticker_symbol: 'ZW'
+      short_name: Chicago Wheat
+    - name: Kansas Wheat
+      ticker_symbol: 'KE'
+      short_name: Kansas Wheat
+
+corn:
+  name: Corn
+  asset_class: commodity
+  keywords: [corn, grain, grains, maize]
+  members:
+    - name: Corn
+      ticker_symbol: 'ZC'
+      short_name: Corn
+
+soybeans:
+  name: Soybeans
+  asset_class: commodity
+  keywords: [soybean, soybeans, soy]
+  members:
+    - name: Soybeans
+      ticker_symbol: 'ZS'
+      short_name: Soybeans
+
+livestock:
+  name: Livestock
+  asset_class: commodity
+  keywords: [cattle, hogs, livestock, meat, pork, beef, chicken, poultry, swine]
+  members:
+    - name: Lean Hogs
+      ticker_symbol: 'HE'
+      short_name: Lean Hogs
+    - name: Live Cattle
+      ticker_symbol: 'LE'
+      short_name: Live Cattle
+    - name: Feeder Cattle
+      ticker_symbol: 'GF'
+      short_name: Feeder Cattle
+
+cocoa:
+  name: Cocoa
+  asset_class: commodity
+  keywords: [cocoa, chocolate]
+  members:
+    - name: Cocoa
+      ticker_symbol: 'CC'
+      short_name: Cocoa
+
+coffee:
+  name: Coffee
+  asset_class: commodity
+  keywords: [coffee]
+  members:
+    - name: Coffee
+      ticker_symbol: 'KC'
+      short_name: Coffee
+
+cotton:
+  name: Cotton
+  asset_class: commodity
+  keywords: [cotton]
+  members:
+    - name: Cotton
+      ticker_symbol: 'CT'
+      short_name: Cotton
+
+sugar:
+  name: Sugar
+  asset_class: commodity
+  keywords: [sugar, sugarcane]
+  members:
+    - name: Sugar
+      ticker_symbol: 'SB'
+      short_name: Sugar
+
+### EQUITY BROAD INDICES ###
+
+us_equities:
+  name: US Equities
+  asset_class: equity index
+  keywords: ["s&p 500", dow, nasdaq]
+  members:
+    - name: S&P 500 Index
+      ticker_symbol: 'ES'
+      short_name: S&P 500
+    - name: S&P 400 Midcap Index
+      ticker_symbol: 'EMD'
+      short_name: S&P 400 Midcap
+    - name: Nasdaq 100 Index
+      ticker_symbol: 'NQ'
+      short_name: Nasdaq 100
+    - name: Dow Jones Industrial Index
+      ticker_symbol: 'YM'
+      short_name: Dow Jones Industrial Average
+    - name: Russell 2000 Index
+      ticker_symbol: 'RTY'
+      short_name: Russell 2000
+
+eurozone_equities:
+  name: Eurozone Equities
+  asset_class: equity index
+  keywords: [dax, "cac 40", stoxx, eurozone, "euro zone", Europe, European]
+  members:
+    - name: AEX Index (Netherlands)
+      ticker_symbol: 'FTI'
+      short_name: AEX
+    - name: Austrian ATX Index
+      ticker_symbol: 'FATX'
+      short_name: ATX
+    - name: CAC 40 Index (France)
+      ticker_symbol: 'FCE'
+      short_name: CAC 40
+    - name: DAX 40 Index (Germany)
+      ticker_symbol: 'FDAX'
+      short_name: DAX
+    - name: FTSE MIB Index (Italy)
+      ticker_symbol: 'FIB'
+      short_name: FTSE MIB
+    - name: IBEX 35 Plus Index (Spain)
+      ticker_symbol: 'FIE'
+      short_name: IBEX 35
+    - name: Euro Stoxx 50 Index
+      ticker_symbol: 'FESX'
+      short_name: Euro Stoxx 50
+
+uk_equities:
+  name: UK Equities
+  asset_class: equity index
+  keywords: [ftse, UK, British, Britain]
+  members:
+    - name: FTSE 100 Index
+      ticker_symbol: 'Z'
+      short_name: FTSE 100
+
+swiss_equities:
+  name: Swiss Equities
+  asset_class: equity index
+  keywords: [smi, Swiss, Switzerland]
+  members:
+    - name: Swiss Market Index
+      ticker_symbol: 'FSMI'
+      short_name: SMI
+
+nordic_equities:
+  name: Nordic Equities
+  asset_class: equity index
+  keywords: [omx, Nordic, Sweden, Norway, Finland, Denmark]
+  members:
+    - name: OMXS30 (Sweden) Index
+      ticker_symbol: 'FXS30'
+      short_name: OMXS30
+
+japanese_equities:
+  name: Japanese Equities
+  asset_class: equity index
+  keywords: [nikkei, topix, Japan, Japanese]
+  members:
+    - name: Nikkei 225 Index (Japan)
+      ticker_symbol: '164120019'
+      short_name: Nikkei 225
+    - name: TOPIX Index (Japan)
+      ticker_symbol: '160120006'
+      short_name: TOPIX
+
+china_hk_equities:
+  name: China / Hong Kong Equities
+  asset_class: equity index
+  keywords: ["hang seng", "shanghai composite", china, "Hong Kong"]
+  members:
+    - name: Hang Seng Index (China / Hong Kong)
+      ticker_symbol: 'HSI'
+      short_name: Hang Seng
+
+asia_pacific_equities:
+  name: Asia Pacific Equities
+  asset_class: equity index
+  keywords: [kospi, Asia, Asian]
+  members:
+    - name: Kospi 200 Index (South Korea)
+      ticker_symbol: 'A01'
+      short_name: KOSPI 200
+    - name: MSCI Singapore Index
+      ticker_symbol: 'SGP'
+      short_name: MSCI Singapore
+
+australian_equities:
+  name: Australian Equities
+  asset_class: equity index
+  keywords: [asx, Australia, Australian]
+  members:
+    - name: SPI 200 Index (Australia)
+      ticker_symbol: 'AP'
+      short_name: ASX 200
+
+canadian_equities:
+  name: Canadian Equities
+  asset_class: equity index
+  keywords: [tsx, Canada, Canadian]
+  members:
+    - name: S&P TSX Canada 60 Index
+      ticker_symbol: 'SXF'
+      short_name: S&P/TSX 60
+
+### US EQUITY SECTORS (GICS, all singletons) ###
+
+energy_sector:
+  name: Energy Sector
+  asset_class: US equity sector
+  keywords: [energy, oil, gas, coal, drilling, pipeline, "oilfield"]
+  members:
+    - name: Energy Sector
+      ticker_symbol: 'XAE'
+      short_name: Energy Sector
+
+materials_sector:
+  name: Materials Sector
+  asset_class: US equity sector
+  keywords: [chemicals, mining, materials, steel, metals, metal, gold, copper, paper, packaging, fertilizer, cement, plastics, lumber, aluminum]
+  members:
+    - name: Materials Sector
+      ticker_symbol: 'XAB'
+      short_name: Materials Sector
+
+industrials_sector:
+  name: Industrials Sector
+  asset_class: US equity sector
+  keywords: [industrial, manufacturing, aerospace, factory, factories, machinery, construction, defense, airline, railroad, transport, logistics, engineering, equipment, locomotive, turbine, freight, trucking, marine, shipping, "building products"]
+  members:
+    - name: Industrials Sector
+      ticker_symbol: 'XAI'
+      short_name: Industrials Sector
+
+consumer_discretionary_sector:
+  name: Consumer Discretionary Sector
+  asset_class: US equity sector
+  keywords: [retail, retailer, restaurant, apparel, automaker, hotel, leisure, consumer, car, vehicle, casino, gaming, homebuilder, footwear, luxury, "e-commerce"]
+  members:
+    - name: Consumer Discretionary Sector
+      ticker_symbol: 'XAY'
+      short_name: Consumer Discretionary Sector
+
+consumer_staples_sector:
+  name: Consumer Staples Sector
+  asset_class: US equity sector
+  keywords: [food, beverage, grocery, supermarket, tobacco, household, packaged, cosmetics, soda, beer, brewer, wine, spirits, dairy, snack, cereal, "personal care", "consumer products"]
+  members:
+    - name: Consumer Staples Sector
+      ticker_symbol: 'XAP'
+      short_name: Consumer Staples Sector
+
+health_care_sector:
+  name: Health Care Sector
+  asset_class: US equity sector
+  keywords: [pharmaceutical, biotech, drugmaker, "health care", healthcare, FDA, drug, medical, hospital, pharma, clinical, therapy, vaccine, diagnostics, biopharmaceutical, "life sciences", "managed care"]
+  members:
+    - name: Health Care Sector
+      ticker_symbol: 'XAV'
+      short_name: Health Care Sector
+
+financials_sector:
+  name: Financials Sector
+  asset_class: US equity sector
+  keywords: [bank, lender, financial, insurance, insurer, brokerage, "private equity", mortgage, "asset management", "capital markets"]
+  members:
+    - name: Financials Sector
+      ticker_symbol: 'XAF'
+      short_name: Financials Sector
+
+information_technology_sector:
+  name: Information Technology Sector
+  asset_class: US equity sector
+  keywords: [technology, software, semiconductor, tech, hardware, internet, chip, computer, cloud, smartphone, cyber, digital, app]
+  members:
+    - name: Information Technology Sector
+      ticker_symbol: 'XAK'
+      short_name: Information Technology Sector
+
+communication_services_sector:
+  name: Communication Services Sector
+  asset_class: US equity sector
+  keywords: [telecom, wireless, media, broadband, cable, advertising, broadcast, entertainment, social, streaming, satellite, publishing, newspaper]
+  members:
+    - name: Communication Services Sector
+      ticker_symbol: 'XAZ'
+      short_name: Communication Services Sector
+
+utilities_sector:
+  name: Utilities Sector
+  asset_class: US equity sector
+  keywords: [utility, utilities, electric, power, grid, water, renewable]
+  members:
+    - name: Utilities Sector
+      ticker_symbol: 'XAU'
+      short_name: Utilities Sector
+
+real_estate_sector:
+  name: Real Estate Sector
+  asset_class: US equity sector
+  keywords: ["real estate", reit, housing, mortgage, property, homebuilder, residential, commercial, landlord, realty, apartment, office]
+  members:
+    - name: Real Estate Sector
+      ticker_symbol: 'XAR'
+      short_name: Real Estate Sector
+
+### VOLATILITY ###
+
+equity_volatility:
+  name: Equity Volatility
+  asset_class: volatility
+  keywords: [volatility, vix]
+  members:
+    - name: VIX Index
+      ticker_symbol: 'VX'
+      short_name: VIX
+    - name: VSTOXX Index
+      ticker_symbol: 'FVS'
+      short_name: VSTOXX
+
+### CURRENCIES (G10) ###
+
+euro:
+  name: Euro
+  asset_class: currency
+  keywords: [euro, EUR, "single currency", ECB, "European Central Bank", eurozone]
+  members:
+    - name: Euro
+      ticker_symbol: '6E'
+      short_name: Euro
+
+sterling:
+  name: Sterling
+  asset_class: currency
+  keywords: [sterling, pound, GBP, BoE, "Bank of England", British, Britain, UK]
+  members:
+    - name: Sterling
+      ticker_symbol: '6B'
+      short_name: Sterling
+
+japanese_yen:
+  name: Japanese Yen
+  asset_class: currency
+  keywords: [yen, JPY, BoJ, Japan, Japanese]
+  members:
+    - name: Japanese Yen
+      ticker_symbol: '6J'
+      short_name: Japanese Yen
+
+swiss_franc:
+  name: Swiss Franc
+  asset_class: currency
+  keywords: [franc, francs, CHF, SNB, Swiss, Switzerland]
+  members:
+    - name: Swiss Franc
+      ticker_symbol: '6S'
+      short_name: Swiss Franc
+
+canadian_dollar:
+  name: Canadian Dollar
+  asset_class: currency
+  keywords: [loonie, CAD, BoC, Canada, Canadian]
+  members:
+    - name: Canadian Dollar
+      ticker_symbol: '6C'
+      short_name: Canadian Dollar
+
+antipodean_currencies:
+  name: Antipodean Currencies
+  asset_class: currency
+  keywords: [aussie, kiwi, AUD, NZD, RBNZ, Australia, Australian, "New Zealand"]
+  members:
+    - name: Australian Dollar
+      ticker_symbol: '6A'
+      short_name: Australian Dollar
+    - name: New Zealand Dollar
+      ticker_symbol: '6N'
+      short_name: New Zealand Dollar
+
+scandinavian_currencies:
+  name: Scandinavian Currencies
+  asset_class: currency
+  keywords: [krona, krone, SEK, NOK, Riksbank,
+             Sweden, Swedish, Norway, Norwegian]
+  members:
+    - name: Norwegian Krone
+      ticker_symbol: 'NOK'
+      short_name: Norwegian Krone
+    - name: Swedish Krona
+      ticker_symbol: 'SEK'
+      short_name: Swedish Krona
+
+### RATES ###
+
+us_rates:
+  name: US Rates
+  asset_class: rates
+  keywords: [treasury, treasuries, treasurys, fed, fomc, "federal reserve"]
+  members:
+    - name: 2 Year US Government Note
+      ticker_symbol: 'ZT'
+      short_name: 2-Year US Treasury Note
+    - name: 5 Year US Government Note
+      ticker_symbol: 'ZF'
+      short_name: 5-Year US Treasury Note
+    - name: 10 Year US Government Note
+      ticker_symbol: 'ZN'
+      short_name: 10-Year US Treasury Note
+    - name: 30 Year US Government Bond
+      ticker_symbol: 'ZB'
+      short_name: 30-Year US Treasury Bond
+    - name: 3-Month SOFR (replaces 3-Month USD LIBOR / Eurodollar, pre-2018)
+      ticker_symbol: 'SR3'
+      short_name: 3-Month SOFR
+
+eurozone_rates:
+  name: Eurozone Rates
+  asset_class: rates
+  keywords: [ecb, "european central bank", bund, bunds, eurozone, "euro zone"]
+  members:
+    - name: Euro Schatz (2-Year German Federal Bond)
+      ticker_symbol: 'FGBS'
+      short_name: Euro Schatz
+    - name: Euro Bobl (5-Year German Federal Bond)
+      ticker_symbol: 'FGBM'
+      short_name: Euro Bobl
+    - name: Euro Bund (10-Year German Federal Bond)
+      ticker_symbol: 'FGBL'
+      short_name: Euro Bund
+    - name: Euro Buxl (30-Year German Federal Bond)
+      ticker_symbol: 'FGBX'
+      short_name: Euro Buxl
+    - name: 3-Month EURIBOR
+      ticker_symbol: 'I'
+      short_name: 3-Month EURIBOR
+    - name: French OAT (10-Year Government Bond)
+      ticker_symbol: 'FOAT'
+      short_name: French OAT
+    - name: Italian BTP (10-Year Government Bond)
+      ticker_symbol: 'FBTP'
+      short_name: Italian BTP
+
+uk_rates:
+  name: UK Rates
+  asset_class: rates
+  keywords: [gilt, gilts, "bank of england", UK, British, Britain]
+  members:
+    - name: UK Long Gilt (~10-Year benchmark)
+      ticker_symbol: 'R'
+      short_name: UK Long Gilt
+    - name: 3-Month SONIA (replaces Short Sterling / 3-Month GBP LIBOR, pre-2018)
+      ticker_symbol: 'SO3'
+      short_name: 3-Month SONIA
+
+japan_rates:
+  name: Japan Rates
+  asset_class: rates
+  keywords: [jgb, Japan, Japanese]
+  members:
+    - name: 10 Year Japanese Government Bond
+      ticker_symbol: '160120001'
+      short_name: 10-Year JGB
+    - name: 3-Month TONA (replaces Euroyen / 3-Month JPY LIBOR / TIBOR, pre-2023)
+      ticker_symbol: '91'
+      short_name: 3-Month TONA
+
+swiss_rates:
+  name: Swiss Rates
+  asset_class: rates
+  keywords: [SNB, Swiss, Switzerland]
+  members:
+    - name: Swiss Confederation Bond (~10-Year benchmark)
+      ticker_symbol: 'CONF'
+      short_name: Swiss Confederation Bond
+    - name: 3-Month SARON (replaces 3-Month CHF LIBOR, pre-2021)
+      ticker_symbol: 'SA3'
+      short_name: 3-Month SARON
+
+canada_rates:
+  name: Canada Rates
+  asset_class: rates
+  keywords: [BoC, Canada, Canadian]
+  members:
+    - name: 10 Year Canadian Government Bond
+      ticker_symbol: 'CGB'
+      short_name: 10-Year Canadian Govt Bond
+
+antipodean_rates:
+  name: Antipodean Rates
+  asset_class: rates
+  keywords: [rba, rbnz, Australia, Australian, "New Zealand"]
+  members:
+    - name: 10 Year Australian Government Bond
+      ticker_symbol: 'XT'
+      short_name: 10-Year Australian Govt Bond
+    - name: 3 Year Australian Government Bond
+      ticker_symbol: 'YT'
+      short_name: 3-Year Australian Govt Bond
+    - name: 90-Day Australian Bank Bill
+      ticker_symbol: 'IR'
+      short_name: 90-Day Australian Bank Bill
+    - name: 90-Day New Zealand Bank Bill
+      ticker_symbol: 'BB'
+      short_name: 90-Day New Zealand Bank Bill

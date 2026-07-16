@@ -1,16 +1,11 @@
-import sys
 from datetime import datetime
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-from kg.temporal_extractor import (  # noqa: E402
+from macronews.kg.temporal_extractor import (
     render_statement_user_msg, render_temporal_user_msg,
     render_triplet_user_msg, parse_statements, parse_validity,
     parse_triplets, assemble_events,
 )
-from kg.temporal_schemas import RawStatement  # noqa: E402
+from macronews.kg.temporal_schemas import RawStatement
 
 
 def test_statement_msg_includes_article_and_priming():
@@ -43,7 +38,7 @@ def test_parse_statements_salvages_on_bad_json():
 def test_assemble_events_threads_fields():
     s = RawStatement(evidence_paragraphs=[2], statement="x",
                      statement_type="PREDICTION", temporal_type="DYNAMIC")
-    from kg.temporal_schemas import TemporalValidityRange, RawTriplet
+    from macronews.kg.temporal_schemas import TemporalValidityRange, RawTriplet
     vr = TemporalValidityRange(valid_at=datetime(2014, 5, 27), invalid_at=None)
     trips = [RawTriplet(subject="Fed", subject_type="CENTRAL_BANK", relation="RAISES",
                         object="US Federal Funds Rate", object_type="INTEREST_RATE")]

@@ -1,12 +1,6 @@
 """Tests for src/kg/grading/schemas.py (statement-level verdict)."""
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-from kg.grading.schemas import KGStatementVerdict, TripletVerdict  # noqa: E402
+from macronews.kg.grading.schemas import KGStatementVerdict, TripletVerdict
 
 
 def test_statement_verdict_field_order_is_cot():

@@ -1,6 +1,6 @@
 import json
 import numpy as np
-from kg.invalidate_llm import load_eligible_events, save_embeddings, load_embeddings
+from macronews.kg.invalidate_llm import load_eligible_events, save_embeddings, load_embeddings
 
 
 def _row(events):
@@ -38,7 +38,7 @@ def test_embeddings_npz_roundtrip(tmp_path):
 
 
 def test_inspect_candidates_dump(tmp_path):
-    from kg.invalidate_llm import inspect_candidates
+    from macronews.kg.invalidate_llm import inspect_candidates
     events = [
         {"id": "e1", "statement": "Gold rises", "valid_at": "2014-05-02T00:00:00Z",
          "statement_type": "FACT", "triplets": [{"relation": "RAISES"}]},
@@ -64,13 +64,13 @@ def test_embeddings_npz_roundtrip_suffixless(tmp_path):
 
 
 def test_invalidation_verdict_schema():
-    from kg.invalidate_llm import InvalidationVerdict
+    from macronews.kg.invalidate_llm import InvalidationVerdict
     assert InvalidationVerdict.model_validate_json('{"invalidated": true}').invalidated is True
     assert InvalidationVerdict().invalidated is False
 
 
 def test_render_pair_prompt_includes_triplets_conditionally():
-    from kg.invalidate_llm import render_pair_prompt
+    from macronews.kg.invalidate_llm import render_pair_prompt
     # No triplets -> no 'Triplet:' line at all (cookbook {% if primary_triplet %})
     p0 = {"statement": "Rates will rise", "valid_at": "2014-05-02T00:00:00Z", "invalid_at": None}
     s0 = {"statement": "Rates held steady", "valid_at": "2014-05-08T00:00:00Z", "invalid_at": None}
@@ -87,7 +87,7 @@ def test_render_pair_prompt_includes_triplets_conditionally():
     assert "Triplet: (Fed, RAISES, Rates); (Fed, RELATED_TO, Policy)" in prompt1
 
 
-from kg.invalidate_llm import build_pairs, apply_verdicts
+from macronews.kg.invalidate_llm import build_pairs, apply_verdicts
 
 
 def _e(eid, temp, valid, invalid=None, created="2014-05-01T00:00:00Z"):
@@ -174,7 +174,7 @@ def test_build_pairs_prediction_primary_pairs_with_prediction():
 def test_dedup_same_triplet_set_and_date_collapses():
     """Two events with the SAME set of (subject,relation,object) triplets AND same valid_at collapse
     to one rep — even differently worded (same-fact paraphrase). Different date stays separate."""
-    from kg.invalidate_llm import dedup_representatives
+    from macronews.kg.invalidate_llm import dedup_representatives
     t = lambda s, o, r="RAISES": [{"subject": s, "object": o, "relation": r}]
     evs = [
         {"id": "a", "statement": "Oil up",   "valid_at": "2014-05-02T00:00:00Z", "triplets": t("Oil", "Mkt")},
@@ -189,7 +189,7 @@ def test_dedup_same_triplet_set_and_date_collapses():
 def test_dedup_full_set_not_first_triplet():
     """Regression (reviewer BLOCKING): key on the FULL triplet set, not triplets[0]. Two events
     sharing only their FIRST triplet but differing in a second are NOT merged."""
-    from kg.invalidate_llm import dedup_representatives
+    from macronews.kg.invalidate_llm import dedup_representatives
     tr = lambda s, o, r="RAISES": {"subject": s, "object": o, "relation": r}
     evs = [
         {"id": "a", "statement": "Fed up, oil fell", "valid_at": "2014-05-02T00:00:00Z",
@@ -204,7 +204,7 @@ def test_dedup_full_set_not_first_triplet():
 def test_dedup_empty_triplets_use_statement():
     """Regression (reviewer BLOCKING): triplet-less events fall back to (statement, valid_at) — same
     text collapses, different text stays separate (they do NOT all merge on the empty set + date)."""
-    from kg.invalidate_llm import dedup_representatives
+    from macronews.kg.invalidate_llm import dedup_representatives
     evs = [
         {"id": "a", "statement": "X", "valid_at": "2014-05-02T00:00:00Z", "triplets": []},
         {"id": "b", "statement": "X", "valid_at": "2014-05-02T00:00:00Z", "triplets": []},   # same text+date
@@ -216,7 +216,7 @@ def test_dedup_empty_triplets_use_statement():
 
 
 def test_propagate_updates_fans_to_all_copies():
-    from kg.invalidate_llm import propagate_updates
+    from macronews.kg.invalidate_llm import propagate_updates
     updates = {"a": {"invalid_at": "2014-05-09T00:00:00Z", "invalidation_method": "llm"}}
     members = {"a": ["a", "b", "c"]}
     out = propagate_updates(updates, members)
@@ -228,7 +228,7 @@ def test_propagate_updates_fans_to_all_copies():
 
 def test_asset_gate_keeps_linked_drops_unlinked(tmp_path):
     """Option B: with --asset-groups, only events with >=1 asset-linked triplet entity survive."""
-    from kg.invalidate_llm import load_eligible_events, load_asset_linked_keys
+    from macronews.kg.invalidate_llm import load_eligible_events, load_asset_linked_keys
     rows = [
         {"events": [
             {"id": "a", "statement": "Crude oil rose", "statement_type": "FACT",
@@ -299,14 +299,14 @@ def test_apply_false_verdict_noop():
 
 
 def test_parse_verdict_fallback():
-    from kg.invalidate_llm import InvalidationAgent
+    from macronews.kg.invalidate_llm import InvalidationAgent
     ag = InvalidationAgent.__new__(InvalidationAgent)   # no vLLM init
     assert ag._parse('{"invalidated": true}').invalidated is True
     assert ag._parse('garbage').invalidated is False     # safe default
 
 
 def test_write_output_non_lossy_excludes_embedding(tmp_path):
-    from kg.invalidate_llm import write_output
+    from macronews.kg.invalidate_llm import write_output
     rows = [{"article_id": "a", "events": [
         {"id": "e1", "statement": "s", "temporal_type": "DYNAMIC",
          "valid_at": "2014-05-02T00:00:00Z", "invalid_at": None,
@@ -329,19 +329,19 @@ def test_write_output_non_lossy_excludes_embedding(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_temporal_bounds_atemporal_returns_none():
-    from kg.invalidate_llm import temporal_bounds
+    from macronews.kg.invalidate_llm import temporal_bounds
     ev = {"temporal_type": "ATEMPORAL", "valid_at": "2014-05-01T00:00:00Z", "invalid_at": None}
     assert temporal_bounds(ev) is None
 
 
 def test_temporal_bounds_no_valid_at_returns_none():
-    from kg.invalidate_llm import temporal_bounds
+    from macronews.kg.invalidate_llm import temporal_bounds
     ev = {"temporal_type": "DYNAMIC", "valid_at": None, "invalid_at": None}
     assert temporal_bounds(ev) is None
 
 
 def test_temporal_bounds_dynamic_with_invalid_at():
-    from kg.invalidate_llm import temporal_bounds, _dt
+    from macronews.kg.invalidate_llm import temporal_bounds, _dt
     ev = {"temporal_type": "DYNAMIC", "valid_at": "2014-05-01T00:00:00Z",
           "invalid_at": "2014-05-10T00:00:00Z"}
     start, end = temporal_bounds(ev)
@@ -350,21 +350,21 @@ def test_temporal_bounds_dynamic_with_invalid_at():
 
 
 def test_temporal_bounds_static_returns_equal():
-    from kg.invalidate_llm import temporal_bounds
+    from macronews.kg.invalidate_llm import temporal_bounds
     ev = {"temporal_type": "STATIC", "valid_at": "2014-05-05T00:00:00Z", "invalid_at": None}
     start, end = temporal_bounds(ev)
     assert start == end
 
 
 def test_temporal_bounds_dynamic_no_invalid_at():
-    from kg.invalidate_llm import temporal_bounds
+    from macronews.kg.invalidate_llm import temporal_bounds
     ev = {"temporal_type": "DYNAMIC", "valid_at": "2014-05-05T00:00:00Z", "invalid_at": None}
     start, end = temporal_bounds(ev)
     assert start == end
 
 
 def test_overlaps_dynamic():
-    from kg.invalidate_llm import _overlaps_dynamic, _dt
+    from macronews.kg.invalidate_llm import _overlaps_dynamic, _dt
     start = _dt("2014-05-05T00:00:00Z")
     end = _dt("2014-05-10T00:00:00Z")
 
@@ -391,7 +391,7 @@ def test_overlaps_dynamic():
 
 
 def test_type_pair_allowed():
-    from kg.invalidate_llm import type_pair_allowed
+    from macronews.kg.invalidate_llm import type_pair_allowed
     fact = {"statement_type": "FACT"}
     pred = {"statement_type": "PREDICTION"}
     opin = {"statement_type": "OPINION"}
@@ -405,7 +405,7 @@ def test_type_pair_allowed():
 
 
 def test_gather_entity_shared():
-    from kg.invalidate_llm import gather_entity_shared, build_entity_index
+    from macronews.kg.invalidate_llm import gather_entity_shared, build_entity_index
     gold1 = {"id": "e1", "triplets": [{"subject": "Gold", "object": "Investors"}]}
     gold2 = {"id": "e2", "triplets": [{"subject": "Gold", "object": "Traders"}]}
     unrel = {"id": "e3", "triplets": [{"subject": "Oil", "object": "OPEC"}]}
@@ -418,7 +418,7 @@ def test_gather_entity_shared():
 
 
 def test_filter_by_embedding_similarity():
-    from kg.invalidate_llm import filter_by_embedding_similarity
+    from macronews.kg.invalidate_llm import filter_by_embedding_similarity
     # Unit vectors along x-axis for primary; candidates at varying angles
     primary = {"id": "p"}
     c_high = {"id": "c1"}   # cos ≈ 1.0 (same direction)
@@ -438,7 +438,7 @@ def test_filter_by_embedding_similarity():
 
 
 def test_filter_by_embedding_similarity_top_k():
-    from kg.invalidate_llm import filter_by_embedding_similarity
+    from macronews.kg.invalidate_llm import filter_by_embedding_similarity
     primary = {"id": "p"}
     ref = np.array([1.0, 0.0], dtype=np.float32)
     # 12 identical candidates, all cosine=1.0
@@ -449,7 +449,7 @@ def test_filter_by_embedding_similarity_top_k():
 
 
 def test_is_primary_eligible():
-    from kg.invalidate_llm import is_primary_eligible
+    from macronews.kg.invalidate_llm import is_primary_eligible
     dyn_fact  = {"statement_type": "FACT",       "temporal_type": "DYNAMIC",   "valid_at": "2014-05-01T00:00:00Z"}
     sta_fact   = {"statement_type": "FACT",       "temporal_type": "STATIC",    "valid_at": "2014-05-01T00:00:00Z"}
     prediction = {"statement_type": "PREDICTION", "temporal_type": "DYNAMIC",   "valid_at": "2014-05-01T00:00:00Z"}

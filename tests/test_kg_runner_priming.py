@@ -1,12 +1,6 @@
 """Runner priming: attach_mapper_context join + 0-flag + missing-row error."""
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-import pytest  # noqa: E402
-from kg.runner import attach_mapper_context, load_mapper_rows  # noqa: E402
+import pytest
+from macronews.kg.runner import attach_mapper_context, load_mapper_rows
 
 
 def _art(aid, paras=("p0",)):

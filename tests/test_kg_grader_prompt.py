@@ -1,10 +1,8 @@
-import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
 
-PROMPT = REPO / "src" / "kg" / "grading" / "prompts" / "grader.txt"
+PROMPT = REPO / "src" / "macronews" / "kg" / "grading" / "prompts" / "grader.txt"
 
 
 def test_prompt_is_schema_blind_no_placeholders():

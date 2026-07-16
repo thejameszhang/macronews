@@ -1,15 +1,10 @@
 """Tests for src/tabular/runner.py — NML → sidecar JSONL CLI."""
 
 import json
-import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-from tabular.runner import build_result, write_sidecar  # noqa: E402
-from tabular.schemas import TabularResult  # noqa: E402
-from tabular.nml_reader import NMLArticle  # noqa: E402
+from macronews.tabular.runner import build_result, write_sidecar
+from macronews.tabular.schemas import TabularResult
+from macronews.tabular.nml_reader import NMLArticle
 
 
 def test_build_result_pure_narrative_p_only():

@@ -1,13 +1,7 @@
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-from kg.link_groups import (  # noqa: E402
+from macronews.kg.link_groups import (
     ASSET_CLASS_TYPES, ALL_ASSET_TYPES, build_group_configs, candidates,
 )
-from utils.groups import load_group_universe  # noqa: E402
+from macronews.utils.groups import load_group_universe
 
 
 def _configs():
@@ -54,7 +48,7 @@ def test_driver_types_get_no_candidates():
 
 
 import json
-from kg.link_groups import build_mapper_index, accumulate_links  # noqa: E402
+from macronews.kg.link_groups import build_mapper_index, accumulate_links  # noqa: E402
 
 
 def _write(p, rows):
@@ -135,7 +129,7 @@ def test_heating_oil_keyword_fp_goes_to_residual_not_link(tmp_path):
     assert "crude_oil" in el.residual_keys
 
 
-from kg.link_groups import link_entities  # noqa: E402
+from macronews.kg.link_groups import link_entities  # noqa: E402
 
 
 def test_link_entities_no_llm_writes_sidecars(tmp_path):

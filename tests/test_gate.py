@@ -4,15 +4,9 @@ The saving/recall figures in documentation/mapper were measured with the
 alphanumeric-boundary predicate these tests pin. Changing the predicate
 invalidates those numbers, so the boundary cases are asserted explicitly.
 """
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-import pytest  # noqa: E402
-from mapping.gate import compile_gate, gate_text  # noqa: E402
-from utils.groups import load_group_universe  # noqa: E402
+import pytest
+from macronews.mapping.gate import compile_gate, gate_text
+from macronews.utils.groups import load_group_universe
 
 
 def _pat(keywords: list[str]):

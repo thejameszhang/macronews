@@ -10,6 +10,7 @@ dependencies = [
     "matplotlib>=3.8",
     "numpy",
     "polars[u64-idx]>=1.38.1",
+    "pydantic>=2.12",
     "pypdf>=6.7.5",
     "pyyaml>=6.0.3",
     "rapidfuzz>=3.0",
@@ -24,3 +25,30 @@ dev = [
     "pytest>=9.0.2",
     "pytest-cov>=7.1.0",
 ]
+
+[project.scripts]
+macronews = "macronews.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+macronews = [
+    "config/*.yaml",
+    "mapping/prompts/*.txt",
+    "mapping/prompts/asset_class/*.txt",
+    "mapping/grading/prompts/*.txt",
+    "kg/prompts/*.txt",
+    "kg/grading/prompts/*.txt",
+    "kg/templates/*.template",
+    "kg/assets/*",
+]
+
+[tool.pytest.ini_options]
+# pytest collects by filesystem walk, so without this a bare `pytest` also picks up the
+# gitignored one-off analysis scripts under scripts/misc/ and their stale tests.
+testpaths = ["tests"]

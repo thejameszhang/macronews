@@ -1,12 +1,6 @@
 """Tests for src/tabular/nml_reader.py — streaming NML parser."""
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-from tabular.nml_reader import iter_nml_articles, NMLArticle, count_p_body_tokens  # noqa: E402
+from macronews.tabular.nml_reader import iter_nml_articles, NMLArticle, count_p_body_tokens
 
 
 # ---------------------------------------------------------------------------

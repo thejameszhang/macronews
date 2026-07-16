@@ -6,16 +6,11 @@ actually saves the money: that run_pipeline asks the model about FEWER
 Without them, deleting the `continue` in the fan-out turns the gate into a
 no-op and the whole suite still passes.
 """
-import sys
-from pathlib import Path
+import pytest
 
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-import pytest  # noqa: E402
-
-import pipeline  # noqa: E402
-from mapping.schemas import SingleAssetResult  # noqa: E402
+import macronews.pipeline as pipeline
+from macronews.config.runconfig import gate_default
+from macronews.mapping.schemas import SingleAssetResult
 
 
 class StubMapper:
@@ -88,7 +83,7 @@ def test_gate_stats_reach_the_summary(tmp_path):
     m = StubMapper()
     results, stats = pipeline.run_pipeline(m, ARTICLES, keyword_gate=True)
     out = tmp_path / "shard.jsonl"
-    pipeline.save_results_jsonl(ARTICLES, results, out, stats)
+    pipeline.save_results_jsonl(ARTICLES, results, out, stats, run_record={})
 
     summary = json.loads((tmp_path / "shard.summary.json").read_text())
     assert summary["gate"]["keyword_gate"] is True
@@ -107,7 +102,7 @@ def test_gate_stats_reach_the_summary(tmp_path):
     ("wikigaming", False), # negative control
 ])
 def test_gate_defaults_on_only_for_production_data(dataset, gated):
-    assert pipeline.gate_default(dataset) is gated
+    assert gate_default(dataset) is gated
 
 
 def test_negative_control_still_asks_the_model():
@@ -124,7 +119,7 @@ def test_negative_control_still_asks_the_model():
         "headline": "Rangers Win in Overtime as Goaltender Stops 40 Shots",
         "paragraphs": ["The winger scored on a power play midway through the third period."],
     }]
-    pipeline.run_pipeline(m, sports, keyword_gate=pipeline.gate_default("sports"))
+    pipeline.run_pipeline(m, sports, keyword_gate=gate_default("sports"))
     assert len(m.seen) == len(pipeline.ALL_GROUPS), (
         "the gate silently removed the model from its own negative control"
     )
@@ -137,31 +132,33 @@ def test_a_directory_cannot_end_up_half_gated(tmp_path):
     m = StubMapper()
     ungated_results, ungated_stats = pipeline.run_pipeline(m, ARTICLES, keyword_gate=False)
     pipeline.save_results_jsonl(ARTICLES, ungated_results, tmp_path / "shard_a.jsonl",
-                                ungated_stats)
+                                ungated_stats, run_record={})
 
     gated_results, gated_stats = pipeline.run_pipeline(StubMapper(), ARTICLES, keyword_gate=True)
     with pytest.raises(ValueError, match="half-gated"):
         pipeline.save_results_jsonl(ARTICLES, gated_results, tmp_path / "shard_b.jsonl",
-                                    gated_stats)
+                                    gated_stats, run_record={})
 
 
 def test_a_pre_gate_summary_counts_as_ungated(tmp_path):
-    """The real prod/v1 shards predate the gate: their summaries have no `gate`
-    block at all. Resuming that run with gated code is the likeliest way to
+    """The real prod/2014-ungated shards predate the gate: their summaries have no
+    `gate` block at all. Resuming that run with gated code is the likeliest way to
     corrupt a corpus, so a missing block must read as ungated, not unknown."""
     import json
 
     (tmp_path / "old.summary.json").write_text(json.dumps({"total_articles": 10}))
     results, stats = pipeline.run_pipeline(StubMapper(), ARTICLES, keyword_gate=True)
     with pytest.raises(ValueError, match="keyword_gate=False"):
-        pipeline.save_results_jsonl(ARTICLES, results, tmp_path / "new.jsonl", stats)
+        pipeline.save_results_jsonl(ARTICLES, results, tmp_path / "new.jsonl", stats,
+                                    run_record={})
 
 
 def test_matching_gate_state_is_fine(tmp_path):
     """Two shards agreeing on the gate is the normal case and must not raise."""
     for shard in ("shard_a", "shard_b"):
         results, stats = pipeline.run_pipeline(StubMapper(), ARTICLES, keyword_gate=True)
-        pipeline.save_results_jsonl(ARTICLES, results, tmp_path / f"{shard}.jsonl", stats)
+        pipeline.save_results_jsonl(ARTICLES, results, tmp_path / f"{shard}.jsonl", stats,
+                                    run_record={})
     assert len(list(tmp_path.glob("*.summary.json"))) == 2
 
 
@@ -169,22 +166,46 @@ def test_rewriting_the_same_shard_is_fine(tmp_path):
     """Re-running one shard in place must not trip the guard on its own summary."""
     for _ in range(2):
         results, stats = pipeline.run_pipeline(StubMapper(), ARTICLES, keyword_gate=True)
-        pipeline.save_results_jsonl(ARTICLES, results, tmp_path / "shard_a.jsonl", stats)
+        pipeline.save_results_jsonl(ARTICLES, results, tmp_path / "shard_a.jsonl", stats,
+                                    run_record={})
 
 
-@pytest.mark.parametrize("argv,expected", [
-    (["--mode", "prod", "--input-file", "x_clean.jsonl", "--output-dir", "o"], True),
-    (["--mode", "prod", "--input-file", "x_clean.jsonl", "--output-dir", "o",
-      "--no-keyword-gate"], False),
-    (["--mode", "dev", "--dataset", "gold"], False),
-    (["--mode", "dev", "--dataset", "sports"], False),
-    (["--mode", "dev", "--dataset", "djnw"], True),
-    (["--mode", "dev", "--dataset", "gold", "--keyword-gate"], True),
-])
-def test_cli_resolves_the_gate_from_the_dataset(argv, expected, monkeypatch):
-    """An explicit flag always wins; otherwise the dataset decides."""
-    captured = {}
-    monkeypatch.setattr(pipeline, "run_experiment", lambda **kw: captured.update(kw))
-    monkeypatch.setattr(sys, "argv", ["pipeline.py", *argv])
-    pipeline.main()
-    assert captured["keyword_gate"] is expected
+def test_run_experiment_takes_a_config(monkeypatch, tmp_path):
+    """One frozen object in, no loose positional args to get out of order."""
+    from macronews import invariants
+    from macronews.config.runconfig import MapperConfig
+    from macronews import pipeline as pl
+
+    monkeypatch.delenv("VLLM_BATCH_INVARIANT", raising=False)
+    invariants.apply()                       # the entrypoint does this
+
+    seen = {}
+    monkeypatch.setattr(pl, "load_articles", lambda *a, **k: (seen.update(k) or []))
+    monkeypatch.setattr(pl, "LLMMapper", lambda **k: StubMapper())
+
+    cfg = MapperConfig(dataset="gold", output_file=tmp_path / "g.jsonl")
+    pl.run_experiment(cfg)
+
+    # the corpus filter must come from the config, not be recomputed
+    assert seen["max_tokens"] == cfg.max_article_tokens == 63_536
+    assert seen["tokenizer_path"] == str(cfg.model)
+
+
+def test_gate_fires_makes_the_same_decisions_as_the_pipeline():
+    """gate_fires() and run_pipeline() are the two implementations of one rule.
+
+    They cannot share the loop: run_pipeline decides inline while it assembles the batch,
+    and gate_fires must hand back the per-article breakdown that assembling discards. So
+    the rule is written twice, and this is what keeps it one rule.
+
+    Everything that MEASURES the gate -- the corpus call-count, the recall scorecard --
+    reads gate_fires. If it drifts from the pipeline, every published cost and recall
+    figure drifts with it, silently, and the mapper keeps working the whole time.
+    """
+    from macronews.mapping.gate import gate_fires
+
+    _, stats = pipeline.run_pipeline(StubMapper(), ARTICLES, keyword_gate=True)
+    fires = gate_fires(ARTICLES)
+
+    assert sum(len(groups) for groups in fires.values()) == stats["calls_made"]
+    assert stats["calls_made"] > 0, "a gate that fires on nothing proves nothing here"

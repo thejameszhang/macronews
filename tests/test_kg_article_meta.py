@@ -1,13 +1,9 @@
 """Tests for src/kg/article_meta.py (cleaned-shard display_date join)."""
 import json
-import sys
 from datetime import datetime
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-from kg.article_meta import CLEANED, load_display_dates, parse_display_dt, shard_path  # noqa: E402
+from macronews.kg.article_meta import CLEANED, load_display_dates, parse_display_dt, shard_path
 
 
 def test_shard_path_matches_cleaned_layout():

@@ -1,14 +1,8 @@
 """Tests for src/kg/schemas.py (v2 — FINDKG-style)."""
 
-import sys
-from pathlib import Path
-
 import pytest
 
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-from kg.schemas import (  # noqa: E402
+from macronews.kg.schemas import (
     ENTITY_TYPES_TUPLE,
     RELATION_TYPES_TUPLE,
     KGArticleResult,
@@ -101,13 +95,13 @@ def test_kg_article_result_defaults_to_empty():
 
 def test_kg_entity_class_is_gone():
     """KGEntity was dropped — entities are implicit via fact endpoints."""
-    import kg.schemas as s
+    import macronews.kg.schemas as s
     assert not hasattr(s, "KGEntity"), "KGEntity should no longer be exported"
 
 
 def test_unlinked_facts_helper_is_gone():
     """No more orphan-fact diagnostic — no entities to orphan against."""
-    import kg.schemas as s
+    import macronews.kg.schemas as s
     assert not hasattr(s, "unlinked_facts"), \
         "unlinked_facts should no longer be exported"
 

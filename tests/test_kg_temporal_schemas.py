@@ -1,14 +1,9 @@
-import sys
 from datetime import datetime
-from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-from kg.temporal_schemas import (  # noqa: E402
+from macronews.kg.temporal_schemas import (
     StatementType, TemporalType, RawStatement, RawStatementList,
     TemporalValidityRange, RawTriplet, RawTripletList, TemporalEvent,
 )
@@ -54,7 +49,7 @@ def test_list_wrappers_default_empty():
     assert RawTripletList().triplets == []
 
 
-from config.paths import KG_PROMPTS_DIR  # noqa: E402
+from macronews.config.paths import KG_PROMPTS_DIR  # noqa: E402
 
 
 def test_pass_prompts_exist_and_mirror_cookbook_wording():

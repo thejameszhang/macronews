@@ -1,10 +1,4 @@
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-from kg.grading.llm import KGGraderInput, LLMKGGrader  # noqa: E402
+from macronews.kg.grading.llm import KGGraderInput, LLMKGGrader
 
 
 def _item():

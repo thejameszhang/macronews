@@ -1,14 +1,9 @@
 """Tests for src/mapping/grading/runner.py — build_tasks + write_sidecar (no model)."""
 
 import json
-import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-from mapping.grading.runner import build_tasks, write_sidecar  # noqa: E402
-from mapping.grading.schemas import GraderResult  # noqa: E402
+from macronews.mapping.grading.runner import build_tasks, write_sidecar
+from macronews.mapping.grading.schemas import GraderResult
 
 
 def _source_article(aid="A1"):
@@ -147,7 +142,7 @@ def test_write_sidecar_includes_skipped_rows(tmp_path):
         },
     ]
     out = tmp_path / "sidecar.jsonl"
-    summary = write_sidecar(out, meta, results, skipped=skipped)
+    summary = write_sidecar(out, meta, results, run_record={}, skipped=skipped)
     rows = [json.loads(l) for l in out.read_text().splitlines()]
     assert len(rows) == 3  # 1 graded + 2 skipped
     graded = [r for r in rows if r["skip_reason"] is None]
@@ -193,7 +188,7 @@ def test_write_sidecar_roundtrip(tmp_path):
         GraderResult(evidence_paragraphs=[], relevance_score=0.05, verdict="incorrect"),
     ]
     out = tmp_path / "sidecar.jsonl"
-    summary = write_sidecar(out, meta, results)
+    summary = write_sidecar(out, meta, results, run_record={})
     rows = [json.loads(l) for l in out.read_text().splitlines()]
     assert len(rows) == 2
     assert rows[0]["grader_verdict"] == "correct"
@@ -201,6 +196,7 @@ def test_write_sidecar_roundtrip(tmp_path):
     assert rows[0]["self_consistency_flag"] is False
     assert rows[1]["grader_verdict"] == "incorrect"
     assert summary == {
+        "run": {},
         "total_mappings": 2,
         "graded": 2,
         "correct": 1,
@@ -242,7 +238,7 @@ def test_write_sidecar_flags_inconsistency(tmp_path):
         evidence_paragraphs=[], relevance_score=0.30, verdict="incorrect"
     )]
     out = tmp_path / "sidecar.jsonl"
-    summary = write_sidecar(out, meta, results)
+    summary = write_sidecar(out, meta, results, run_record={})
     row = json.loads(out.read_text())
     assert row["self_consistency_flag"] is True
     assert summary["self_inconsistent"] == 1
@@ -259,7 +255,7 @@ def test_write_sidecar_correct_with_large_gap_flags(tmp_path):
         evidence_paragraphs=[0], relevance_score=0.20, verdict="correct"
     )]
     out = tmp_path / "sidecar.jsonl"
-    summary = write_sidecar(out, meta, results)
+    summary = write_sidecar(out, meta, results, run_record={})
     row = json.loads(out.read_text())
     assert row["self_consistency_flag"] is True
     assert summary["self_inconsistent"] == 1
@@ -286,7 +282,7 @@ def test_write_sidecar_by_class_and_by_group_breakdown(tmp_path):
         GraderResult(evidence_paragraphs=[3], relevance_score=0.20, verdict="correct"),
     ]
     out = tmp_path / "sidecar.jsonl"
-    summary = write_sidecar(out, meta, results)
+    summary = write_sidecar(out, meta, results, run_record={})
     assert summary["by_asset_class"] == {
         "commodity": {"total": 3, "correct": 2, "incorrect": 1,
                       "self_inconsistent": 0, "correct_pct": 66.67},

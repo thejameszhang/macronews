@@ -1,14 +1,8 @@
 """Tests for src/kg/visualize.py (cosmos.gl renderer, Python side)."""
 
-import sys
-from pathlib import Path
-
 import networkx as nx
 
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-from kg.visualize import (  # noqa: E402
+from macronews.kg.visualize import (
     filter_graph,
     serialize_graph,
     build_legend_html,
@@ -138,7 +132,7 @@ def test_serialize_carries_statement_and_temporal_type():
 
 def test_build_graph_reads_events_and_carries_temporal_fields(tmp_path):
     import json
-    from kg.build_graph import build_graph
+    from macronews.kg.build_graph import build_graph
     row = {"article_id": "art1", "date": "2014-05-27", "events": [
         {"article_id": "art1", "statement": "The Fed held rates.",
          "statement_type": "FACT", "temporal_type": "DYNAMIC",
@@ -206,7 +200,7 @@ def test_build_asset_groups_uses_anchors_when_resolution_layer_present():
     """When ASSET_GROUP anchors exist (the resolution layer), a group's bubble =
     its [ASSET_GROUP] anchor + the entities linked by RELATED_TO_ASSET_GROUP —
     NOT exact name matches. Groups without an anchor are greyed (count 0)."""
-    from kg.schemas import ASSET_GROUP_NODE_TYPE
+    from macronews.kg.schemas import ASSET_GROUP_NODE_TYPE
     g = nx.MultiDiGraph()
     g.add_node("Brent Crude", entity_type="COMMODITY", source_articles=["a1"])
     anchor = "[ASSET_GROUP] Crude Oil"
@@ -242,7 +236,7 @@ def test_legend_has_counts():
 
 
 def test_render_html_substitutes_all_placeholders():
-    from kg.visualize import render_html
+    from macronews.kg.visualize import render_html
     html = render_html({"nodes": [], "edges": []}, "<h4>Legend</h4>", "My Title", [])
     assert "{{TITLE}}" not in html
     assert "{{VENDORED_JS}}" not in html
@@ -257,7 +251,7 @@ def test_render_html_substitutes_all_placeholders():
 
 def test_vendored_js_is_cosmos_bundle():
     """_VENDORED_JS must name the cosmos bundle and the file must exist on disk."""
-    from kg.visualize import _VENDORED_JS, ASSETS_DIR
+    from macronews.kg.visualize import _VENDORED_JS, ASSETS_DIR
     assert _VENDORED_JS == ("cosmos.graph.umd.js",), (
         f"Expected (\"cosmos.graph.umd.js\",), got {_VENDORED_JS!r}"
     )
@@ -269,7 +263,7 @@ def test_vendored_js_is_cosmos_bundle():
 def test_render_html_uses_cosmos_graph():
     """render_html output must reference cosmos API and have no leftover
     {{ }} placeholders (which would indicate an un-filled template slot)."""
-    from kg.visualize import render_html, serialize_graph, build_legend_html
+    from macronews.kg.visualize import render_html, serialize_graph, build_legend_html
     g = _g()
     html = render_html(serialize_graph(g), build_legend_html(g), "T", build_asset_groups(g))
     assert "globalThis.cosmos=" in html, "cosmos bundle not inlined"
@@ -280,7 +274,7 @@ def test_render_html_uses_cosmos_graph():
 def test_render_html_escapes_script_close_in_node_names():
     """A node name containing '</script>' must not break out of the
     inlined <script> block — the '</' sequence is escaped in the JSON."""
-    from kg.visualize import render_html
+    from macronews.kg.visualize import render_html
     data = {"nodes": [{"key": "evil</script>", "label": "evil</script>",
                        "entityType": "EVENT", "color": "#fff", "size": 5,
                        "articleCount": 1}], "edges": []}
@@ -292,7 +286,7 @@ def test_render_html_escapes_script_close_in_node_names():
 def test_render_html_escapes_comment_open_in_node_names():
     """A node name containing '<!--' must not flip the HTML tokenizer into
     script-data-escaped state — the '<!--' sequence is escaped in the JSON."""
-    from kg.visualize import render_html
+    from macronews.kg.visualize import render_html
     data = {"nodes": [{"key": "comment<!--x", "label": "comment<!--x",
                        "entityType": "EVENT", "color": "#fff", "size": 5,
                        "articleCount": 1}], "edges": []}
@@ -339,7 +333,7 @@ def test_build_graph_captures_headline():
     import json
     import tempfile
     from pathlib import Path
-    from kg.build_graph import build_graph
+    from macronews.kg.build_graph import build_graph
 
     rows = [
         {
@@ -400,8 +394,8 @@ def test_build_graph_captures_headline():
 
 
 def test_asset_group_appended_to_palette_no_shift():
-    from kg.visualize import ENTITY_COLORS, _make_palette
-    from kg.schemas import ENTITY_TYPES_TUPLE, ASSET_GROUP_NODE_TYPE
+    from macronews.kg.visualize import ENTITY_COLORS, _make_palette
+    from macronews.kg.schemas import ENTITY_TYPES_TUPLE, ASSET_GROUP_NODE_TYPE
     assert ASSET_GROUP_NODE_TYPE in ENTITY_COLORS
     assert all(t in ENTITY_COLORS for t in ENTITY_TYPES_TUPLE)
     # appending ASSET_GROUP must not RECOLOR any pre-existing type (not just keep keys).
@@ -411,7 +405,7 @@ def test_asset_group_appended_to_palette_no_shift():
 
 def test_serialize_includes_asset_group_nodes_and_edges():
     import networkx as nx
-    from kg.schemas import ASSET_GROUP_NODE_TYPE
+    from macronews.kg.schemas import ASSET_GROUP_NODE_TYPE
     g = nx.MultiDiGraph()
     g.add_node("Crude Oil", entity_type="COMMODITY", source_articles=["a1"])
     g.add_node("[ASSET_GROUP] Crude Oil", entity_type=ASSET_GROUP_NODE_TYPE, source_articles=[])
@@ -448,7 +442,7 @@ def test_serialize_graph_display_date_empty_without_map():
 
 def test_build_graph_carries_id_and_invalidated_by(tmp_path):
     import json
-    from kg.build_graph import build_graph
+    from macronews.kg.build_graph import build_graph
     rows = [
         {"article_id": "a1", "date": "2014-05-01", "headline": "H1", "events": [
             {"id": "E1", "article_id": "a1", "statement": "Fed will raise.",

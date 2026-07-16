@@ -1,13 +1,8 @@
 """Tests for src/kg/build_graph.py edge-source provenance."""
 
 import json
-import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-from kg.build_graph import build_graph  # noqa: E402
+from macronews.kg.build_graph import build_graph
 
 
 def test_build_graph_carries_statement_and_value(tmp_path):

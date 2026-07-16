@@ -1,9 +1,5 @@
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
-from kg.type_signatures import type_violation, RELATION_SIGNATURES  # noqa: E402
-from kg.schemas import RELATION_TYPES_TUPLE, ENTITY_TYPES_TUPLE  # noqa: E402
+from macronews.kg.type_signatures import type_violation, RELATION_SIGNATURES
+from macronews.kg.schemas import RELATION_TYPES_TUPLE, ENTITY_TYPES_TUPLE
 
 
 def test_every_relation_has_a_signature():

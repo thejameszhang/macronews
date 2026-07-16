@@ -1,12 +1,6 @@
 """Tests for src/tabular/detector.py — column-alignment classifier."""
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-from tabular.detector import classify_pre_block  # noqa: E402
+from macronews.tabular.detector import classify_pre_block
 
 
 # ---------------------------------------------------------------------------

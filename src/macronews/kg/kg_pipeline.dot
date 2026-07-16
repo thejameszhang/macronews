@@ -1,0 +1,92 @@
+// A Temporal Knowledge Graph of Macroeconomic News — pipeline figure.
+// Render:  dot -Tpng src/macronews/kg/kg_pipeline.dot -o src/macronews/kg/kg_pipeline.png
+digraph kg_pipeline {
+    rankdir=TB;
+    bgcolor="white";
+    labelloc="t";
+    nodesep=0.45; ranksep=0.55;
+    fontname="Helvetica"; fontsize=17;
+    label=<<B>A Temporal Knowledge Graph of Macroeconomic News</B><BR/>
+        <FONT POINT-SIZE="11.5"><I>Mapping global macro news &#8212; central banks, inflation,
+        commodities, foreign exchange &#8212;<BR/>onto ~50 asset groups as
+        time-stamped, contradiction-resolved facts</I></FONT><BR/> >;
+    node [fontname="Helvetica", fontsize=11, shape=box, style="rounded,filled",
+          fillcolor="white", color="#3a3a3a", margin="0.20,0.12"];
+    edge [fontname="Helvetica", fontsize=9, color="#666666", arrowsize=0.8];
+
+    // ---- Inputs ----
+    articles [shape=cylinder, fillcolor="#ececec", color="#888888",
+              label=<<B>Financial News Articles</B>>];
+    tags     [shape=note, fillcolor="#ececec", color="#888888",
+              label=<<B>Asset-Group Relevance Tags</B><BR/>
+              <FONT POINT-SIZE="9">from the LLM mapper (kept if relevance &gt; 0.5)</FONT>>];
+
+    // ---- Pipeline ----
+    ingest [label=<<B>1. Ingest &amp; Clean</B><BR/>
+            <FONT POINT-SIZE="9">drop boilerplate &amp; off-topic articles</FONT>>];
+
+    extract [fillcolor="#eaf1fb", color="#3b6fb0",
+            label=<<B>2. Fact Extraction</B>  <FONT POINT-SIZE="9.5">&#8212; Temporal Agent (LLM)</FONT><BR/>
+            <FONT POINT-SIZE="9">extract time-stamped (subject, relation, object) facts about<BR/>
+            macro actors &#8212; central banks, governments, commodities, FX &#8212;<BR/>
+            each labeled fact / opinion / prediction and one-time / ongoing</FONT>>];
+
+    facts [shape=note, fillcolor="#f5f5f5", color="#888888",
+            label=<<B>Extracted Facts</B>  <FONT POINT-SIZE="9">(with timestamps)</FONT>>];
+
+    typegate [fillcolor="#eaf1fb", color="#3b6fb0",
+            label=<<B>3a. Type-Signature Gate</B>  <FONT POINT-SIZE="9.5">(deterministic)</FONT><BR/>
+            <FONT POINT-SIZE="9">drop triplets whose entity types don't fit the relation;<BR/>
+            keep an audit log of what was dropped</FONT>>];
+
+    resolve [fillcolor="#eaf1fb", color="#3b6fb0",
+            label=<<B>3. Entity Resolution</B>  <FONT POINT-SIZE="9.5">(Embeddings)</FONT><BR/>
+            <FONT POINT-SIZE="9">merge name variants of one entity<BR/>
+            ("Fed" = "Federal Reserve") by clustering text embeddings</FONT><BR/>
+            <FONT POINT-SIZE="9">+ drop self-referential edges (a node acting on itself / its own price)</FONT>>];
+
+    contradiction [fillcolor="#eaf1fb", color="#3b6fb0",
+            label=<<B>5. Fact &amp; Prediction Revisions</B>  <FONT POINT-SIZE="9.5">&#8212; Invalidation Agent (LLM)</FONT><BR/>
+            <FONT POINT-SIZE="9">among facts tied to an asset group, find ones that conflict<BR/>
+            over time (same entity + similar sentence, later date); an LLM<BR/>
+            decides which supersedes which &#8594; keep the current belief.<BR/>
+            Captures <I>revised expectations</I> ("rates will rise" &#8594; "rates held")</FONT>>];
+
+    categorize [fillcolor="#eaf1fb", color="#3b6fb0",
+            label=<<B>4. Map Entities to Asset Groups</B>  <FONT POINT-SIZE="9.5">(name + mapper match)</FONT><BR/>
+            <FONT POINT-SIZE="9">assign each entity to one of ~50 macro asset groups<BR/>
+            (crude oil, U.S. interest rates, gold, EUR/USD, &#8230;)<BR/>
+            so facts are browsable per asset</FONT>>];
+
+    build [label=<<B>6. Assemble Knowledge Graph</B><BR/>
+            <FONT POINT-SIZE="9">combine facts + asset links into nodes &amp; edges</FONT>>];
+
+    timeseries [fillcolor="#fdf3d7", color="#c79214", penwidth=1.8,
+            label=<<B>Downstream Time-Series Analysis</B>  <FONT POINT-SIZE="9.5">&#183;  Proposed</FONT><BR/>
+            <FONT POINT-SIZE="9">turn each asset's fact stream into dated macro signals;<BR/>
+            relate news flow to asset returns &amp; volatility<BR/>
+            (e.g., news-based excess-volatility analysis)</FONT>>];
+
+    viz [label=<<B>7. Interactive Visualization</B><BR/>
+            <FONT POINT-SIZE="9">explorable graph + a per-asset fact-timeline browser</FONT>>];
+
+    output [shape=note, fillcolor="#f5f5f5", color="#888888",
+            label=<<B>Interactive Web Page</B>>];
+
+    grader [fillcolor="#eaf1fb", color="#3b6fb0",
+            label=<<B>Quality Evaluation</B>  <FONT POINT-SIZE="9.5">(LLM)  &#183;  Separate</FONT><BR/>
+            <FONT POINT-SIZE="9">an independent LLM audits each extracted fact<BR/>
+            for correctness &amp; macroeconomic relevance</FONT>>];
+
+    // ---- Edges ----
+    articles -> ingest;
+    tags -> ingest [style=dashed, label="gate + prime"];
+    ingest -> extract -> facts;
+    facts -> typegate -> resolve -> categorize -> contradiction;
+    contradiction -> build -> viz -> output;
+    contradiction -> timeseries;
+    facts -> grader [style=dashed, label="audit"];
+
+    { rank=same; articles; tags; }
+    { rank=same; build; timeseries; }
+}

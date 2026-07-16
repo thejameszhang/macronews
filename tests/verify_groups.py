@@ -13,13 +13,9 @@ Exit code 0 if all checks pass, 1 on first batch of failures.
 """
 
 import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-from utils.config import load_asset_universe  # noqa: E402
-from utils.groups import load_group_universe, member_index  # noqa: E402
+from macronews.utils.config import load_asset_universe
+from macronews.utils.groups import load_group_universe, member_index
 
 # Asset classes the mapper knows about. Keep in sync with
 # ASSET_CLASS_PROMPT_FILES in src/mapping/llm.py.

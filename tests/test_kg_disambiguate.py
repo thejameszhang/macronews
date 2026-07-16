@@ -1,15 +1,10 @@
 """Tests for src/kg/disambiguate.py."""
 
 import json
-import sys
-from pathlib import Path
 
 import numpy as np
 
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-from kg.disambiguate import (  # noqa: E402
+from macronews.kg.disambiguate import (
     collect_entity_counts,
     cluster_within_type,
     select_canonical,
@@ -124,7 +119,7 @@ def test_cluster_complete_linkage_no_transitive_merge():
 # --- Rule A normalization pre-merge ---
 
 def test_norm_key_rule_a():
-    from kg.disambiguate import _norm_key
+    from macronews.kg.disambiguate import _norm_key
     assert _norm_key("Natural-gas") == _norm_key("Natural Gas") == "natural gas"
     assert _norm_key("Foreign-Exchange") == _norm_key("foreign exchange") == "foreign exchange"
     # hyphen becomes a SPACE, not nothing: 'e-mini' -> 'e mini', not 'emini'
@@ -197,7 +192,7 @@ def _patch_st_model(monkeypatch, encode_fn):
             pass
         def encode(self, names, **kwargs):
             return encode_fn(names)
-    monkeypatch.setattr("kg.disambiguate.SentenceTransformer", MockModel)
+    monkeypatch.setattr("macronews.kg.disambiguate.SentenceTransformer", MockModel)
 
 
 def test_disambiguate_roundtrip_no_merges(tmp_path, monkeypatch):
@@ -477,7 +472,7 @@ def test_events_format_does_not_merge_acronym_with_expansion(tmp_path):
 
 
 def test_default_rejected_path_helper():
-    from kg.disambiguate import _default_self_ref_rejected
+    from macronews.kg.disambiguate import _default_self_ref_rejected
     from pathlib import Path
     assert _default_self_ref_rejected(Path("/x/2014-05.relv3.disambig.jsonl")) == \
         Path("/x/2014-05.relv3.disambig.self_ref_rejected.jsonl")
@@ -485,7 +480,7 @@ def test_default_rejected_path_helper():
 
 def test_disambiguate_self_reference_filter(tmp_path, monkeypatch):
     import json, numpy as np
-    from kg.disambiguate import disambiguate
+    from macronews.kg.disambiguate import disambiguate
     rows = [{
         "article_id": "a1", "date": "20140501", "headline": "h",
         "events": [{

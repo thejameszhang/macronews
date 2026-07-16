@@ -1,14 +1,8 @@
 """Tests for src/tabular/schemas.py."""
 
-import sys
-from pathlib import Path
-
 import pytest
 
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-from tabular.schemas import TabularResult  # noqa: E402
+from macronews.tabular.schemas import TabularResult
 
 
 def test_default_construction():

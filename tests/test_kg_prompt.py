@@ -1,13 +1,7 @@
 """Tests for the KG prompt taxonomy files (entity_types.txt / relation_types.txt)."""
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-from config.paths import KG_PROMPTS_DIR  # noqa: E402
-from kg.schemas import ENTITY_TYPES_TUPLE, RELATION_TYPES_TUPLE  # noqa: E402
+from macronews.config.paths import KG_PROMPTS_DIR
+from macronews.kg.schemas import ENTITY_TYPES_TUPLE, RELATION_TYPES_TUPLE
 
 
 def test_entity_types_file_lists_every_code():

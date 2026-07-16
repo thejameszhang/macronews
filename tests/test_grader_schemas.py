@@ -1,15 +1,10 @@
 """Tests for src/mapping/grading/schemas.py."""
 
 import json
-import sys
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-from mapping.grading.schemas import GraderResult, is_self_inconsistent  # noqa: E402
+from macronews.mapping.grading.schemas import GraderResult, is_self_inconsistent
 
 
 def test_default_construction():

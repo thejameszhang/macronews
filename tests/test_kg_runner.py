@@ -1,10 +1,7 @@
-import json, sys
+import json
 from datetime import datetime
-from pathlib import Path
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-from kg.runner import write_sidecar, _clean_triplets, gate_zero_mappings  # noqa: E402
-from kg.temporal_schemas import TemporalEvent, RawTriplet  # noqa: E402
+from macronews.kg.runner import write_sidecar, _clean_triplets, gate_zero_mappings
+from macronews.kg.temporal_schemas import TemporalEvent, RawTriplet
 
 
 def test_gate_zero_mappings_drops_no_mapping_articles():

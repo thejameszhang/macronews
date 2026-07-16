@@ -1,12 +1,6 @@
 """short_name field: present on every member + globally unique."""
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-import pytest  # noqa: E402
-from utils.groups import load_group_universe  # noqa: E402
+import pytest
+from macronews.utils.groups import load_group_universe
 
 
 def test_every_member_has_nonempty_short_name():
@@ -49,7 +43,7 @@ def test_loader_raises_on_duplicate_short_name(tmp_path):
 
 
 def test_build_group_lookup_maps_short_and_group_names():
-    from utils.groups import build_group_lookup
+    from macronews.utils.groups import build_group_lookup
     lut = build_group_lookup()
     assert lut["S&P 500"] == "us_equities"          # member short_name
     assert lut["US Equities"] == "us_equities"       # group name
@@ -58,7 +52,7 @@ def test_build_group_lookup_maps_short_and_group_names():
 
 
 def test_build_group_lookup_raises_on_conflicting_collision(tmp_path):
-    from utils.groups import build_group_lookup, load_group_universe
+    from macronews.utils.groups import build_group_lookup, load_group_universe
     bad = tmp_path / "bad.yaml"
     # member short_name "Gold" collides with a DIFFERENT group's name "Gold"
     bad.write_text(
@@ -72,7 +66,7 @@ def test_build_group_lookup_raises_on_conflicting_collision(tmp_path):
 
 
 def test_constituents_with_short_names():
-    from utils.groups import constituents_with_short_names
+    from macronews.utils.groups import constituents_with_short_names
     pairs = constituents_with_short_names("crude_oil")
     assert pairs == [("WTI Crude Oil", "WTI Crude Oil"),
                      ("Brent Crude Oil", "Brent Crude Oil")]
@@ -81,6 +75,6 @@ def test_constituents_with_short_names():
 
 
 def test_constituents_unknown_group_raises():
-    from utils.groups import constituents_with_short_names
+    from macronews.utils.groups import constituents_with_short_names
     with pytest.raises(KeyError):
         constituents_with_short_names("not_a_group")

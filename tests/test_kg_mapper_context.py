@@ -1,12 +1,6 @@
 """render_mapper_context: flagged-groups form + 0-flag form, deterministic order."""
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src"))
-
-import pytest  # noqa: E402
-from kg.llm import render_mapper_context  # noqa: E402
+import pytest
+from macronews.kg.llm import render_mapper_context
 
 
 def test_mapper_context_lists_flagged_groups_with_short_names():

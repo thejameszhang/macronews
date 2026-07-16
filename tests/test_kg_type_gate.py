@@ -3,9 +3,8 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from kg.type_gate import gate_article  # noqa: E402
+from macronews.kg.type_gate import gate_article
 
 
 def _article():
@@ -73,7 +72,7 @@ def test_cli_round_trip(tmp_path):
     rej = tmp_path / "rej.jsonl"
     repo = Path(__file__).resolve().parents[1]
     result = subprocess.run(
-        [sys.executable, "-m", "kg.type_gate", str(src),
+        [sys.executable, "-m", "macronews.kg.type_gate", str(src),
          "--clean", str(clean), "--rejected", str(rej), "--summary"],
         cwd=repo, env={**os.environ, "PYTHONPATH": "src"}, check=True,
         capture_output=True, text=True)

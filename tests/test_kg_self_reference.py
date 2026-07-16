@@ -1,12 +1,9 @@
-import sys
-from pathlib import Path
 import numpy as np
 import pytest
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from kg.self_reference import is_self_loop, is_same_asset, SELF_REF_COSINE_THRESHOLD, filter_event  # noqa: E402
-from kg.type_signatures import DIRECTIONAL_RELATIONS  # noqa: E402
-from kg.schemas import RELATION_TYPES_TUPLE  # noqa: E402
+from macronews.kg.self_reference import is_self_loop, is_same_asset, SELF_REF_COSINE_THRESHOLD, filter_event
+from macronews.kg.type_signatures import DIRECTIONAL_RELATIONS
+from macronews.kg.schemas import RELATION_TYPES_TUPLE
 
 
 def test_directional_relations_value_and_subset():

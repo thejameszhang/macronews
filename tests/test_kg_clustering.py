@@ -1,5 +1,5 @@
 import numpy as np
-from kg.clustering import cluster_by_cosine
+from macronews.kg.clustering import cluster_by_cosine
 
 
 def _unit(rows):
