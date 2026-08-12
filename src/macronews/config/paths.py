@@ -45,18 +45,4 @@ MAPPER_MODEL = _MODELS / "gemma-4-26b-a4b-it"
 GRADER_MODEL = _MODELS / "qwq-32b"
 
 # The djnw corpus.
-DJNW_ARTICLES_DIR = Path("/nfs/roberts/project/pi_btk22/rc2573/output/cleaned/v2/articles")
-
-# THE PROJECT IS POST-1996. The corpus on disk reaches back to 1979-06, but those years are
-# out of scope, and the tabular-body detector never ran on them -- its sidecar covers exactly
-# 1996-01..2025-08. Counting them burns 206 of the 1,260 shards on totals nobody quotes.
-#
-# This lived in the documentation's generator, which is gitignored: the definition of what
-# "the corpus" means was in a file that ships nowhere.
-FIRST_YEAR = 1996
-
-
-def corpus_shards() -> list[Path]:
-    """Every in-scope DJNW shard, sorted. The one definition of "the corpus"."""
-    return sorted(p for p in DJNW_ARTICLES_DIR.glob("*_clean.jsonl")
-                  if int(p.name[:4]) >= FIRST_YEAR)
+from djnw.corpus import DJNW_ARTICLES_DIR, FIRST_YEAR, corpus_shards

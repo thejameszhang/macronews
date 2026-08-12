@@ -12,7 +12,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-import macronews.compat as compat  # noqa: F401  — transformers / vLLM compat shim
+from djnw import runtime as compat  # noqa: F401 — compat shim on import
 
 from macronews.config.paths import ROOT
 from macronews.mapping.grading.schemas import GraderResult

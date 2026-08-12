@@ -6,7 +6,7 @@ REPO = Path(__file__).resolve().parents[1]
 import pytest
 from pydantic import ValidationError
 
-from macronews import invariants
+from djnw import runtime as invariants
 from macronews.config.paths import MAPPER_MODEL
 from macronews.config.runconfig import (
     GraderConfig, MapperConfig, model_max_context,

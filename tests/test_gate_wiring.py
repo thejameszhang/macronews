@@ -172,7 +172,7 @@ def test_rewriting_the_same_shard_is_fine(tmp_path):
 
 def test_run_experiment_takes_a_config(monkeypatch, tmp_path):
     """One frozen object in, no loose positional args to get out of order."""
-    from macronews import invariants
+    from djnw import runtime as invariants
     from macronews.config.runconfig import MapperConfig
     from macronews import pipeline as pl
 

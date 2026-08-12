@@ -14,6 +14,7 @@ REPO = Path(__file__).resolve().parents[1]
 import pytest
 
 import macronews.loaders as loaders
+import djnw.read
 
 SHARD = Path(
     "/nfs/roberts/project/pi_btk22/rc2573/output/cleaned/v2/articles/2014-05c_clean.jsonl"
@@ -39,14 +40,14 @@ def _load(n=200, **kw):
 def test_a_missing_sidecar_DIRECTORY_raises(monkeypatch):
     """The package move turns the sidecar path into src/results/tabular. That must
     crash, not silently drop the filter."""
-    monkeypatch.setattr(loaders, "_TABULAR_SIDECAR_DIR", Path("src/results/tabular"))
+    monkeypatch.setattr(djnw.read, "_TABULAR_SIDECAR_DIR", Path("src/results/tabular"))
     with pytest.raises(FileNotFoundError, match="WRONG PATH"):
         _load()
 
 
 def test_a_missing_MONTH_still_works(tmp_path, monkeypatch):
     """Partial coverage is legitimate: 200 of 555 corpus months have no sidecar."""
-    monkeypatch.setattr(loaders, "_TABULAR_SIDECAR_DIR", tmp_path)   # exists, but empty
+    monkeypatch.setattr(djnw.read, "_TABULAR_SIDECAR_DIR", tmp_path)   # exists, but empty
     articles = _load()
     assert articles, "an empty-but-present sidecar dir must still load articles"
     assert not any("tabular_body" in (a.get("filtered_reasons") or []) for a in articles), \

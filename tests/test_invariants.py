@@ -11,7 +11,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 
 import pytest
-from macronews import invariants
+from djnw import runtime as invariants
 
 
 def test_apply_sets_batch_invariance(monkeypatch):
@@ -91,7 +91,6 @@ def test_the_facts_that_cost_money_are_still_written_down():
     must_survive = {
         "mapping/llm.py":          ["prefix-cache", "evidence_paragraphs"],
         "mapping/grading/llm.py":  ["TRITON_ATTN", "sm_90"],
-        "invariants.py":           ["TP=2", "FA2", "29%"],
         "config/runconfig.py":     ["2000", "3000"],
         "mapping/gate.py":         ["ASSET_GROUP"],
     }

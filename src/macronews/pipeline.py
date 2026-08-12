@@ -13,7 +13,7 @@ from pathlib import Path
 
 from collections import defaultdict
 
-from macronews import invariants
+from djnw import runtime as invariants
 from macronews.config.paths import PROMPTS_DIR
 from macronews.config.runconfig import MapperConfig
 from macronews.loaders import load_articles

@@ -28,7 +28,7 @@ from typing import ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from macronews import invariants
+from djnw import runtime as invariants
 from macronews.config.paths import (
     ARTICLES_SAMPLE_DIR, DATA_DIR, DJNW_ARTICLES_DIR, GRADER_MODEL, MAPPER_MODEL,
 )

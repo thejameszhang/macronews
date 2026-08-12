@@ -3,7 +3,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 
-from macronews import invariants
+from djnw import runtime as invariants
 from macronews.config.runconfig import GraderConfig
 from macronews.mapping.grading import runner
 

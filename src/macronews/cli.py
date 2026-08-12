@@ -24,7 +24,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from macronews import invariants
+from djnw import runtime as invariants
 
 
 def _passthrough(module: str, argv: list[str]) -> None:

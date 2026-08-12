@@ -10,7 +10,7 @@ import json
 import logging
 from pathlib import Path
 
-from macronews import invariants
+from djnw import runtime as invariants
 from macronews.config.runconfig import GraderConfig
 from macronews.mapping.grading.llm import GraderInput, LLMGrader
 from macronews.mapping.grading.schemas import GraderResult, is_self_inconsistent

@@ -14,7 +14,7 @@ No FP8 (weights or KV cache) -- both were tested and both hurt mapping quality.
 import json
 import logging
 
-import macronews.compat as compat  # noqa: F401 — transformers 5.x / vLLM shim
+from djnw import runtime as compat  # noqa: F401 — compat shim on import
 
 from macronews.config.paths import PROMPTS_DIR
 from macronews.mapping.base import BaseMapper
