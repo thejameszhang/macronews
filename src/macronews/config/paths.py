@@ -37,20 +37,12 @@ GROUP_UNIVERSE_YAML = CONFIG_DIR / "group_universe.yaml"
 # Prompts
 PROMPTS_DIR = ROOT / "src" / "macronews" / "mapping" / "prompts"
 
-# KG (Phase 1) prompts. Kept separate from PROMPTS_DIR (which is mapper-scoped)
-# so iteration on KG taxonomies doesn't risk touching mapper prompt files.
-KG_PROMPTS_DIR = ROOT / "src" / "macronews" / "kg" / "prompts"
-
 # The weights production actually runs. Both live on scratch, which auto-purges by
 # atime -- if a loader dies at AutoTokenizer complaining about sentencepiece, the
 # directory is empty, not broken: re-download with slurm/download_llm.sh.
 _MODELS = Path("/nfs/roberts/scratch/pi_btk22/jyz32")
 MAPPER_MODEL = _MODELS / "gemma-4-26b-a4b-it"
 GRADER_MODEL = _MODELS / "qwq-32b"
-
-# NOT an LLM: the sentence-transformers embedder used by kg disambiguate. Named here
-# so it stops being a module-local `DEFAULT_MODEL` that reads like the others.
-EMBED_MODEL = "BAAI/bge-large-en-v1.5"
 
 # The djnw corpus.
 DJNW_ARTICLES_DIR = Path("/nfs/roberts/project/pi_btk22/rc2573/output/cleaned/v2/articles")

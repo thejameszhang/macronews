@@ -79,4 +79,4 @@ cp .env.example .env
 
 ## Knowledge Graph
 
-A parallel pipeline ([`src/macronews/kg/`](src/macronews/kg/)) extracts a **macroeconomic knowledge graph** from the same news corpus: an LLM turns each article into structured *(subject → relationship → object)* facts over a fixed vocabulary of macro entity and relationship types, name variants of an entity are merged across articles, and the facts are aggregated into a directed graph with per-edge provenance (which articles asserted each relationship). [`src/macronews/kg/visualize.py`](src/macronews/kg/visualize.py) renders the result as a single self-contained, interactive HTML page — GPU force-directed layout, search, type/edge filtering, click-to-focus a node, and source-article inspection. See [`slurm/run_kg.sh`](slurm/run_kg.sh) to run the extraction.
+The macroeconomic knowledge graph pipeline that used to live here now lives in a separate `macro-kg` repo.
