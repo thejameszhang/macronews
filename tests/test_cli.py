@@ -1,4 +1,4 @@
-"""One entrypoint, 11 stages, and the invariants applied before vLLM loads."""
+"""One entrypoint, 3 stages, and the invariants applied before vLLM loads."""
 import importlib
 import os
 import sys
@@ -9,14 +9,10 @@ from macronews import cli
 
 
 def test_every_stage_is_reachable():
-    assert sorted(cli.KG_STAGES) == [
-        "build", "disambiguate", "extract", "grade", "invalidate",
-        "link", "type-gate", "visualize",
-    ]
     assert sorted(cli._MAPPER_STAGES) == ["grade", "run"]
 
 
-@pytest.mark.parametrize("mod", [*cli.KG_STAGES.values(), "macronews.tabular.runner"])
+@pytest.mark.parametrize("mod", ["macronews.tabular.runner"])
 def test_every_stage_module_resolves(mod):
     """The stage dict's keys are checked above; this checks the VALUES resolve to
     real modules. A typo'd module path ships clean and dies at runpy after the GPU
@@ -25,9 +21,9 @@ def test_every_stage_module_resolves(mod):
 
 
 def test_every_stage_name_appears_in_the_help_text():
-    """cli.__doc__ IS `macronews --help`'s output -- a stage added to KG_STAGES or
+    """cli.__doc__ IS `macronews --help`'s output -- a stage added to
     _MAPPER_STAGES but forgotten here is silently missing from --help forever."""
-    for name in {*cli.KG_STAGES, *cli._MAPPER_STAGES, "tabular"}:
+    for name in {*cli._MAPPER_STAGES, "tabular"}:
         assert name in cli.__doc__, f"{name!r} missing from cli.__doc__ (= --help)"
 
 
@@ -39,16 +35,6 @@ def test_the_invariants_are_applied_before_a_stage_runs(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["macronews", "mapper", "run"])
     cli.main()
     assert seen["env"] == "1", "a stage ran before the invariants were applied"
-
-
-def test_help_reaches_the_STAGE_not_the_lane(monkeypatch):
-    """argparse subparsers would swallow --help at the lane. The stage must get it."""
-    got = {}
-    monkeypatch.setattr(cli, "_passthrough",
-                        lambda mod, argv: got.update(mod=mod, argv=argv))
-    monkeypatch.setattr(sys, "argv", ["macronews", "kg", "extract", "--help"])
-    cli.main()
-    assert got == {"mod": "macronews.kg.runner", "argv": ["--help"]}
 
 
 def test_mapper_run_builds_a_validated_config(monkeypatch, tmp_path):

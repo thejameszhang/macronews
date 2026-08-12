@@ -4,18 +4,8 @@
     macronews mapper grade      QwQ verifies the mapper's tags
     macronews tabular           precompute the tabular-body sidecar
 
-    macronews kg extract        articles -> statements + triplets
-    macronews kg type-gate      drop type-invalid triplets
-    macronews kg disambiguate   entity resolution
-    macronews kg invalidate     supersession judge (QwQ)
-    macronews kg link           entities -> asset groups
-    macronews kg build          assemble the graph
-    macronews kg visualize      interactive HTML
-    macronews kg grade          QwQ verifies the facts
-
 The mapper lane resolves its parameters through config.runconfig, so a run cannot
-start with a value nobody meant. The KG stages keep their own argparse and are
-dispatched straight through, flags and --help untouched.
+start with a value nobody meant.
 
 Dispatch is by hand, not argparse subparsers: a subparser per lane consumes --help
 before the stage sees it, and since the mapper's own main() is gone, this is the only
@@ -35,17 +25,6 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from macronews import invariants
-
-KG_STAGES = {
-    "extract": "macronews.kg.runner",
-    "type-gate": "macronews.kg.type_gate",
-    "disambiguate": "macronews.kg.disambiguate",
-    "invalidate": "macronews.kg.invalidate_llm",
-    "link": "macronews.kg.link_groups",
-    "build": "macronews.kg.build_graph",
-    "visualize": "macronews.kg.visualize",
-    "grade": "macronews.kg.grading.runner",
-}
 
 
 def _passthrough(module: str, argv: list[str]) -> None:
@@ -155,10 +134,10 @@ def main() -> None:
     if lane == "tabular":
         return _passthrough("macronews.tabular.runner", rest)
 
-    if lane not in ("mapper", "kg"):
+    if lane != "mapper":
         sys.exit(f"unknown lane {lane!r}. Try: macronews --help")
 
-    stages = _MAPPER_STAGES if lane == "mapper" else KG_STAGES
+    stages = _MAPPER_STAGES
     if not rest:
         sys.exit(f"macronews {lane} <stage>: {', '.join(sorted(stages))}")
 
@@ -166,10 +145,7 @@ def main() -> None:
     if stage not in stages:
         sys.exit(f"unknown {lane} stage {stage!r}: {', '.join(sorted(stages))}")
 
-    if lane == "mapper":
-        getattr(sys.modules[__name__], _MAPPER_STAGES[stage])(rest)   # resolved now
-    else:
-        _passthrough(KG_STAGES[stage], rest)
+    getattr(sys.modules[__name__], _MAPPER_STAGES[stage])(rest)   # resolved now
 
 
 if __name__ == "__main__":

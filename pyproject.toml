@@ -42,10 +42,6 @@ macronews = [
     "mapping/prompts/*.txt",
     "mapping/prompts/asset_class/*.txt",
     "mapping/grading/prompts/*.txt",
-    "kg/prompts/*.txt",
-    "kg/grading/prompts/*.txt",
-    "kg/templates/*.template",
-    "kg/assets/*",
 ]
 
 [tool.pytest.ini_options]
