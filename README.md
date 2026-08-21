@@ -46,8 +46,21 @@ Outputs are JSONL (one record per article) with sidecar `.summary.json` aggregat
 
 Requires Python 3.12, [uv](https://docs.astral.sh/uv/), and a Hopper-or-newer GPU (B200 or H200).
 
+The mapper reads articles through [`djnw`](https://github.com/thejameszhang/djnw), a private
+companion library (the DJNW corpus reader) that is **not on PyPI**. Clone it and point uv at
+your clone first, or `uv sync` will fail to resolve it:
+
 ```bash
-# 1. Install project dependencies
+git clone git@github.com:thejameszhang/djnw.git ../djnw   # e.g. a sibling of this repo
+```
+```toml
+# then add to pyproject.toml so uv can resolve it:
+[tool.uv.sources]
+djnw = { path = "../djnw", editable = true }
+```
+
+```bash
+# 1. Install project dependencies (with djnw resolvable, per above)
 uv sync
 
 # 2. Install vLLM nightly + transformers 5.x for Gemma 4 support.
@@ -80,3 +93,18 @@ cp .env.example .env
 ## Knowledge Graph
 
 The macroeconomic knowledge graph pipeline that used to live here now lives in a separate `macro-kg` repo.
+
+## Commodity News Factor
+
+The embeddings, ridge fit, and return-prediction factor that consume these mappings now live in a
+separate `commodity-news-factor` repo, which reads this repo's published mappings and grades as data
+over shared storage. This repo's scope is producing the mappings and grades; the downstream
+asset-pricing analysis (the "downstream return regression" above) lives there.
+
+## Running on another cluster
+
+Paths here are Bouchet-specific. The one hardcoded machine path in code is `_MODELS` in
+[`src/macronews/config/paths.py`](src/macronews/config/paths.py) (`/nfs/roberts/scratch/pi_btk22/jyz32`
+on Bouchet), where model weights are read from — repoint it for a new cluster. The article corpus is
+passed at runtime (`INPUT_FILE` / `--input-file`), so pointing the mapper at a different dataset needs
+no code change. Model weights are fetched with `slurm/download_llm.sh` into that scratch path.
