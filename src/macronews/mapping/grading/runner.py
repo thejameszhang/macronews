@@ -227,9 +227,11 @@ def write_sidecar(
 def grade(cfg: GraderConfig) -> None:
     """Verify one mapper output with QwQ.
 
-    max_article_tokens comes from the config, which reserves 3000 tokens for this
-    stage (the mapper reserves 2000) because the grader's generation budget is 1024 to
-    the mapper's 512. That difference decides which articles load.
+    max_article_tokens comes from the config, which reserves 8000 tokens for this
+    stage -- enough for the 1024-token generation budget plus the rendered-prompt
+    overhead (system prompt, per-paragraph [i] markers, claim block, chat template)
+    that the raw-text length filter does not count. That reserve decides which
+    articles load, so changing it changes which tags can be graded.
     """
     if cfg.dataset == "gold":
         articles = load_articles(dataset="gold", sample_dir=cfg.sample_dir)
@@ -240,6 +242,14 @@ def grade(cfg: GraderConfig) -> None:
             input_file=cfg.input_file,
             max_tokens=cfg.max_article_tokens,
             tokenizer_path=str(cfg.model),
+            # Explicit 1.0 rather than inheriting the loader's 2.0 default:
+            # chars_per_token is a LOWER bound on the char/token ratio and the
+            # loader keeps anything shorter than chars_per_token*max_tokens chars
+            # WITHOUT tokenizing. DJNW tables/tickers run ~1.6, so 2.0 lets
+            # token-dense articles over the cap through un-measured. A token is
+            # always >= 1 char, so 1.0 is always valid. Same fix as the mapper's
+            # run_experiment.
+            chars_per_token=1.0,
         )
     source_by_id = {a["id"]: a for a in articles}
     logger.info("Loaded %d source articles", len(source_by_id))

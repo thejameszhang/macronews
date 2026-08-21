@@ -43,6 +43,27 @@ def load_group_universe(yaml_path: Path = GROUP_UNIVERSE_YAML) -> dict:
     return data
 
 
+# The asset classes the MAPPER does not cover. group_universe.yaml keeps all 50
+# groups -- it is the shared universe definition, and the KG and grader read the
+# full set. Only the mapper's own view is narrowed.
+# Why sectors: docs/superpowers/specs/2026-07-16-sector-exclusion-design.md
+MAPPER_EXCLUDED_ASSET_CLASSES = frozenset({"US equity sector"})
+
+
+def load_mapper_group_universe(yaml_path: Path = GROUP_UNIVERSE_YAML) -> dict:
+    """The mapper's view of the universe: every group except the asset classes in
+    MAPPER_EXCLUDED_ASSET_CLASSES. 39 of the 50 groups.
+
+    The mapper, its gate, and its asset-class arity check read THIS. Everything
+    else -- the KG lane, the grader -- reads load_group_universe() and sees all 50.
+    """
+    return {
+        gk: gv
+        for gk, gv in load_group_universe(yaml_path).items()
+        if gv["asset_class"] not in MAPPER_EXCLUDED_ASSET_CLASSES
+    }
+
+
 def build_group_lookup(universe: dict | None = None) -> dict[str, str]:
     """Map every member `short_name` AND every group `name` to its group_key.
 

@@ -44,4 +44,10 @@ CPU_ACCOUNT="${CPU_ACCOUNT:-pi_btk22}"
 # EXCLUDE_NODES= (empty) to allow it back if Yale fixes it.
 EXCLUDE_NODES="${EXCLUDE_NODES-a1117u29n01}"
 EXCLUDE_FLAG=""
-[ -n "$EXCLUDE_NODES" ] && EXCLUDE_FLAG="--exclude=${EXCLUDE_NODES}"
+# `if`, not `[ -n ... ] && ...`: this is the last command in the file, so with
+# EXCLUDE_NODES empty the && form returns 1, `source` returns 1, and every caller
+# running `set -e` dies here -- silently breaking the empty-value escape hatch the
+# comment above documents.
+if [ -n "$EXCLUDE_NODES" ]; then
+    EXCLUDE_FLAG="--exclude=${EXCLUDE_NODES}"
+fi

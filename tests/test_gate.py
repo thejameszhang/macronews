@@ -74,7 +74,11 @@ def test_real_universe_compiles_for_every_group():
 
 
 def test_real_universe_gates_a_realistic_article():
-    """An oil article reaches Crude Oil and Energy; it must not reach Cocoa."""
+    """An oil article reaches Crude Oil; it must not reach Cocoa.
+
+    It must also not reach Energy Sector -- the mapper's gate is the 39-group
+    universe, so no sector group is compiled into it at all.
+    """
     gate = compile_gate()
     text = gate_text(
         "Oil Prices Climb on Supply Concerns",
@@ -82,6 +86,6 @@ def test_real_universe_gates_a_realistic_article():
     )
     fired = {gk for gk, p in gate.items() if p.search(text)}
     assert "crude_oil" in fired
-    assert "energy_sector" in fired
+    assert "energy_sector" not in gate, "sector groups are not in the mapper's gate"
     assert "cocoa" not in fired
-    assert len(fired) < 50, "gate must skip at least one group or it saves nothing"
+    assert len(fired) < 39, "gate must skip at least one group or it saves nothing"

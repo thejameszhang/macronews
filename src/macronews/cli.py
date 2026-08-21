@@ -89,6 +89,11 @@ def _mapper_run(argv: list[str]) -> None:
                       default=None,
                       help="Call the model on every pair. Default for gold/sports/"
                            "wikigaming -- they are instruments, not production.")
+    p.add_argument("--report-stats", dest="report_stats", action="store_true",
+                   default=None,
+                   help="Have vLLM report prefix-cache hit rate and prefill/decode "
+                        "throughput. Off in production; used by the compute-cost "
+                        "benchmark. Changes reporting only, never computation.")
 
     cfg = _build(MapperConfig, p, argv)
     _echo(cfg)

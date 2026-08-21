@@ -413,5 +413,6 @@ def load_as_production(shard: Path) -> list[dict]:
         input_file=cfg.input_file,
         max_tokens=cfg.max_article_tokens,
         tokenizer_path=str(cfg.model),
-        chars_per_token=2.0,
+        chars_per_token=1.0,  # match run_experiment: 2.0 lets token-dense DJNW
+                              # articles over the cap escape the fast-path filter
     )

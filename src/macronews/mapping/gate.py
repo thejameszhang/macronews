@@ -15,7 +15,7 @@ it. Broaden a keyword for gate recall and you narrow KG link precision.
 
 import re
 
-from macronews.utils.groups import load_group_universe
+from macronews.utils.groups import load_mapper_group_universe
 
 
 def _boundary(body: str) -> re.Pattern:
@@ -28,9 +28,15 @@ def _boundary(body: str) -> re.Pattern:
 
 
 def compile_gate(universe: dict | None = None) -> dict[str, re.Pattern]:
-    """group_key -> one compiled alternation over that group's keywords."""
+    """group_key -> one compiled alternation over that group's keywords.
+
+    Defaults to the MAPPER's universe (39 groups), not the full 50. The gate is a
+    mapper-only concept -- nothing else gates -- and gate_fires() below calls this
+    with no argument. A default of 50 here would make gate_fires disagree with the
+    39-group pipeline, and everything that MEASURES the gate reads gate_fires.
+    """
     if universe is None:
-        universe = load_group_universe()
+        universe = load_mapper_group_universe()
     gate: dict[str, re.Pattern] = {}
     for gk, gv in universe.items():
         keywords = gv.get("keywords")
@@ -47,7 +53,7 @@ def gate_text(headline: str, paragraphs: list[str]) -> str:
 
     Deliberately NOT the full prompt the model sees. That prompt ends in
     `[ASSET_GROUP] {group name} | ...`, so matching against it would make every
-    group's own name a keyword hit, fire the gate on all 50 groups for every
+    group's own name a keyword hit, fire the gate on all 39 groups for every
     article, and turn the gate into a no-op at full cost.
 
     Also NOT the raw `text` field of the cleaned shard. The loader's paragraphs are

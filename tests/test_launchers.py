@@ -4,7 +4,9 @@ priority_gpu / prio_btk22 BILL the lab's paid allocation. The same billed defaul
 shipped twice because the block was copy-pasted; _common.sh is the single definition
 and this is the guard.
 """
+import os
 import re
+import subprocess
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -79,3 +81,30 @@ def test_every_array_launcher_honors_dry_run():
     for name in ("run_pipeline_array.sh", "run_grader_array.sh", "run_tabular.sh"):
         text = (SLURM / name).read_text()
         assert 'DRY_RUN:-0' in text, f"{name} ignores DRY_RUN -- it submits for real"
+
+
+def test_common_sources_cleanly_with_empty_exclude_nodes():
+    """_common.sh used to end with `[ -n "$EXCLUDE_NODES" ] && EXCLUDE_FLAG=...`. That
+    `&&` short-circuits when EXCLUDE_NODES is empty, so the line evaluates to 1 -- and
+    since it was the LAST line of the sourced file, `source _common.sh` itself returned
+    1. Every launcher runs `set -euo pipefail` and sources this file, so
+    `EXCLUDE_NODES=` (empty) -- the escape hatch the comment above it documents -- killed
+    every launcher at the source line. Fixed by switching to an `if` block, which returns
+    0. This actually sources the file and checks the exit code, unlike the rest of this
+    module's static-text greps, which is why the bug shipped undetected."""
+    env_empty = dict(os.environ, EXCLUDE_NODES="")
+    result = subprocess.run(
+        ["bash", "-c", "set -euo pipefail; source slurm/_common.sh; echo OK"],
+        cwd=REPO, env=env_empty, capture_output=True, text=True,
+    )
+    assert result.returncode == 0, f"source failed with EXCLUDE_NODES= empty:\n{result.stderr}"
+    assert "OK" in result.stdout, f"execution never reached past source:\n{result.stdout}"
+
+    env_default = dict(os.environ)
+    env_default.pop("EXCLUDE_NODES", None)
+    result = subprocess.run(
+        ["bash", "-c", "set -euo pipefail; source slurm/_common.sh; echo OK"],
+        cwd=REPO, env=env_default, capture_output=True, text=True,
+    )
+    assert result.returncode == 0, f"source failed with EXCLUDE_NODES unset:\n{result.stderr}"
+    assert "OK" in result.stdout, f"execution never reached past source:\n{result.stdout}"

@@ -66,3 +66,10 @@ autoresearch/
 # branch (worktree at ../macronews-docs). Ignored here so a `git add -A` on main
 # can never sweep in LaTeX build artifacts or the doc sources themselves.
 documentation/
+
+# Local-only analysis / reporting code (never shipped with the package)
+# /analysis/ -- tree deleted 2026-08-07; spanning moved to src/macroembeddings/report/
+/paper/
+/papers/
+/.superpowers/
+/.pytest_cache/

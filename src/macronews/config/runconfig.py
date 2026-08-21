@@ -47,14 +47,12 @@ def gate_default(dataset: str) -> bool:
     """
     return dataset == "djnw"
 
-# The prompt headroom DIFFERS between the two stages, and it is not a rounding choice
-# -- it decides which articles are dropped as too long.
-#
-#   mapper  2000   generation budget 512 tokens
-#   grader  3000   generation budget 1024 tokens, so ~500 more tokens of
-#                  system-prompt + output overhead
-#
-# Copied exactly from pipeline.run_experiment and mapping/grading/runner.py.
+# The prompt headroom is per-stage, and it is not a rounding choice -- it decides which
+# articles are dropped as too long. Both stages now reserve 8000, but they arrived there
+# independently and against different limits (mapper max_model_len 65,536 / 512 output;
+# grader 40,960 / 1024 output), so keep them separate: each has to cover its OWN
+# rendered-prompt overhead, which is dominated by the per-paragraph [i] markers the
+# raw-text length filter cannot see. See each subclass for its measured evidence.
 # Do NOT collapse these into one shared constant.
 _MIN_ARTICLE_TOKENS = 1024
 
@@ -139,13 +137,24 @@ class _LLMStage(BaseModel):
 class MapperConfig(_LLMStage):
     """`macronews mapper run` -- articles to asset groups."""
 
-    _prompt_headroom_tokens: ClassVar[int] = 2000   # generation budget 512
+    # Must exceed the gap between a kept article's RAW-TEXT tokens (what the loader
+    # filter counts) and its RENDERED-PROMPT tokens (system prompt + a per-paragraph
+    # [i] marker on every paragraph + chat template). That marker overhead scales with
+    # PARAGRAPH COUNT, not raw length, so a raw-token cap cannot bound it: a 1,509-para
+    # article measured 58,445 raw but rendered to 66,594 (+8,149) and crashed its shard.
+    # 8000 covers the observed corpus worst case. The principled fix is a render-length
+    # guard that skips over-long prompts instead of relying on this reserve.
+    _prompt_headroom_tokens: ClassVar[int] = 8000
 
     model: Path = MAPPER_MODEL
     # A throughput choice, NOT the model's limit (Gemma 4 supports 262,144).
     # max_model_len sizes the KV cache: 65,536 gives ~25x concurrency; the model's max
     # would give ~6x and a far slower run.
     max_model_len: int = 65_536
+    # Off in production. The compute-cost benchmark turns it on so vLLM reports
+    # prefix-cache hit rate and prefill/decode throughput; it changes reporting
+    # only, never computation.
+    report_stats: bool = False
 
     # NOT required: --input-file IS a djnw shard, so the dataset is inferable.
     # Making it required would break the prod launcher, which passes only
@@ -213,9 +222,15 @@ class MapperConfig(_LLMStage):
 class GraderConfig(_LLMStage):
     """`macronews mapper grade` -- QwQ verifies the mapper's tags."""
 
-    # 3000, NOT the mapper's 2000: the grader generates 1024 tokens to the mapper's
-    # 512, so its system-prompt + output overhead is ~500 larger.
-    _prompt_headroom_tokens: ClassVar[int] = 3000
+    # Same reserve as the mapper, and for the same reason: it must cover the gap
+    # between an article's RAW-TEXT tokens (what the loader filter counts) and its
+    # RENDERED prompt -- grader system prompt + a per-paragraph [i] marker on every
+    # paragraph + the claim block + chat template -- PLUS the 1024-token generation
+    # budget, since prompt+output must fit max_model_len. Marker overhead scales with
+    # PARAGRAPH COUNT, not raw length: a 936-paragraph article measured 37,239 raw but
+    # rendered to 42,759 (+5,520) and crashed its shard at 3000. Measured on 1997-12,
+    # 8000 leaves ~15k of slack and drops exactly one pathological article.
+    _prompt_headroom_tokens: ClassVar[int] = 8000
 
     model: Path = GRADER_MODEL
     max_model_len: int = 40_960   # QwQ's own maximum

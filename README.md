@@ -21,7 +21,7 @@ Most text-as-data finance research targets equities, where company names anchor 
   asset-group-attributed text  →  downstream return regression
 ```
 
-Asset universe: ~50 groups spanning global equities, FX, rates, commodities, and US equity sectors. Defined in [`src/macronews/config/group_universe.yaml`](src/macronews/config/group_universe.yaml).
+Asset universe: 39 groups spanning global equities, FX, rates, commodities, and volatility. Defined in [`src/macronews/config/group_universe.yaml`](src/macronews/config/group_universe.yaml), which describes all 50 — the 11 US equity sector groups are read by the knowledge-graph lane and the grader but excluded from the mapper (see `utils/groups.MAPPER_EXCLUDED_ASSET_CLASSES`).
 
 ## Running
 

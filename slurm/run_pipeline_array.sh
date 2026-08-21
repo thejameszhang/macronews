@@ -127,7 +127,10 @@ if [ "${DRY_RUN:-0}" = "1" ]; then
     exit 0
 fi
 
-export INPUT_DIR OUT_DIR MODEL_PATH MAX_MODEL_LEN
+# REPORT_STATS (optional): forwarded to the worker, which turns it into
+# --report-stats. Default empty = off, matching production.
+REPORT_STATS="${REPORT_STATS:-}"
+export INPUT_DIR OUT_DIR MODEL_PATH MAX_MODEL_LEN REPORT_STATS
 export MANIFEST_FILE="$PERSIST_MANIFEST"
 
 jobid=$(sbatch --parsable \
@@ -142,7 +145,7 @@ jobid=$(sbatch --parsable \
     --job-name=pipeline_arr \
     --output="$LOG_DIR/pipeline_arr_%A_%a.out" \
     --error="$LOG_DIR/pipeline_arr_%A_%a.err" \
-    --export=ALL,INPUT_DIR,OUT_DIR,MODEL_PATH,MAX_MODEL_LEN,MANIFEST_FILE \
+    --export=ALL,INPUT_DIR,OUT_DIR,MODEL_PATH,MAX_MODEL_LEN,MANIFEST_FILE,REPORT_STATS \
     ${EXCLUDE_FLAG} \
     --array=0-$((N - 1))%${MAX_CONCURRENT} \
     slurm/_run_pipeline_task.sh)

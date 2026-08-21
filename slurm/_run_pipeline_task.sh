@@ -52,8 +52,13 @@ export VLLM_BATCH_INVARIANT=1
 # Venv python by ABSOLUTE PATH (not plain 'python'): module load re-prepends its
 # bin/, so 'python' can resolve to the system interpreter. Same pattern as
 # _run_grader_task.sh / run_kg.sh.
+# REPORT_STATS=1 adds --report-stats (vLLM prefix-cache hit rate + prefill/decode
+# throughput in the log). Reporting only, never computation. ${VAR:+word} is safe
+# under `set -u` when VAR is unset. Per-shard load/map/corpus seconds are recorded
+# in the summary regardless of this flag.
 $PY -m macronews.cli mapper run \
     --model "$MODEL_PATH" \
     --max-model-len "$MAX_MODEL_LEN" \
     --input-file "$INPUT_FILE" \
-    --output-dir "$OUT_DIR"
+    --output-dir "$OUT_DIR" \
+    ${REPORT_STATS:+--report-stats}

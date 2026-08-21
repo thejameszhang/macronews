@@ -2,7 +2,7 @@
 
 test_gate.py pins the keyword predicate. These tests pin the thing that
 actually saves the money: that run_pipeline asks the model about FEWER
-(article, group) pairs when the gate is on, and about all 50 when it is off.
+(article, group) pairs when the gate is on, and about all 39 when it is off.
 Without them, deleting the `continue` in the fan-out turns the gate into a
 no-op and the whole suite still passes.
 """
@@ -26,6 +26,10 @@ class StubMapper:
     def map_single_asset(self, texts, max_tokens=512):
         self.seen.extend(texts)
         return [SingleAssetResult(relevance_score=0.0, relevant=False) for _ in texts]
+
+    def _init_llm(self):
+        """No-op: the stub never loads a model. Present so run_experiment's
+        explicit weight-load call works without a production-side fallback."""
 
 
 # An oil article: it mentions no cocoa, no sugar, no yen.
@@ -108,7 +112,7 @@ def test_gate_defaults_on_only_for_production_data(dataset, gated):
 def test_negative_control_still_asks_the_model():
     """The controls exist to show the MODEL rejects non-financial text.
 
-    A sports article trips no keywords, so a gated run would skip all 50 calls
+    A sports article trips no keywords, so a gated run would skip all 39 calls
     and emit an empty result — the control would 'pass' without the model ever
     running, and a model that tagged everything would pass it too. So the
     control must reach the model on every group.

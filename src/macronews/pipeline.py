@@ -24,7 +24,7 @@ from macronews.mapping.llm import (
 )
 from macronews.mapping.gate import compile_gate, gate_text
 from macronews.mapping.schemas import SingleAssetResult
-from macronews.utils.groups import load_group_universe, group_keys
+from macronews.utils.groups import load_mapper_group_universe, group_keys
 
 logger = logging.getLogger(__name__)
 
@@ -37,8 +37,9 @@ ARTICLE_PROMPT = (PROMPTS_DIR / "mapper.txt").read_text()
 # Group universe loaded at import time. Each group has a name,
 # asset_class, and a list of members (each {name, ticker_symbol}). The
 # mapper iterates groups (not individual assets) and the output fans out
-# to per-member entries.
-_GROUP_UNIVERSE = load_group_universe()
+# to per-member entries. This is the MAPPER's view -- 39 of the 50 groups;
+# see utils/groups.MAPPER_EXCLUDED_ASSET_CLASSES.
+_GROUP_UNIVERSE = load_mapper_group_universe()
 ALL_GROUPS = group_keys(_GROUP_UNIVERSE)
 
 
@@ -352,6 +353,9 @@ def run_experiment(cfg: MapperConfig) -> None:
     follows from max_model_len, and having it in two places is how a serving knob
     silently changed which articles were mapped.
     """
+    import time
+    t_start = time.monotonic()
+
     articles = load_articles(
         cfg.dataset,
         cfg.sample_dir,
@@ -361,18 +365,44 @@ def run_experiment(cfg: MapperConfig) -> None:
         random_seed=cfg.random_seed,
         max_tokens=cfg.max_article_tokens,
         tokenizer_path=str(cfg.model),
-        chars_per_token=2.0,
+        # 1.0, NOT 2.0: chars_per_token is a LOWER bound on the tokenizer's
+        # char/token ratio, and the loader keeps anything under
+        # chars_per_token*max_tokens chars WITHOUT tokenizing. DJNW tables/tickers
+        # run ~1.6 chars/token, so 2.0 let token-dense articles over the cap slip
+        # through un-measured and overflow max_model_len at render time (crashing
+        # the shard). A token is always >= 1 char, so 1.0 is always valid.
+        chars_per_token=1.0,
         input_file=cfg.input_file,
     )
 
+    t_corpus = time.monotonic()
     mapper = LLMMapper(
         model_path=str(cfg.model),
         max_model_len=cfg.max_model_len,
         tensor_parallel_size=invariants.TENSOR_PARALLEL_SIZE,   # invariant, not a flag
+        report_stats=cfg.report_stats,
     )
+    # Load weights here so load_s and map_s are separable. NOTE: this also removes
+    # a path that used to be free -- lazy init inside map_single_asset meant a shard
+    # with zero tasks (all articles pre-filtered, or the gate matching no groups)
+    # never loaded the model. Now every shard pays it, regardless of report_stats.
+    # Accepted: a fully-empty DJNW shard does not occur in practice.
+    mapper._init_llm()
+    t_loaded = time.monotonic()
 
     article_results, gate_stats = run_pipeline(
         mapper, articles, keyword_gate=cfg.keyword_gate
     )
+    t_done = time.monotonic()
+
+    # Timing buckets exclude save_results_jsonl (post-run output write), which runs
+    # after t_done while GPU is still allocated. Output write is <<1% of shard duration
+    # vs. 39-90s startup, so corpus_s + load_s + map_s does not equal full billed time.
+    timing = {
+        "corpus_s": round(t_corpus - t_start, 2),   # article loading; GPU idle but allocated
+        "load_s": round(t_loaded - t_corpus, 2),    # mapper construction, weights, graph capture
+        "map_s": round(t_done - t_loaded, 2),       # the mapping itself
+        "n_articles": len(articles),
+    }
     save_results_jsonl(articles, article_results, cfg.output_path, gate_stats,
-                       run_record=cfg.record())
+                       run_record={**cfg.record(), "timing": timing})

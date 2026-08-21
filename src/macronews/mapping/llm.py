@@ -3,10 +3,13 @@
 The output field order IS the chain of thought -- evidence_paragraphs, then
 relevance_score, then relevant. Reordering the schema reorders the reasoning.
 
-The prompt puts the article FIRST and the [ASSET_GROUP] block last, so all 50 groups
+The prompt puts the article FIRST and the [ASSET_GROUP] block last, so all 39 groups
 of an article share a prefix and vLLM's prefix-cache computes the article once. That
-layout is why the keyword gate saves 88% of calls but only 70% of GPU time: skipping
-a call does not skip the shared prefill.
+layout is why skipping a call does not skip the shared prefill -- measured on the
+50-group universe, the gate saved 88% of calls but only 70% of GPU time. Neither has
+been re-measured at 39 groups: the call saving rises to ~92% (the excluded sectors
+were by far the worst-filtering class on average), and the GPU-time saving is
+unknown.
 
 No FP8 (weights or KV cache) -- both were tested and both hurt mapping quality.
 """
@@ -36,7 +39,6 @@ ASSET_CLASS_PROMPT_FILES = {
     "currency":         "currency.txt",
     "rates":            "rates.txt",
     "commodity":        "commodities.txt",
-    "US equity sector": "equity_sectors.txt",
     "equity index":     "equity_indices.txt",
     "volatility":       "volatility_indices.txt",
 }
@@ -56,11 +58,13 @@ class LLMMapper(BaseMapper):
         system_prompt: str = DEFAULT_SYSTEM_PROMPT,
         max_model_len: int = 512,
         tensor_parallel_size: int = 1,
+        report_stats: bool = False,
     ):
         self.model_path = model_path
         self.system_prompt_template = system_prompt
         self.max_model_len = max_model_len
         self.tensor_parallel_size = tensor_parallel_size
+        self.report_stats = report_stats
         self._llm = None
         self._asset_list_str = self._get_formatted_asset_list()
         self._asset_class_rules = self._load_asset_class_rules()
@@ -70,7 +74,7 @@ class LLMMapper(BaseMapper):
         positives) sections on the ``_CLASS_SECTION_SPLIT`` marker. Verify
         every class in the group universe has a registered prompt file and
         that each file has exactly one split marker."""
-        from macronews.utils.groups import load_group_universe
+        from macronews.utils.groups import load_mapper_group_universe
 
         asset_class_dir = PROMPTS_DIR / "asset_class"
         rules: dict[str, tuple[str, str]] = {}
@@ -90,7 +94,9 @@ class LLMMapper(BaseMapper):
             disqualifiers, positives = (p.strip("\n") for p in parts)
             rules[ac] = (disqualifiers, positives)
 
-        group_classes = {gv["asset_class"] for gv in load_group_universe().values()}
+        group_classes = {
+            gv["asset_class"] for gv in load_mapper_group_universe().values()
+        }
         missing_in_prompts = group_classes - rules.keys()
         unused_prompts = rules.keys() - group_classes
         if missing_in_prompts:
@@ -239,6 +245,13 @@ class LLMMapper(BaseMapper):
                 max_model_len=self.max_model_len,
                 tensor_parallel_size=self.tensor_parallel_size,
                 gpu_memory_utilization=0.95,
+                # vLLM's offline LLM class defaults this to True, which is why no
+                # production run has ever reported a prefix-cache hit rate.
+                disable_log_stats=not self.report_stats,
+                # Pinned, not inherited. The whole cost model assumes it is on;
+                # it already defaults True in vLLM 0.19.0 and is confirmed on in
+                # the 2014 run's resolved engine config.
+                enable_prefix_caching=True,
                 # Gemma 4 is multimodal but we only send text. Skipping vision
                 # warmup avoids the video position-embedding 4D x 3D matmul that
                 # vLLM 0.19.0's batch-invariant op can't handle on B200.

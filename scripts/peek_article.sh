@@ -119,19 +119,22 @@ for field in ["company", "isin"]:
 PYEOF
 
 # Show the article body split by the same paragraph splitter the pipeline
-# feeds the LLM (src.loaders.split_into_paragraphs), with [i] indices.
+# feeds the LLM (macronews.loaders.split_into_paragraphs), with [i] indices.
+# The splitter lives in the package, which needs Python 3.10+ (the `int | None`
+# syntax) and the venv -- system python3 on Bouchet is 3.9 and cannot import it.
 echo "" >&2
 echo "=== Paragraphs (as fed to LLM) ===" >&2
 
-python3 - "$CACHE_FILE" "$REPO_ROOT" <<'PYEOF'
+module load Python/3.12.3-GCCcore-13.3.0 2>/dev/null || true
+"$REPO_ROOT/.venv/bin/python" - "$CACHE_FILE" "$REPO_ROOT" <<'PYEOF'
 import json, sys
 from pathlib import Path
 
 cache_file = sys.argv[1]
 repo_root = Path(sys.argv[2])
-sys.path.insert(0, str(repo_root))
+sys.path.insert(0, str(repo_root / "src"))
 
-from src.loaders import split_into_paragraphs
+from macronews.loaders import split_into_paragraphs
 
 with open(cache_file) as f:
     article = json.load(f)

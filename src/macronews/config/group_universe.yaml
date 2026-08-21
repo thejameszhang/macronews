@@ -8,7 +8,10 @@
 #   <group_key>:
 #     name: <human-readable group name, used in prompts>
 #     asset_class: one of {commodity, US equity sector, equity index,
-#                          volatility, currency, rates}
+#                          volatility, currency, rates}. The MAPPER covers all
+#                          of these except "US equity sector" -- it reads
+#                          utils/groups.load_mapper_group_universe() (39 groups).
+#                          The KG and the grader read all 50.
 #     keywords: <bare-minimum list for the pre-filter gate — the shortest set
 #                that catches the articles the LLM tags for this group. A more
 #                specific term that always co-occurs with a general one is left
@@ -21,9 +24,13 @@
 #                so a loose keyword there is a spurious edge. Broadening for gate
 #                recall costs KG link precision. Edit with both in view.
 #                US equity sectors have no clean lexical anchor, so their lists
-#                are the weak ones: they carry 66% of every correct tag the gate
-#                loses (12.2% of sector tags, vs 0.2% for commodities). Exempting
-#                them would cost 389 extra B200-hours. Revisit; do not assume.>
+#                are the weak ones. THE MAPPER NO LONGER COVERS THEM: GICS
+#                membership is a fact about a firm's revenue split, taken from
+#                annual reports, and it is not in the article text. The 11
+#                sector groups stay in this file -- it is the shared universe
+#                definition, and kg/link_groups.py and the grader read all 50.
+#                The mapper reads utils/groups.load_mapper_group_universe() (39).
+#                Rationale: docs/superpowers/specs/2026-07-16-sector-exclusion-design.md>
 #     members:
 #       - name: <asset name matching `name:` in asset_universe.yaml>
 #         ticker_symbol: <stable trading ticker; primary stable identifier>
@@ -39,9 +46,11 @@ crude_oil:
     - name: WTI Crude Oil
       ticker_symbol: 'CL'
       short_name: WTI Crude Oil
+      keywords: [wti, west texas, light sweet, nymex, cushing]
     - name: Brent Crude Oil
       ticker_symbol: 'BRN'
       short_name: Brent Crude Oil
+      keywords: [brent, north sea, ice brent, dated brent]
 
 refined_petroleum:
   name: Refined Petroleum
@@ -51,12 +60,15 @@ refined_petroleum:
     - name: Heating Oil
       ticker_symbol: 'HO'
       short_name: Heating Oil
+      keywords: [heating oil, distillate, distillates, ulsd, diesel]
     - name: RBOB Gasoline (replaces NY Harbor Unleaded Gasoline, pre-2006)
       ticker_symbol: 'RB'
       short_name: RBOB Gasoline
+      keywords: [gasoline, rbob, petrol, unleaded]
     - name: ICE Gas Oil
       ticker_symbol: 'G'
       short_name: ICE Gas Oil
+      keywords: [gas oil, gasoil]
 
 natural_gas:
   name: Natural Gas
@@ -77,9 +89,11 @@ precious_metals:
     - name: Gold
       ticker_symbol: 'GC'
       short_name: Gold
+      keywords: [gold, bullion]
     - name: Silver
       ticker_symbol: 'SI'
       short_name: Silver
+      keywords: [silver]
 
 dr_copper:
   name: Dr. Copper
@@ -89,9 +103,11 @@ dr_copper:
     - name: LME Copper
       ticker_symbol: 'CAD'
       short_name: LME Copper
+      keywords: [lme, london metal exchange, london metals exchange]
     - name: Copper (High Grade)
       ticker_symbol: 'HG'
       short_name: COMEX Copper
+      keywords: [comex]
 
 industrial_metals:
   name: Industrial Metals
@@ -101,15 +117,19 @@ industrial_metals:
     - name: LME Aluminium
       ticker_symbol: 'AHD'
       short_name: Aluminium
+      keywords: [aluminium, aluminum, alumina, bauxite]
     - name: LME Lead
       ticker_symbol: 'PBD'
       short_name: Lead
+      keywords: [lead]
     - name: LME Nickel
       ticker_symbol: 'NID'
       short_name: Nickel
+      keywords: [nickel]
     - name: LME Zinc
       ticker_symbol: 'ZSD'
       short_name: Zinc
+      keywords: [zinc]
 
 ### AGRICULTURE ###
 
@@ -121,9 +141,11 @@ wheat:
     - name: Chicago Wheat
       ticker_symbol: 'ZW'
       short_name: Chicago Wheat
+      keywords: [chicago wheat, cbot, chicago board of trade, soft red winter, srw]
     - name: Kansas Wheat
       ticker_symbol: 'KE'
       short_name: Kansas Wheat
+      keywords: [kansas wheat, kansas city wheat, kansas city, kcbt, hard red winter, hrw]
 
 corn:
   name: Corn
@@ -151,12 +173,15 @@ livestock:
     - name: Lean Hogs
       ticker_symbol: 'HE'
       short_name: Lean Hogs
+      keywords: [hogs, hog, pork, swine]
     - name: Live Cattle
       ticker_symbol: 'LE'
       short_name: Live Cattle
+      keywords: [live cattle, cattle, beef]
     - name: Feeder Cattle
       ticker_symbol: 'GF'
       short_name: Feeder Cattle
+      keywords: [feeder cattle, feeder]
 
 cocoa:
   name: Cocoa
@@ -492,9 +517,11 @@ antipodean_currencies:
     - name: Australian Dollar
       ticker_symbol: '6A'
       short_name: Australian Dollar
+      keywords: [aussie, australia, australian, AUD, RBA]
     - name: New Zealand Dollar
       ticker_symbol: '6N'
       short_name: New Zealand Dollar
+      keywords: [kiwi, new zealand, NZD, RBNZ]
 
 scandinavian_currencies:
   name: Scandinavian Currencies
@@ -505,9 +532,11 @@ scandinavian_currencies:
     - name: Norwegian Krone
       ticker_symbol: 'NOK'
       short_name: Norwegian Krone
+      keywords: [krone, kroner, NOK, Norges Bank, Norway, Norwegian]
     - name: Swedish Krona
       ticker_symbol: 'SEK'
       short_name: Swedish Krona
+      keywords: [krona, kronor, SEK, Riksbank, Sweden, Swedish]
 
 ### RATES ###
 

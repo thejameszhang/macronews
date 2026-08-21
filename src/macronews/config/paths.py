@@ -19,10 +19,6 @@ PRIMERS_DIR = DATA_DIR / "primers" / "web"
 MAPPINGS_DIR = DATA_DIR / "mappings"
 ARTICLES_SAMPLE_DIR = DATA_DIR / "articles_sample"
 
-# Datasets (returns, etc.)
-DATASETS_DIR = ROOT / "datasets"
-RETURNS_CSV = DATASETS_DIR / "sync_daily.csv"
-
 # Results (not committed)
 RESULTS_DIR = ROOT / "results"
 

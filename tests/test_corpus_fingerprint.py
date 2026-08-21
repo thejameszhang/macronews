@@ -31,11 +31,16 @@ TABULAR_DIR = REPO / "results" / "tabular"
 N_ARTICLES = 2000
 
 # (surviving_articles, llm_calls, sha256-16 over every prompt) for the first 2000
-# articles of 2014-05c with the gate on. MEASURED on main @ 7f57b9e.
+# articles of 2014-05c with the gate on. MEASURED on sector-exclusion.
+# The mapper universe is 39 groups (no US equity sectors), so llm_calls and the
+# digest moved from (1295, 8183, "834ceae48524ccf6") on main @ 7f57b9e. `surviving`
+# is unchanged BY CONSTRUCTION -- the article filter runs upstream of the group
+# fan-out. test_the_mapper_universe_removes_exactly_the_sector_prompts proves the
+# delta is exactly the sector pairs and nothing else.
 # Of those 2000 the tabular-body filter drops 127 -- the number that goes to 0 if the
 # sidecar path breaks. (Over the FULL shard it drops 1,386; this test reads the first
 # 2000 articles so it stays a CPU-seconds guard.)
-_PINNED = (1295, 8183, "834ceae48524ccf6")
+_PINNED = (1295, 4367, "d31b180db75a0a54")
 
 
 class StubMapper:
@@ -96,3 +101,37 @@ def test_corpus_fingerprint_is_stable(articles):
     surviving = sum(1 for a in articles if not a.get("filtered_reasons"))
     actual = (surviving, len(m.seen), digest.hexdigest()[:16])
     assert actual == _PINNED, f"corpus changed: {actual} != {_PINNED}"
+
+
+def test_the_mapper_universe_removes_exactly_the_sector_prompts(articles, monkeypatch):
+    """The 39-group batch is the 50-group batch minus the sector pairs, and nothing else.
+
+    This is what makes re-pinning _PINNED honest. The pin proves a number moved;
+    this proves WHICH prompts left -- same articles, same order, byte-identical
+    prompts for every surviving pair.
+    """
+    from macronews.utils.groups import (
+        group_keys, load_group_universe, load_mapper_group_universe,
+    )
+
+    def batch_for(universe):
+        monkeypatch.setattr(pipeline, "_GROUP_UNIVERSE", universe)
+        monkeypatch.setattr(pipeline, "ALL_GROUPS", group_keys(universe))
+        m = StubMapper()
+        pipeline.run_pipeline(m, articles, keyword_gate=gate_default("djnw"))
+        return list(m.seen)
+
+    seen_50 = batch_for(load_group_universe())
+    seen_39 = batch_for(load_mapper_group_universe())
+
+    # pipeline._group_label renders "<name> | <asset_class> — constituents: <members>"
+    # into the group-last [ASSET_GROUP] block, so the class is present verbatim.
+    mark = " | US equity sector — constituents: "
+    assert any(mark in t for t in seen_50), (
+        "no sector prompts in the 50-group batch -- this test would prove nothing"
+    )
+    assert not any(mark in t for t in seen_39), "a sector prompt reached the model"
+    assert seen_39 == [t for t in seen_50 if mark not in t], (
+        "the filter changed more than the sector pairs: an article, an order, or a "
+        "prompt body moved"
+    )
